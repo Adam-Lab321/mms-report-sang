@@ -1,0 +1,2109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MMS · Проверка рапортов</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23000'/><path d='M18 33 L28 43 L48 21' fill='none' stroke='%23d4af37' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Oswald:wght@300;400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+<style>
+:root {
+    --gold: #d4af37;
+    --gold-dark: #b8960f;
+    --gold-light: #e8c84a;
+    --bg: #0c0b09;
+    --bg-card: #141210;
+    --bg-panel: #1a1712;
+    --text: #e8e0d4;
+    --text-dim: #9a9078;
+    --text-muted: #5c5648;
+    --border: rgba(212,175,55,0.2);
+    --blue-stamp: #1a4a8a;
+    --danger: #c0392b;
+    --ok: #2e7d32;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Oswald', sans-serif;
+}
+body {
+    min-height: 100vh;
+    background:
+        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(212,175,55,0.08), transparent 55%),
+        #0c0b09;
+}
+/* ===== LAYOUT ===== */
+.app {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 20px 18px 48px;
+}
+.topbar {
+    text-align: center;
+    padding: 18px 12px 22px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 22px;
+    position: relative;
+}
+.topbar::after {
+    content: '';
+    position: absolute;
+    left: 18%; right: 18%; bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.topbar .brand {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(14px, 2.5vw, 18px);
+    letter-spacing: 4px;
+    color: var(--gold);
+    font-weight: 900;
+}
+.topbar .sub {
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    text-transform: uppercase;
+}
+.brand-logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+.brand-logo svg {
+    filter: drop-shadow(0 0 12px rgba(212,175,55,0.35));
+}
+.topbar h1 {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(18px, 3.5vw, 26px);
+    color: var(--gold-light);
+    letter-spacing: 3px;
+    margin-top: 10px;
+}
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+}
+@media (max-width: 960px) {
+    .grid { grid-template-columns: 1fr; }
+}
+.panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 16px 18px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+}
+.panel h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    letter-spacing: 2.5px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(212,175,55,0.12);
+}
+label.field-label {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 1.6px;
+    color: rgba(212,175,55,0.75);
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}
+input[type="text"],
+input[type="number"],
+input[type="date"],
+textarea,
+select {
+    width: 100%;
+    background: #0a0908;
+    border: 1px solid rgba(212,175,55,0.22);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+}
+input:focus, textarea:focus, select:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(212,175,55,0.12);
+}
+textarea { min-height: 88px; resize: vertical; line-height: 1.45; }
+.row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.row-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.full { margin-bottom: 10px; }
+
+/* buttons */
+.btn {
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all .2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.btn-gold {
+    background: linear-gradient(135deg, #e0c04a, #b8960f 55%, #9a7c0c);
+    color: #111;
+    border-color: rgba(0,0,0,0.2);
+    box-shadow: 0 4px 16px rgba(212,175,55,0.25);
+}
+.btn-gold:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(212,175,55,0.4); }
+.btn-ghost {
+    background: transparent;
+    border-color: rgba(212,175,55,0.35);
+    color: var(--gold);
+}
+.btn-ghost:hover { background: rgba(212,175,55,0.1); }
+.btn-ok {
+    background: linear-gradient(135deg, #3d8b40, #2e7d32);
+    color: #fff;
+    border: none;
+}
+.btn-deny {
+    background: linear-gradient(135deg, #c0392b, #922b21);
+    color: #fff;
+    border: none;
+}
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+.btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+.file-hide { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+/* decision cards */
+.decision-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.decision-card {
+    border: 1px solid rgba(212,175,55,0.2);
+    border-radius: 12px;
+    padding: 14px 12px;
+    text-align: center;
+    cursor: pointer;
+    background: #0a0908;
+    transition: all .2s;
+}
+.decision-card:hover { border-color: var(--gold); }
+.decision-card.active-ok {
+    border-color: #4caf50;
+    background: rgba(46,125,50,0.15);
+    box-shadow: 0 0 24px rgba(46,125,50,0.15);
+}
+.decision-card.active-deny {
+    border-color: #e74c3c;
+    background: rgba(192,57,43,0.15);
+    box-shadow: 0 0 24px rgba(192,57,43,0.12);
+}
+.decision-card .icon { font-size: 28px; margin-bottom: 6px; }
+.decision-card .title {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    color: var(--gold);
+}
+
+/* templates */
+.templates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0 12px;
+}
+.tpl {
+    font-size: 11px;
+    letter-spacing: 0.4px;
+    padding: 5px 11px;
+    border-radius: 20px;
+    border: 1px solid rgba(212,175,55,0.28);
+    background: rgba(212,175,55,0.06);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all .2s;
+}
+.tpl:hover {
+    background: rgba(212,175,55,0.16);
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+/* stamps */
+.stamp-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+.stamp-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(212,175,55,0.12);
+    background: #0a0908;
+}
+.stamp-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--gold);
+    cursor: pointer;
+}
+.stamp-item .stamp-meta { flex: 1; min-width: 0; }
+.stamp-item .stamp-name {
+    font-size: 13px;
+    color: var(--text);
+}
+.stamp-item .stamp-role {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}
+.stamp-item .stamp-actions { display: flex; gap: 4px; }
+.stamp-item .stamp-actions button {
+    background: transparent;
+    border: 1px solid rgba(212,175,55,0.2);
+    color: var(--text-dim);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+    cursor: pointer;
+}
+.stamp-item .stamp-actions button:hover { border-color: var(--gold); color: var(--gold); }
+
+/* report preview table */
+.report-summary {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin-bottom: 10px;
+}
+.report-summary strong { color: var(--gold); }
+.mini-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-top: 8px;
+}
+.mini-table th {
+    text-align: left;
+    color: var(--gold);
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 6px 6px;
+    border-bottom: 1px solid rgba(212,175,55,0.25);
+}
+.mini-table td {
+    padding: 6px;
+    border-bottom: 1px solid rgba(212,175,55,0.08);
+    color: var(--text);
+    vertical-align: top;
+}
+.mini-table tr:hover td { background: rgba(212,175,55,0.04); }
+.empty-hint {
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 20px 8px;
+    text-align: center;
+}
+
+/* ===== PREVIEW STAGE (black full-bleed) ===== */
+.preview-stage {
+    margin-top: 22px;
+    background: #000;
+    border-radius: 16px;
+    border: 1px solid rgba(212,175,55,0.25);
+    padding: 28px 16px 32px;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(0,0,0,0.6), inset 0 0 80px rgba(212,175,55,0.03);
+}
+.preview-stage .stage-title {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--gold);
+    margin-bottom: 16px;
+    text-transform: uppercase;
+}
+.preview-stage .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 22px;
+    border-radius: 40px;
+    border: 1px solid rgba(212,175,55,0.4);
+    background: rgba(212,175,55,0.08);
+    margin-bottom: 18px;
+}
+.preview-stage .status-badge .check {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e0c04a, #b8960f);
+    color: #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 16px;
+}
+.preview-stage .status-badge .check.deny {
+    background: linear-gradient(135deg, #e74c3c, #922b21);
+    color: #fff;
+}
+.preview-stage .status-badge span {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: var(--gold-light);
+}
+.a4-wrap {
+    display: inline-block;
+    background: #fff;
+    width: min(100%, 420px);
+    aspect-ratio: 210 / 297;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+    overflow: hidden;
+    position: relative;
+}
+#a4Canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: #fff;
+}
+.export-row {
+    margin-top: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+/* modal for stamp edit */
+.modal-bg {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.72);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.modal-bg.show { display: flex; }
+.modal {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    width: min(420px, 100%);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.modal h3 {
+    font-family: 'Cinzel', serif;
+    color: var(--gold);
+    font-size: 14px;
+    letter-spacing: 2px;
+    margin-bottom: 14px;
+}
+.modal .btn-row { justify-content: flex-end; }
+
+.toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1a1712;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all .3s;
+    z-index: 2000;
+    max-width: 90vw;
+}
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* report viewer modal */
+.report-viewer-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    background: rgba(0,0,0,0.82);
+    align-items: stretch;
+    justify-content: center;
+    padding: 12px;
+}
+.report-viewer-modal.show { display: flex; }
+.report-viewer-content {
+    background: #12100c;
+    border: 1px solid rgba(212,175,55,0.35);
+    border-radius: 14px;
+    width: min(1100px, 100%);
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+}
+.report-viewer-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(212,175,55,0.2);
+    flex-wrap: wrap;
+}
+.report-viewer-title {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    color: var(--gold);
+    flex: 1;
+    min-width: 120px;
+}
+.report-viewer-theme {
+    display: flex;
+    gap: 4px;
+}
+.report-viewer-theme button {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(212,175,55,0.3);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+}
+.report-viewer-theme button.active {
+    background: rgba(212,175,55,0.15);
+    color: var(--gold);
+    border-color: var(--gold);
+}
+.report-viewer-close {
+    background: transparent;
+    border: 1px solid rgba(212,175,55,0.3);
+    color: var(--gold);
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-family: 'Oswald', sans-serif;
+}
+.report-viewer-frame-wrap {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+    background: #1a1a1a;
+}
+.report-viewer-frame-wrap iframe {
+    width: 100%;
+    height: min(78vh, 820px);
+    border: none;
+    background: #fff;
+}
+.report-viewer-loading {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(12,11,9,0.9);
+    color: var(--gold);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+.report-viewer-loading.show { display: flex; }
+.report-viewer-hint {
+    padding: 8px 14px 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.3px;
+    border-top: 1px solid rgba(212,175,55,0.12);
+}
+.reasons-list {
+    margin: 8px 0 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.reason-chip {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(212,175,55,0.18);
+    background: #0a0908;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.4;
+}
+
+/* ===== entries with photos + veiled links ===== */
+.mini-table { font-size: 12px; }
+.mini-table th:nth-child(3), .mini-table td:nth-child(3) { min-width: 120px; }
+.veiled-link {
+    color: #4a9eff;
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(74,158,255,0.45);
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+.veiled-link:hover { color: var(--gold); border-bottom-color: var(--gold); }
+.entry-photos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+.entry-photos img {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid rgba(212,175,55,0.3);
+    cursor: zoom-in;
+    background: #0a0a0a;
+}
+.entry-photos img:hover { border-color: var(--gold); }
+.btn-view-entry {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(212,175,55,0.35);
+    background: transparent;
+    color: var(--gold);
+    cursor: pointer;
+}
+.btn-view-entry:hover { background: rgba(212,175,55,0.12); }
+#entriesTableWrap {
+    overflow-x: auto;
+    max-height: 320px;
+}
+.photo-count {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-left: 4px;
+}
+/* entry detail modal (inside app) */
+.entry-detail-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 3500;
+    background: rgba(0,0,0,0.78);
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.entry-detail-modal.show { display: flex; }
+.entry-detail-box {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    width: min(720px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 18px 18px 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+}
+.entry-detail-box h3 {
+    font-family: 'Cinzel', serif;
+    color: var(--gold);
+    font-size: 14px;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+}
+.entry-detail-box .dl { font-size: 13px; color: var(--text-dim); margin-bottom: 8px; }
+.entry-detail-box .dl strong { color: var(--gold); font-weight: 600; }
+.entry-detail-photos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+}
+.entry-detail-photos img {
+    max-width: 200px;
+    max-height: 160px;
+    border-radius: 8px;
+    border: 1px solid rgba(212,175,55,0.35);
+    cursor: zoom-in;
+}
+#lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    background: rgba(0,0,0,0.94);
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+}
+#lightbox.show { display: flex; }
+.lightbox-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 98vw;
+    max-height: 96vh;
+}
+.lightbox-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.lb-btn {
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    min-width: 42px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(212,175,55,0.45);
+    background: #1a1712;
+    color: var(--gold);
+    cursor: pointer;
+}
+.lb-btn:hover { background: rgba(212,175,55,0.15); }
+.lightbox-stage {
+    overflow: auto;
+    max-width: 96vw;
+    max-height: calc(96vh - 70px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    border: 1px solid rgba(212,175,55,0.25);
+    background: #0a0a0a;
+}
+#lightbox img {
+    max-width: none;
+    max-height: none;
+    width: auto;
+    height: auto;
+    transform-origin: center center;
+    transition: transform 0.12s ease;
+    border-radius: 4px;
+    cursor: grab;
+    user-select: none;
+}
+.lightbox-hint {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}
+
+.reason-chip button {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid rgba(192,57,43,0.4);
+    color: #e74c3c;
+    border-radius: 6px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+<div class="app">
+    <div class="topbar">
+        <div class="brand-logo" aria-hidden="true">
+            <svg width="56" height="56" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                <rect width="64" height="64" rx="14" fill="#000"/>
+                <rect x="2" y="2" width="60" height="60" rx="12" fill="none" stroke="#d4af37" stroke-width="2"/>
+                <path d="M18 33 L28 43 L48 21" fill="none" stroke="#d4af37" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+        <div class="brand">SAN ANDREAS NATIONAL GUARD</div>
+        <div class="sub">Military Medical Service · Inspector Desk</div>
+        <h1>ПРОВЕРКА РАПОРТОВ</h1>
+    </div>
+
+    <div class="grid">
+        <!-- LEFT: load + employee -->
+        <div class="panel">
+            <h2>1 · Данные сотрудника и рапорт</h2>
+            <div class="btn-row" style="margin-top:0;margin-bottom:12px;">
+                <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('fileIn').click()">Загрузить JSON</button>
+                <button type="button" class="btn btn-gold btn-sm" onclick="document.getElementById('reportViewFileInput').click()">Открыть отчёт (HTML)</button>
+                <button type="button" class="btn btn-ghost btn-sm" onclick="clearReport()">Очистить</button>
+                <input type="file" id="fileIn" class="file-hide" accept=".json,application/json" onchange="onFile(event)" />
+                <input type="file" id="reportViewFileInput" class="file-hide" accept=".html,.htm,.doc,text/html" onchange="handleReportViewImport(event)" />
+            </div>
+            <div class="row">
+                <div>
+                    <label class="field-label">ФИО</label>
+                    <input type="text" id="empName" placeholder="Алекс Иванов" oninput="scheduleDraw()" />
+                </div>
+                <div>
+                    <label class="field-label">ID</label>
+                    <input type="text" id="empId" placeholder="774912" oninput="scheduleDraw()" />
+                </div>
+            </div>
+            <div class="row">
+                <div>
+                    <label class="field-label">Дата рапорта</label>
+                    <input type="date" id="repDate" oninput="scheduleDraw()" />
+                </div>
+                <div>
+                    <label class="field-label">Тип (для номера документа)</label>
+                    <select id="repType" onchange="scheduleDraw(); if(window.refreshDocNo) refreshDocNo();">
+                        <option value="weekly">Еженедельный рапорт</option>
+                        <option value="promotion">Рапорт на повышение</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div>
+                    <label class="field-label">Итого баллов</label>
+                    <input type="number" id="totalPts" min="0" value="0" oninput="scheduleDraw()" />
+                </div>
+                <div></div>
+            </div>
+            <div class="full">
+                <label class="field-label">Номер документа (авто, можно править)</label>
+                <input type="text" id="docNo" oninput="scheduleDraw()" />
+            </div>
+            <div class="report-summary" id="reportSummary">
+                Рапорт не загружен. Заполните поля вручную или загрузите JSON из программы сотрудника.
+            </div>
+            <div class="btn-row" style="margin-top:8px;margin-bottom:8px;">
+                <button type="button" class="btn btn-gold btn-sm" id="btnViewFullReport" onclick="openJsonAsViewer()" disabled>Просмотр рапорта внутри</button>
+            </div>
+            <div id="entriesTableWrap">
+                <table class="mini-table" id="entriesTable">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Дата</th>
+                            <th>Доказательство</th>
+                            <th>Фото</th>
+                            <th>Баллы</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- RIGHT: decision + stamps -->
+        <div class="panel">
+            <h2>2 · Решение проверяющего</h2>
+            <div class="decision-switch">
+                <div class="decision-card active-ok" id="cardOk" onclick="setDecision('approve')">
+                    <div class="icon">✓</div>
+                    <div class="title">ОДОБРЕНО</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Можно повышать / зачёт</div>
+                </div>
+                <div class="decision-card" id="cardDeny" onclick="setDecision('deny')">
+                    <div class="icon">✕</div>
+                    <div class="title">НЕ ОДОБРЕНО</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Отклонить с основанием</div>
+                </div>
+            </div>
+
+            <div id="approveBlock">
+                <label class="field-label">Формулировка (одобрение)</label>
+                <div class="templates">
+                    <button type="button" class="tpl" onclick="applyTpl('Рапорт принят. Зачёт баллов подтверждён.')">Зачёт баллов</button>
+                    <button type="button" class="tpl" onclick="applyTpl('Рекомендован к повышению в рамках MMS.')">К повышению</button>
+                    <button type="button" class="tpl" onclick="applyTpl('Рапорт соответствует требованиям службы. Замечаний нет.')">Без замечаний</button>
+                    <button type="button" class="tpl" onclick="applyTpl('Допущен к дальнейшему прохождению службы без ограничений.')">Допущен к службе</button>
+                </div>
+            </div>
+            <div id="denyBlock" style="display:none;">
+                <label class="field-label">Формулировки отказа (можно несколько — добавляются списком)</label>
+                <div class="templates">
+                    <button type="button" class="tpl" onclick="tplPoints()">Недостаточно баллов</button>
+                    <button type="button" class="tpl" onclick="tplPoint()">Не выполнен пункт</button>
+                    <button type="button" class="tpl" onclick="addReason('Представленные доказательства не подтверждают заявленные достижения.')">Слабые доказательства</button>
+                    <button type="button" class="tpl" onclick="addReason('Обнаружены нарушения порядка оформления рапорта.')">Нарушение оформления</button>
+                    <button type="button" class="tpl" onclick="addReason('Повторное направление фото, не относящихся к рабочему процессу.')">Нерабочие фото</button>
+                    <button type="button" class="tpl" onclick="addReason('Требуется повторная сдача рапорта в установленный срок.')">Повторная сдача</button>
+                    <button type="button" class="tpl" onclick="addReason('Повышение невозможно до устранения указанных замечаний.')">Повышение невозможно</button>
+                    <button type="button" class="tpl" onclick="addReason('Срок подачи рапорта нарушен.')">Срок нарушен</button>
+                    <button type="button" class="tpl" onclick="addReason('Указанные ссылки недоступны или не относятся к службе.')">Ссылки недействительны</button>
+                </div>
+                <div class="reasons-list" id="reasonsList"></div>
+                <div class="btn-row" style="margin-top:6px;">
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="clearReasons()">Очистить формулировки</button>
+                </div>
+            </div>
+            <div class="full">
+                <label class="field-label">Текст решения / комментарий (можно дописать вручную)</label>
+                <textarea id="decisionText" placeholder="Текст, который попадёт в бланк… Шаблоны отказа добавляются ниже списком." oninput="scheduleDraw()"></textarea>
+            </div>
+            <div class="full">
+                <label class="field-label">Дополнение (необязательно)</label>
+                <textarea id="extraText" placeholder="Например: срок на исправление, рекомендации…" oninput="scheduleDraw()"></textarea>
+            </div>
+
+            <h2 style="margin-top:18px;">3 · Печати руководства</h2>
+            <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px;letter-spacing:0.3px;">
+                Отметьте нужные печати. Можно добавить новые — руководство меняется.
+            </p>
+            <div class="stamp-list" id="stampList"></div>
+            <div class="btn-row" style="margin-top:4px;">
+                <button type="button" class="btn btn-ghost btn-sm" onclick="openStampModal()">+ Добавить печать</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="preview-stage">
+        <div class="stage-title">Предпросмотр бланка решения</div>
+        <div class="status-badge" id="statusBadge">
+            <div class="check" id="statusCheck">✓</div>
+            <span id="statusLabel">ОДОБРЕНО · ГОТОВО К ВЫДАЧЕ</span>
+        </div>
+        <div class="a4-wrap">
+            <canvas id="a4Canvas" width="794" height="1123"></canvas>
+        </div>
+        <div class="export-row">
+            <button type="button" class="btn btn-gold" onclick="downloadPng()">Скачать PNG (A4)</button>
+            <button type="button" class="btn btn-ghost" onclick="drawA4()">Обновить бланк</button>
+        </div>
+    </div>
+</div>
+
+<!-- Stamp modal -->
+<div class="modal-bg" id="stampModal">
+    <div class="modal">
+        <h3 id="stampModalTitle">Новая печать</h3>
+        <input type="hidden" id="stampEditId" value="" />
+        <div class="full">
+            <label class="field-label">Имя на печати</label>
+            <input type="text" id="stampName" placeholder="Bret Hoffman" />
+        </div>
+        <div class="full">
+            <label class="field-label">Должность / орган</label>
+            <input type="text" id="stampRole" placeholder="Military Medical Service · SANG" />
+        </div>
+        <div class="full">
+            <label class="field-label">Короткая подпись (1–2 слова)</label>
+            <input type="text" id="stampShort" placeholder="ОДОБРЕНО" />
+        </div>
+        <div class="btn-row">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="closeStampModal()">Отмена</button>
+            <button type="button" class="btn btn-gold btn-sm" onclick="saveStamp()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Report viewer -->
+
+<!-- Entry detail (inside app) -->
+<div class="entry-detail-modal" id="entryDetailModal" onclick="if(event.target===this)closeEntryDetail()">
+    <div class="entry-detail-box" onclick="event.stopPropagation()">
+        <h3 id="entryDetailTitle">Запись</h3>
+        <div id="entryDetailBody"></div>
+        <div class="btn-row" style="justify-content:flex-end;margin-top:14px;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="closeEntryDetail()">Закрыть</button>
+        </div>
+    </div>
+</div>
+<div id="lightbox" onclick="if(event.target===this)closeLightbox()">
+  <div class="lightbox-inner" onclick="event.stopPropagation()">
+    <div class="lightbox-toolbar">
+      <button type="button" class="lb-btn" onclick="lightboxZoom(1.25)" title="Крупнее">＋</button>
+      <button type="button" class="lb-btn" onclick="lightboxZoom(0.8)" title="Мельче">－</button>
+      <button type="button" class="lb-btn" onclick="lightboxZoom(0)" title="Сброс">1:1</button>
+      <button type="button" class="lb-btn" onclick="closeLightbox()" title="Закрыть">✕</button>
+    </div>
+    <div class="lightbox-stage" id="lightboxStage">
+      <img id="lightboxImg" alt="" draggable="false" />
+    </div>
+    <div class="lightbox-hint">Колёсико мыши — масштаб · Esc — закрыть</div>
+  </div>
+</div>
+
+<div class="report-viewer-modal" id="reportViewerModal">
+    <div class="report-viewer-content">
+        <div class="report-viewer-header">
+            <div class="report-viewer-title" id="reportViewerTitle">ПРОСМОТР ОТЧЁТА</div>
+            <div class="report-viewer-theme">
+                <button type="button" id="reportThemeLight" onclick="setReportViewerTheme('light')">Светлая</button>
+                <button type="button" id="reportThemeDark" class="active" onclick="setReportViewerTheme('dark')">Тёмная</button>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="extractFromViewer()" title="Подтянуть ФИО/баллы из открытого отчёта, если удастся">Взять данные</button>
+            <button type="button" class="report-viewer-close" onclick="closeReportViewer()">Закрыть</button>
+        </div>
+        <div class="report-viewer-frame-wrap">
+            <div class="report-viewer-loading" id="reportViewerLoading">
+                <div>Загрузка отчёта…</div>
+                <div id="loaderFileName" style="font-size:12px;color:var(--text-muted);"></div>
+            </div>
+            <iframe id="reportViewerFrame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Просмотр отчёта"></iframe>
+        </div>
+        <div class="report-viewer-hint">Внутренний просмотр. Закрытие окна не удаляет загруженный рапорт — можно открыть снова.</div>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    const STORAGE_STAMPS = 'mmsReviewerStamps_v1';
+    const STORAGE_DOC_SEQ = 'mmsReviewerDocSeq_v1';
+    let decision = 'approve'; // approve | deny
+    let entries = [];
+    let stamps = [];
+    let denyReasons = []; // multiple rejection lines
+    let drawTimer = null;
+    let lastViewerHtml = '';
+    let lastViewerTitle = '';
+    let lastLoadedPayload = null;
+    let reportViewerObjectUrl = null;
+
+    const DEFAULT_STAMPS = [
+        { id: 's1', name: 'Bret Hoffman', role: 'Military Medical Service · SANG', short: 'ОДОБРЕНО', selected: true },
+        { id: 's2', name: 'Adam Corruption', role: 'Military Medical Service · SANG', short: 'ОДОБРЕНО', selected: true }
+    ];
+
+    function $(id) { return document.getElementById(id); }
+
+    function toast(msg) {
+        const t = $('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2600);
+    }
+
+    function todayISO() {
+        const d = new Date();
+        const p = n => String(n).padStart(2, '0');
+        return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    }
+
+    function formatDateRu(iso) {
+        if (!iso) return '—';
+        const p = String(iso).split('-');
+        if (p.length === 3) return p[2] + '.' + p[1] + '.' + p[0];
+        return iso;
+    }
+
+    function dateStampCompact(iso) {
+        if (iso && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+            return iso.replace(/-/g, '');
+        }
+        const d = new Date();
+        const p = n => String(n).padStart(2, '0');
+        return '' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate());
+    }
+
+    function nextDocSeq(key) {
+        let map = {};
+        try { map = JSON.parse(localStorage.getItem(STORAGE_DOC_SEQ) || '{}') || {}; } catch (_) { map = {}; }
+        const n = (parseInt(map[key], 10) || 0) + 1;
+        map[key] = n;
+        try { localStorage.setItem(STORAGE_DOC_SEQ, JSON.stringify(map)); } catch (_) {}
+        return String(n).padStart(3, '0');
+    }
+
+    function genDocNo() {
+        const isPromo = ($('repType') && $('repType').value === 'promotion');
+        const kind = isPromo ? 'inc' : 'week';
+        const datePart = dateStampCompact($('repDate') && $('repDate').value);
+        const seq = nextDocSeq(kind + '-' + datePart);
+        return 'MMS-' + kind + '-' + datePart + '-' + seq;
+    }
+
+    function refreshDocNo() {
+        if ($('docNo')) $('docNo').value = genDocNo();
+        scheduleDraw();
+    }
+
+    /* ===== STAMPS ===== */
+    function loadStamps() {
+        try {
+            const raw = localStorage.getItem(STORAGE_STAMPS);
+            if (raw) {
+                stamps = JSON.parse(raw);
+                if (!Array.isArray(stamps) || !stamps.length) stamps = DEFAULT_STAMPS.map(s => ({ ...s }));
+            } else {
+                stamps = DEFAULT_STAMPS.map(s => ({ ...s }));
+            }
+        } catch (_) {
+            stamps = DEFAULT_STAMPS.map(s => ({ ...s }));
+        }
+        renderStamps();
+    }
+
+    function saveStampsStore() {
+        try { localStorage.setItem(STORAGE_STAMPS, JSON.stringify(stamps)); } catch (_) {}
+    }
+
+    function renderStamps() {
+        const box = $('stampList');
+        if (!stamps.length) {
+            box.innerHTML = '<div class="empty-hint">Нет печатей. Добавьте руководство.</div>';
+            return;
+        }
+        box.innerHTML = stamps.map(s => `
+            <div class="stamp-item">
+                <input type="checkbox" ${s.selected ? 'checked' : ''} onchange="toggleStamp('${s.id}', this.checked)" />
+                <div class="stamp-meta">
+                    <div class="stamp-name">${esc(s.name)}</div>
+                    <div class="stamp-role">${esc(s.role)} · ${esc(s.short || 'ОДОБРЕНО')}</div>
+                </div>
+                <div class="stamp-actions">
+                    <button type="button" onclick="openStampModal('${s.id}')">Изм.</button>
+                    <button type="button" onclick="removeStamp('${s.id}')">Удал.</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    window.toggleStamp = function (id, checked) {
+        const s = stamps.find(x => x.id === id);
+        if (s) s.selected = !!checked;
+        saveStampsStore();
+        scheduleDraw();
+    };
+
+    window.removeStamp = function (id) {
+        stamps = stamps.filter(x => x.id !== id);
+        saveStampsStore();
+        renderStamps();
+        scheduleDraw();
+        toast('Печать удалена');
+    };
+
+    window.openStampModal = function (id) {
+        $('stampEditId').value = id || '';
+        if (id) {
+            const s = stamps.find(x => x.id === id);
+            $('stampModalTitle').textContent = 'Редактировать печать';
+            $('stampName').value = s ? s.name : '';
+            $('stampRole').value = s ? s.role : '';
+            $('stampShort').value = s ? (s.short || '') : 'ОДОБРЕНО';
+        } else {
+            $('stampModalTitle').textContent = 'Новая печать';
+            $('stampName').value = '';
+            $('stampRole').value = 'Military Medical Service · SANG';
+            $('stampShort').value = 'ОДОБРЕНО';
+        }
+        $('stampModal').classList.add('show');
+    };
+
+    window.closeStampModal = function () {
+        $('stampModal').classList.remove('show');
+    };
+
+    window.saveStamp = function () {
+        const id = $('stampEditId').value;
+        const name = $('stampName').value.trim();
+        const role = $('stampRole').value.trim() || 'Military Medical Service · SANG';
+        const short = $('stampShort').value.trim() || 'ОДОБРЕНО';
+        if (!name) { toast('Укажите имя'); return; }
+        if (id) {
+            const s = stamps.find(x => x.id === id);
+            if (s) { s.name = name; s.role = role; s.short = short; }
+        } else {
+            stamps.push({
+                id: 's_' + Date.now().toString(36),
+                name, role, short,
+                selected: true
+            });
+        }
+        saveStampsStore();
+        renderStamps();
+        closeStampModal();
+        scheduleDraw();
+        toast('Печать сохранена');
+    };
+
+    /* ===== DECISION ===== */
+    window.setDecision = function (d) {
+        decision = d;
+        $('cardOk').classList.toggle('active-ok', d === 'approve');
+        $('cardDeny').classList.toggle('active-deny', d === 'deny');
+        $('approveBlock').style.display = d === 'approve' ? '' : 'none';
+        $('denyBlock').style.display = d === 'deny' ? '' : 'none';
+        const check = $('statusCheck');
+        const label = $('statusLabel');
+        if (d === 'approve') {
+            check.textContent = '✓';
+            check.classList.remove('deny');
+            label.textContent = 'ОДОБРЕНО · ГОТОВО К ВЫДАЧЕ';
+            if (!$('decisionText').value.trim() || denyReasons.length) {
+                $('decisionText').value = 'Рапорт принят. Зачёт баллов подтверждён.';
+            }
+        } else {
+            check.textContent = '✕';
+            check.classList.add('deny');
+            label.textContent = 'НЕ ОДОБРЕНО · ОТКЛОНЕНО';
+            if (denyReasons.length) {
+                syncDecisionTextFromReasons();
+            } else if (!$('decisionText').value.trim() || $('decisionText').value.indexOf('принят') !== -1) {
+                $('decisionText').value = '';
+            }
+            renderReasons();
+        }
+        scheduleDraw();
+    };
+
+    window.applyTpl = function (text) {
+        // для одобрения — одна формулировка; для отказа лучше addReason
+        if (decision === 'deny') {
+            addReason(text);
+            return;
+        }
+        $('decisionText').value = text;
+        scheduleDraw();
+    };
+
+    function syncDecisionTextFromReasons() {
+        if (decision !== 'deny') return;
+        if (!denyReasons.length) return;
+        const numbered = denyReasons.map((r, i) => (i + 1) + '. ' + r).join('\n');
+        $('decisionText').value = numbered;
+    }
+
+    function renderReasons() {
+        const box = $('reasonsList');
+        if (!box) return;
+        if (!denyReasons.length) {
+            box.innerHTML = '<div class="empty-hint" style="padding:8px;">Формулировки не добавлены — нажмите шаблон (можно несколько).</div>';
+            return;
+        }
+        box.innerHTML = denyReasons.map((r, i) =>
+            '<div class="reason-chip"><span>' + (i + 1) + '. ' + esc(r) + '</span>' +
+            '<button type="button" onclick="removeReason(' + i + ')">Убрать</button></div>'
+        ).join('');
+    }
+
+    window.addReason = function (text) {
+        const t = String(text || '').trim();
+        if (!t) return;
+        if (denyReasons.indexOf(t) === -1) denyReasons.push(t);
+        syncDecisionTextFromReasons();
+        renderReasons();
+        scheduleDraw();
+        toast('Формулировка добавлена (' + denyReasons.length + ')');
+    };
+
+    window.removeReason = function (idx) {
+        denyReasons.splice(idx, 1);
+        syncDecisionTextFromReasons();
+        if (!denyReasons.length) $('decisionText').value = '';
+        renderReasons();
+        scheduleDraw();
+    };
+
+    window.clearReasons = function () {
+        denyReasons = [];
+        $('decisionText').value = '';
+        renderReasons();
+        scheduleDraw();
+    };
+
+    window.tplPoints = function () {
+        const n = prompt('Укажите требуемое число баллов (норму):', '100');
+        if (n === null) return;
+        const total = parseInt($('totalPts').value, 10) || 0;
+        addReason('Недостаточно баллов для зачёта/повышения. Набрано: ' + total + '. Требуется не менее: ' + n + '.');
+    };
+
+    window.tplPoint = function () {
+        const p = prompt('Укажите пункт / требование, которое не выполнено:', 'п. 3 — предоставление доказательств');
+        if (p === null) return;
+        addReason('Не выполнен пункт: ' + p + '.');
+    };
+
+    /* ===== REPORT LOAD ===== */
+    function esc(s) {
+        return String(s || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function linkLabel(entry) {
+        const cat = String(entry.category || '').trim().toLowerCase();
+        const map = {
+            'медэкзамен': 'Медэкзамен',
+            'мед. экзамен': 'Медэкзамен',
+            'медицинский экзамен': 'Медэкзамен',
+            'патруль': 'Патруль',
+            'тренировка': 'Тренировка',
+            'обучение': 'Обучение',
+            'дежурство': 'Дежурство',
+            'отчет': 'Отчёт',
+            'отчёт': 'Отчёт',
+            'мероприятие': 'Мероприятие',
+            'помощь': 'Помощь',
+            'прочее': 'Доказательство'
+        };
+        if (map[cat]) return map[cat];
+        if (entry.category && String(entry.category).trim()) {
+            const c = String(entry.category).trim();
+            return c.charAt(0).toUpperCase() + c.slice(1);
+        }
+        return 'Доказательство';
+    }
+
+    function entryPhotoCount(e) {
+        if (!Array.isArray(e.attachments)) return 0;
+        return e.attachments.filter(function (a) { return a && a.dataUrl; }).length;
+    }
+
+    function renderEntries() {
+        const tb = $('entriesTable').querySelector('tbody');
+        const btnFull = $('btnViewFullReport');
+        if (btnFull) btnFull.disabled = !entries.length;
+        if (!entries.length) {
+            tb.innerHTML = '<tr><td colspan="6" class="empty-hint">Нет строк рапорта</td></tr>';
+            return;
+        }
+        tb.innerHTML = entries.map(function (e, i) {
+            const pts = (e.points || 0) + (Array.isArray(e.attachments)
+                ? e.attachments.reduce(function (s, a) { return s + (parseInt(a.points, 10) || 0); }, 0) : 0);
+            const label = linkLabel(e);
+            const hasLink = !!(e.link && String(e.link).trim());
+            const proofCell = hasLink
+                ? ('<a class="veiled-link" href="' + esc(e.link) + '" target="_blank" rel="noopener noreferrer" title="Открыть доказательство">' + esc(label) + '</a>')
+                : ('<span style="color:var(--text-muted)">' + esc(label) + '</span>');
+            const photos = Array.isArray(e.attachments) ? e.attachments.filter(function (a) { return a && a.dataUrl; }) : [];
+            let photoCell = '—';
+            if (photos.length) {
+                photoCell = '<div class="entry-photos">' + photos.slice(0, 6).map(function (a) {
+                    return '<img src="' + a.dataUrl + '" alt="" onclick="openLightbox(this.src)" title="' + esc(a.name || 'снимок') + '" />';
+                }).join('') + (photos.length > 6 ? '<span class="photo-count">+' + (photos.length - 6) + '</span>' : '') + '</div>';
+            } else if (Array.isArray(e.attachments) && e.attachments.length) {
+                photoCell = '<span class="photo-count">' + e.attachments.length + ' (без файла)</span>';
+            }
+            return '<tr>' +
+                '<td>' + esc(e.evidenceNumber || ('№' + (i + 1))) + '</td>' +
+                '<td>' + esc(e.date || '') + '</td>' +
+                '<td>' + proofCell + '<div style="font-size:10px;color:var(--text-muted);margin-top:3px;">' + esc(e.category || '') + '</div></td>' +
+                '<td>' + photoCell + '</td>' +
+                '<td>' + pts + '</td>' +
+                '<td><button type="button" class="btn-view-entry" onclick="openEntryDetail(' + i + ')">👁</button></td>' +
+                '</tr>';
+        }).join('');
+    }
+
+    let lightboxScale = 1;
+    window.openLightbox = function (src) {
+        if (!src) return;
+        const lb = $('lightbox');
+        const img = $('lightboxImg');
+        lightboxScale = 1;
+        if (img) {
+            img.src = src;
+            img.style.transform = 'scale(1)';
+        }
+        if (lb) lb.classList.add('show');
+    };
+    window.closeLightbox = function () {
+        const lb = $('lightbox');
+        if (lb) lb.classList.remove('show');
+        lightboxScale = 1;
+        const img = $('lightboxImg');
+        if (img) img.style.transform = 'scale(1)';
+    };
+    window.lightboxZoom = function (factor) {
+        const img = $('lightboxImg');
+        if (!img) return;
+        if (factor === 0) lightboxScale = 1;
+        else lightboxScale = Math.min(8, Math.max(0.25, lightboxScale * factor));
+        img.style.transform = 'scale(' + lightboxScale + ')';
+    };
+    document.addEventListener('wheel', function (e) {
+        const lb = $('lightbox');
+        if (!lb || !lb.classList.contains('show')) return;
+        e.preventDefault();
+        lightboxZoom(e.deltaY < 0 ? 1.12 : 0.9);
+    }, { passive: false });
+
+    window.openEntryDetail = function (idx) {
+        const e = entries[idx];
+        if (!e) return;
+        const title = $('entryDetailTitle');
+        const body = $('entryDetailBody');
+        const modal = $('entryDetailModal');
+        if (!body || !modal) return;
+        if (title) title.textContent = (e.evidenceNumber || ('№' + (idx + 1))) + ' · ' + linkLabel(e);
+        const pts = (e.points || 0) + (Array.isArray(e.attachments)
+            ? e.attachments.reduce(function (s, a) { return s + (parseInt(a.points, 10) || 0); }, 0) : 0);
+        let html = '';
+        html += '<div class="dl"><strong>Дата:</strong> ' + esc(e.date || '—') + '</div>';
+        html += '<div class="dl"><strong>Категория:</strong> ' + esc(e.category || 'прочее') + '</div>';
+        html += '<div class="dl"><strong>Баллы:</strong> ' + pts + '</div>';
+        if (e.link) {
+            html += '<div class="dl"><strong>Доказательство:</strong> <a class="veiled-link" href="' + esc(e.link) + '" target="_blank" rel="noopener noreferrer">' + esc(linkLabel(e)) + '</a></div>';
+            html += '<div class="dl" style="font-size:11px;word-break:break-all;opacity:0.55;">' + esc(e.link) + '</div>';
+        } else {
+            html += '<div class="dl"><strong>Ссылка:</strong> нет</div>';
+        }
+        const photos = Array.isArray(e.attachments) ? e.attachments : [];
+        if (photos.length) {
+            html += '<div class="dl"><strong>Вложения (' + photos.length + '):</strong></div><div class="entry-detail-photos">';
+            photos.forEach(function (a) {
+                if (a.dataUrl) {
+                    html += '<div><img src="' + a.dataUrl + '" alt="" onclick="openLightbox(this.src)" /><div style="font-size:11px;color:var(--text-muted);text-align:center;">' + esc(a.name || 'снимок') + ' · +' + (a.points || 0) + '</div></div>';
+                } else {
+                    html += '<div style="font-size:12px;color:var(--text-muted);">' + esc(a.name || 'снимок') + ' (нет изображения)</div>';
+                }
+            });
+            html += '</div>';
+        } else {
+            html += '<div class="dl"><strong>Фото:</strong> нет</div>';
+        }
+        body.innerHTML = html;
+        modal.classList.add('show');
+    };
+
+    window.closeEntryDetail = function () {
+        const modal = $('entryDetailModal');
+        if (modal) modal.classList.remove('show');
+    };
+
+    function buildEntriesViewerHtml() {
+        const name = ($('empName').value || '').trim() || 'Сотрудник';
+        const id = ($('empId').value || '').trim() || '—';
+        const total = $('totalPts').value || '0';
+        const date = $('repDate').value || '';
+        const typeLabel = $('repType').value === 'promotion' ? 'Рапорт на повышение' : 'Еженедельный рапорт';
+        const archFlag = !!(lastLoadedPayload && (lastLoadedPayload.hasArchiveStamp || lastLoadedPayload.isArchiveCopy));
+        const archBanner = archFlag
+            ? '<div style="text-align:center;margin:10px 0 14px;"><span style="display:inline-block;transform:rotate(-8deg);border:3px solid #8b0000;color:#c0392b;padding:8px 16px;font-weight:700;letter-spacing:2px;font-size:14px;">АРХИВНАЯ КОПИЯ</span></div>'
+            : '';
+        let rows = '';
+        (entries || []).forEach(function (e, i) {
+            const pts = (e.points || 0) + (Array.isArray(e.attachments)
+                ? e.attachments.reduce(function (s, a) { return s + (parseInt(a.points, 10) || 0); }, 0) : 0);
+            const label = linkLabel(e);
+            let photos = '';
+            if (Array.isArray(e.attachments)) {
+                photos = e.attachments.filter(function (a) { return a && a.dataUrl; }).map(function (a) {
+                    return '<div class="ph">' +
+                        '<img src="' + a.dataUrl + '" alt="" />' +
+                        '<div class="ph-cap">' + esc(a.name || 'снимок') + (a.points ? (' · +' + a.points) : '') + '</div></div>';
+                }).join('');
+            }
+            const linkHtml = e.link
+                ? ('<a class="vl" href="' + esc(e.link) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + '</a>')
+                : ('<span class="vl-muted">' + esc(label) + '</span>');
+            rows += '<tr><td class="c">' + esc(e.date || '') +
+                (e.category ? ('<div class="cat">' + esc(e.category) + '</div>') : '') + '</td>' +
+                '<td><span class="badge">№' + (i + 1) + '</span> ' + linkHtml +
+                (photos ? ('<div class="photos">' + photos + '</div>') : '') + '</td>' +
+                '<td class="c pts">' + pts + '</td></tr>';
+        });
+        return '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"/>' +
+            '<meta name="viewport" content="width=device-width,initial-scale=1"/>' +
+            '<title>MMS</title><style>' +
+            '*{box-sizing:border-box}body{margin:0;padding:20px;font-family:Oswald,Segoe UI,sans-serif;background:#0c0b09;color:#e8e0d4;}' +
+            '.box{max-width:960px;margin:0 auto;background:#141210;border:1px solid rgba(212,175,55,.35);border-radius:14px;padding:22px 20px 28px;box-shadow:0 12px 40px rgba(0,0,0,.45)}' +
+            'h1{font-family:Cinzel,serif;color:#d4af37;text-align:center;letter-spacing:2px;font-size:20px;margin:0 0 6px}' +
+            '.sub{text-align:center;color:#9a9078;font-size:13px;margin-bottom:16px;line-height:1.5}' +
+            '.sub b{color:#d4af37}' +
+            'table{width:100%;border-collapse:collapse}' +
+            'th{background:#0a0908;color:#d4af37;padding:10px 8px;border-bottom:1px solid rgba(212,175,55,.35);text-align:left;font-size:11px;letter-spacing:1.2px;text-transform:uppercase}' +
+            'td{padding:12px 8px;border-bottom:1px solid #2a2a2a;vertical-align:top;font-size:13px}' +
+            'td.c{text-align:center}' +
+            '.badge{display:inline-block;background:#d4af37;color:#111;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;margin-right:6px}' +
+            'a.vl{color:#6ab0ff;font-weight:600;text-decoration:none;border-bottom:1px dashed rgba(106,176,255,.5)}' +
+            'a.vl:hover{color:#d4af37;border-bottom-color:#d4af37}' +
+            '.vl-muted{color:#9a9078}' +
+            '.cat{font-size:11px;color:#777;margin-top:4px}' +
+            '.pts{font-weight:700;color:#d4af37;font-size:15px}' +
+            '.photos{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}' +
+            '.ph{text-align:center;max-width:160px}' +
+            '.ph img{max-width:160px;max-height:120px;object-fit:cover;border-radius:8px;border:1px solid rgba(212,175,55,.35);background:#0a0a0a}' +
+            '.ph-cap{font-size:11px;color:#9a9078;margin-top:4px}' +
+            '</style></head><body><div class="box">' +
+            '<h1>MMS · Просмотр рапорта</h1>' +
+            '<div class="sub">' + esc(typeLabel) + '</div>' + archBanner +
+            '<div class="sub"><b>' + esc(name) + '</b> · ID: ' + esc(id) +
+            ' · Дата: ' + esc(date) + ' · Итого: <b>' + esc(total) + '</b></div>' +
+            '<table><thead><tr><th style="width:110px">Дата</th><th>Доказательство</th><th style="width:72px">Баллы</th></tr></thead><tbody>' +
+            (rows || '<tr><td colspan="3" class="c" style="color:#777;padding:24px">Нет записей</td></tr>') +
+            '</tbody></table></div></body></html>';
+    }
+
+
+    function applyReportData(data) {
+        if (!data || typeof data !== 'object') return;
+        const emp = data.employee || data.profile || {};
+        $('empName').value = emp.name || emp.fullName || data.name || '';
+        $('empId').value = emp.id || emp.employeeId || data.id || '';
+        if (data.reportDate) {
+            const rd = String(data.reportDate);
+            if (rd.indexOf('.') !== -1) {
+                const p = rd.split('.');
+                $('repDate').value = (p[2] || '') + '-' + (p[1] || '') + '-' + (p[0] || '');
+            } else {
+                $('repDate').value = rd.slice(0, 10);
+            }
+        }
+        if (data.mode === 'promotion' || data.reportType === 'promotion') {
+            $('repType').value = 'promotion';
+        } else {
+            $('repType').value = 'weekly';
+        }
+        entries = Array.isArray(data.entries) ? data.entries : [];
+        lastLoadedPayload = data;
+        let total = data.totalPoints;
+        if (total == null) {
+            total = entries.reduce(function (s, e) {
+                const ap = Array.isArray(e.attachments)
+                    ? e.attachments.reduce(function (a, x) { return a + (parseInt(x.points, 10) || 0); }, 0) : 0;
+                return s + (parseInt(e.points, 10) || 0) + ap;
+            }, 0);
+        }
+        $('totalPts').value = total;
+        $('docNo').value = genDocNo();
+        const photoN = entries.reduce(function (n, e) {
+            return n + (Array.isArray(e.attachments) ? e.attachments.filter(function (a) { return a && a.dataUrl; }).length : 0);
+        }, 0);
+        const isArch = !!(data.hasArchiveStamp || data.isArchiveCopy);
+        $('reportSummary').innerHTML =
+            'Загружено записей: <strong>' + entries.length + '</strong> · ' +
+            'Итого баллов: <strong>' + total + '</strong> · ' +
+            'Фото: <strong>' + photoN + '</strong> · ' +
+            'Тип: <strong>' + ($('repType').value === 'promotion' ? 'повышение' : 'еженедельный') + '</strong>' +
+            (isArch ? ' · <strong style="color:#e74c3c;">📜 АРХИВНАЯ КОПИЯ</strong>' : '');
+        renderEntries();
+        scheduleDraw();
+        // авто-сборка HTML для повторного просмотра
+        try {
+            lastViewerHtml = buildEntriesViewerHtml();
+            lastViewerTitle = 'Рапорт · ' + (($('empName').value || '').trim() || 'JSON');
+        } catch (e) {}
+        const btnFull = $('btnViewFullReport');
+        if (btnFull) btnFull.disabled = !(entries.length || lastViewerHtml);
+        toast(photoN ? ('Рапорт загружен · фото: ' + photoN) : 'Рапорт загружен');
+    }
+
+    window.onFile = function (ev) {
+        const f = ev.target.files && ev.target.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = function () {
+            try {
+                const data = JSON.parse(String(reader.result));
+                applyReportData(data);
+            } catch (err) {
+                console.error(err);
+                toast('Не удалось прочитать JSON');
+            }
+        };
+        reader.onerror = function () { toast('Ошибка чтения файла'); };
+        reader.readAsText(f);
+        ev.target.value = '';
+    };
+
+    window.clearReport = function () {
+        entries = [];
+        lastLoadedPayload = null;
+        lastViewerHtml = '';
+        lastViewerTitle = '';
+        $('empName').value = '';
+        $('empId').value = '';
+        $('totalPts').value = '0';
+        $('docNo').value = genDocNo();
+        $('reportSummary').textContent = 'Рапорт очищен.';
+        if (typeof denyReasons !== 'undefined') {
+            denyReasons = [];
+            if (typeof renderReasons === 'function') renderReasons();
+        }
+        renderEntries();
+        scheduleDraw();
+        const btnFull = $('btnViewFullReport');
+        if (btnFull) btnFull.disabled = true;
+    };
+
+    window.handleReportViewImport = function (event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const fileName = file.name.toLowerCase();
+        if (!fileName.endsWith('.html') && !fileName.endsWith('.htm') && !fileName.endsWith('.doc')) {
+            toast('Нужен файл .html / .htm / .doc');
+            event.target.value = '';
+            return;
+        }
+        const modal = $('reportViewerModal');
+        const loading = $('reportViewerLoading');
+        const loaderName = $('loaderFileName');
+        if ($('reportViewerTitle')) $('reportViewerTitle').textContent = 'ПРОСМОТР: ' + file.name;
+        if (loaderName) loaderName.textContent = file.name;
+        if (loading) loading.classList.add('show');
+        if (modal) modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            try {
+                const src = String(e.target.result || '');
+                if (!/<\s*(?:!doctype|html|head|body)[\s>]/i.test(src)) {
+                    if (loading) loading.classList.remove('show');
+                    if (modal) modal.classList.remove('show');
+                    document.body.style.overflow = '';
+                    toast('Файл не похож на HTML-отчёт');
+                    return;
+                }
+                lastViewerHtml = src;
+                lastViewerTitle = file.name;
+                const btnFull = $('btnViewFullReport');
+                if (btnFull) btnFull.disabled = false;
+                setTimeout(function () { openReportViewer(src, file.name); }, 200);
+            } catch (err) {
+                if (loading) loading.classList.remove('show');
+                if (modal) modal.classList.remove('show');
+                document.body.style.overflow = '';
+                toast('Ошибка чтения файла');
+            }
+        };
+        reader.onerror = function () {
+            if (loading) loading.classList.remove('show');
+            if (modal) modal.classList.remove('show');
+            document.body.style.overflow = '';
+            toast('Не удалось прочитать файл');
+        };
+        reader.readAsText(file, 'utf-8');
+        event.target.value = '';
+    };
+
+
+    window.openJsonAsViewer = function () {
+        try {
+            if (lastViewerHtml && (!entries || !entries.length)) {
+                openReportViewer(lastViewerHtml, lastViewerTitle || 'Рапорт');
+                return;
+            }
+            if (!entries || !entries.length) {
+                toast('Сначала загрузите JSON или HTML рапорта');
+                return;
+            }
+            const html = buildEntriesViewerHtml();
+            const name = ($('empName').value || '').trim() || 'Рапорт';
+            openReportViewer(html, 'Рапорт · ' + name);
+        } catch (err) {
+            console.error(err);
+            toast('Ошибка просмотра: ' + (err && err.message ? err.message : err));
+        }
+    };
+
+    window.openReportViewer = function (html, fileName) {
+        const modal = $('reportViewerModal');
+        const frame = $('reportViewerFrame');
+        const loading = $('reportViewerLoading');
+        if (!modal || !frame) {
+            toast('Окно просмотра не найдено');
+            return;
+        }
+        if (!html || !String(html).trim()) {
+            toast('Нет данных для просмотра');
+            return;
+        }
+        const theme = getReportViewerTheme();
+        try { setReportViewerTheme(theme); } catch (e) {}
+        lastViewerHtml = String(html);
+        lastViewerTitle = fileName || 'отчёт';
+
+        // Не ломаем data:image URL — не трогаем атрибуты src
+        let cleaned = String(html)
+            .replace(/<script[\s\S]*?<\/script>/gi, '')
+            .replace(/\son[a-z]+\s*=\s*(["']).*?\1/gi, '')
+            .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, '')
+            .replace(/javascript:/gi, '')
+            .replace(/vbscript:/gi, '');
+
+        const paperBg = theme === 'dark' ? '#0c0b09' : '#f7f3ea';
+        const paperFg = theme === 'dark' ? '#e8e0d4' : '#2a241e';
+        if (/<head[\s>]/i.test(cleaned)) {
+            cleaned = cleaned.replace(/<head([^>]*)>/i, '<head$1><base target="_blank" rel="noopener noreferrer">');
+        } else {
+            cleaned = '<head><meta charset="UTF-8"><base target="_blank" rel="noopener noreferrer"></head>' + cleaned;
+        }
+        if (!/<body[\s>]/i.test(cleaned)) {
+            cleaned = cleaned + '<body style="background:' + paperBg + ';color:' + paperFg +
+                ';font-family:Oswald,Segoe UI,sans-serif;padding:18px;margin:0;min-height:100vh;"></body>';
+            // wrap properly
+            cleaned = '<!DOCTYPE html><html><head><meta charset="UTF-8"><base target="_blank"></head>' +
+                '<body style="background:' + paperBg + ';color:' + paperFg +
+                ';font-family:Oswald,Segoe UI,sans-serif;padding:18px;margin:0;min-height:100vh;">' +
+                String(html).replace(/<script[\s\S]*?<\/script>/gi, '') + '</body></html>';
+        } else {
+            cleaned = cleaned.replace(/<body([^>]*)>/i, function (m, attrs) {
+                return '<body' + attrs + ' style="background:' + paperBg + ';color:' + paperFg +
+                    ';font-family:Oswald,Segoe UI,sans-serif;padding:18px;margin:0;min-height:100vh;">';
+            });
+        }
+
+        if ($('reportViewerTitle')) $('reportViewerTitle').textContent = 'ПРОСМОТР: ' + lastViewerTitle;
+        if (loading) loading.classList.add('show');
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+
+        // Надёжная перезагрузка iframe
+        frame.onload = function () {
+            setTimeout(function () {
+                if (loading) loading.classList.remove('show');
+                try { applyReportViewerThemeToFrame(getReportViewerTheme()); } catch (e) {}
+            }, 200);
+        };
+        try {
+            frame.removeAttribute('src');
+            frame.srcdoc = cleaned;
+        } catch (err) {
+            console.error(err);
+            toast('Не удалось показать отчёт в окне');
+            if (loading) loading.classList.remove('show');
+        }
+        setTimeout(function () { if (loading) loading.classList.remove('show'); }, 2500);
+
+        const btnFull = $('btnViewFullReport');
+        if (btnFull) btnFull.disabled = false;
+    };
+
+    window.closeReportViewer = function () {
+        const modal = $('reportViewerModal');
+        const frame = $('reportViewerFrame');
+        const loading = $('reportViewerLoading');
+        if (modal) modal.classList.remove('show');
+        document.body.style.overflow = '';
+        if (loading) loading.classList.remove('show');
+        // НЕ очищаем lastViewerHtml и entries — повторное открытие без повторной загрузки
+        if (frame) {
+            try {
+                frame.onload = null;
+                // оставляем содержимое или blank — данные формы не трогаем
+                frame.srcdoc = '<!DOCTYPE html><html><body style="background:#0c0b09;color:#666;font-family:sans-serif;padding:24px;text-align:center">Закрыто. Нажмите «Просмотр рапорта внутри», чтобы открыть снова.</body></html>';
+            } catch (e) {}
+        }
+        if (reportViewerObjectUrl) {
+            try { URL.revokeObjectURL(reportViewerObjectUrl); } catch (e) {}
+            reportViewerObjectUrl = null;
+        }
+    };
+
+    function tryParseViewerIntoForm(forceApply) {
+        const frame = $('reportViewerFrame');
+        if (!frame) return null;
+        try {
+            const doc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
+            if (!doc) return null;
+            const text = (doc.body && doc.body.innerText) || '';
+            const data = { employee: {}, entries: [] };
+
+            // ID
+            let m = text.match(/ID[:\s]*([0-9]{3,8})/i);
+            if (m) data.employee.id = m[1];
+            // Name near "Сотрудник" or signature
+            m = text.match(/Сотрудник[^A-Za-zА-Яа-я]{0,40}([A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё\s\-]{2,40})/i);
+            if (m) data.employee.name = m[1].trim();
+            if (!data.employee.name) {
+                m = text.match(/([A-Za-zА-Яа-яЁё]+\s+[A-Za-zА-Яа-яЁё]+)(?:\s*\(ID)/);
+                if (m) data.employee.name = m[1].trim();
+            }
+            // Total points
+            m = text.match(/ИТОГО[^\d]{0,20}(\d{1,5})/i) || text.match(/TOTAL[^\d]{0,12}(\d{1,5})/i);
+            if (m) data.totalPoints = parseInt(m[1], 10);
+            // Promotion?
+            if (/повышен/i.test(text) || /PROMOTION/i.test(text)) data.mode = 'promotion';
+
+            // Table rows: crude date + points
+            const rows = doc.querySelectorAll('table tr');
+            rows.forEach(function (tr, idx) {
+                if (idx === 0) return;
+                const cells = tr.querySelectorAll('td');
+                if (cells.length < 2) return;
+                const rowText = tr.innerText || '';
+                const dm = rowText.match(/(\d{2}[./]\d{2}[./]\d{4})/);
+                const pm = rowText.match(/\b(\d{1,4})\b/);
+                if (dm) {
+                    data.entries.push({
+                        evidenceNumber: '№' + data.entries.length + 1,
+                        date: dm[1].replace(/\//g, '.'),
+                        category: 'прочее',
+                        points: pm ? parseInt(pm[1], 10) : 0
+                    });
+                }
+            });
+
+            if (forceApply) {
+                applyReportData(data);
+                toast('Данные подтянуты из отчёта');
+            }
+            return data;
+        } catch (e) {
+            if (forceApply) toast('Не удалось прочитать данные из отчёта');
+            return null;
+        }
+    }
+
+    window.extractFromViewer = function () {
+        tryParseViewerIntoForm(true);
+    };
+
+    /* ===== A4 DRAW ===== */
+    function scheduleDraw() {
+        clearTimeout(drawTimer);
+        drawTimer = setTimeout(drawA4, 120);
+    }
+
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+        const paragraphs = String(text || '').split(/\n/);
+        let yy = y;
+        paragraphs.forEach(function (para) {
+            const words = para.split(/\s+/).filter(Boolean);
+            let line = '';
+            if (!words.length) {
+                yy += lineHeight;
+                return;
+            }
+            for (let i = 0; i < words.length; i++) {
+                const test = line + words[i] + ' ';
+                if (ctx.measureText(test).width > maxWidth && line) {
+                    ctx.fillText(line.trim(), x, yy);
+                    line = words[i] + ' ';
+                    yy += lineHeight;
+                } else {
+                    line = test;
+                }
+            }
+            if (line.trim()) {
+                ctx.fillText(line.trim(), x, yy);
+                yy += lineHeight;
+            }
+        });
+        return yy;
+    }
+
+    function drawStamp(ctx, x, y, stamp, approved) {
+        const w = 150;
+        const h = 68;
+        // всегда по решению: ОДОБРЕНО (синяя) / ОТКЛОНЕНО (красная)
+        const statusText = approved ? 'ОДОБРЕНО' : 'ОТКЛОНЕНО';
+        const color = approved ? '#1a4a8a' : '#8a1a1a';
+        ctx.save();
+        ctx.translate(x + w / 2, y + h / 2);
+        ctx.rotate((approved ? -7 : 6) * Math.PI / 180);
+        ctx.translate(-w / 2, -h / 2);
+
+        ctx.strokeStyle = color;
+        ctx.fillStyle = 'rgba(255,255,255,0.01)';
+        ctx.lineWidth = 2.2;
+        roundRect(ctx, 0, 0, w, h, 6);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        roundRect(ctx, 4, 4, w - 8, h - 8, 4);
+        ctx.stroke();
+
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 12px Oswald, sans-serif';
+        ctx.fillText(statusText, w / 2, 20);
+        ctx.font = 'bold 12px Libre Baskerville, serif';
+        ctx.fillText(String(stamp.name || '').slice(0, 22), w / 2, 38);
+        ctx.font = '9px Oswald, sans-serif';
+        ctx.fillText(String(stamp.role || 'MMS · SANG').slice(0, 32), w / 2, 52);
+        ctx.restore();
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+    }
+
+    window.drawA4 = function () {
+        const canvas = $('a4Canvas');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width;
+        const H = canvas.height;
+        const margin = 56;
+        const contentW = W - margin * 2;
+
+        // white sheet
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, W, H);
+
+        // thin gold frame
+        ctx.strokeStyle = '#c9a227';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(18, 18, W - 36, H - 36);
+        ctx.lineWidth = 0.6;
+        ctx.strokeRect(24, 24, W - 48, H - 48);
+
+        let y = margin;
+
+        // Header SANG + MMS
+        ctx.fillStyle = '#1a1a1a';
+        ctx.textAlign = 'center';
+        ctx.font = '700 13px Cinzel, serif';
+        ctx.fillText('SAN ANDREAS NATIONAL GUARD', W / 2, y);
+        y += 18;
+        ctx.font = '600 11px Oswald, sans-serif';
+        ctx.fillStyle = '#333';
+        ctx.fillText('MILITARY MEDICAL SERVICE', W / 2, y);
+        y += 10;
+        ctx.strokeStyle = '#c9a227';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(margin + 40, y);
+        ctx.lineTo(W - margin - 40, y);
+        ctx.stroke();
+        y += 28;
+
+        // Doc meta
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#222';
+        ctx.font = '12px Libre Baskerville, serif';
+        const docNo = $('docNo').value || genDocNo();
+        const dateStr = formatDateRu($('repDate').value || todayISO());
+        ctx.fillText('Служебный № ' + docNo, margin, y);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#1a4a8a';
+        ctx.font = 'italic 12px Libre Baskerville, serif';
+        ctx.fillText('«' + dateStr + '»', W - margin, y);
+        y += 32;
+
+        // Title — армейский стиль
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#111';
+        ctx.font = '700 15px Cinzel, serif';
+        const isPromo = $('repType').value === 'promotion';
+        const title = decision === 'approve'
+            ? (isPromo
+                ? 'СЛУЖЕБНОЕ ЗАКЛЮЧЕНИЕ ПО РАПОРТУ НА ПОВЫШЕНИЕ'
+                : 'СЛУЖЕБНОЕ ЗАКЛЮЧЕНИЕ ПО ЕЖЕНЕДЕЛЬНОМУ РАПОРТУ')
+            : (isPromo
+                ? 'СЛУЖЕБНОЕ ЗАКЛЮЧЕНИЕ · ОТКАЗ В ПОВЫШЕНИИ'
+                : 'СЛУЖЕБНОЕ ЗАКЛЮЧЕНИЕ · РАПОРТ НЕ ПРИНЯТ');
+        ctx.fillText(title, W / 2, y);
+        y += 28;
+
+        // Body — центрированный служебный текст + юридический блок для заполнения листа
+        const name = $('empName').value.trim() || '____________________';
+        const id = $('empId').value.trim() || '—';
+        const total = $('totalPts').value || '0';
+        const typeLabel = isPromo ? 'рапорт на повышение' : 'еженедельный рапорт';
+
+        function wrapTextCenter(ctx2, text, cx, y0, maxW, lh) {
+            const paragraphs = String(text || '').split(/\n/);
+            let yy = y0;
+            paragraphs.forEach(function (para) {
+                const words = para.split(/\s+/).filter(Boolean);
+                let line = '';
+                if (!words.length) { yy += lh; return; }
+                for (let i = 0; i < words.length; i++) {
+                    const test = line + words[i] + ' ';
+                    if (ctx2.measureText(test).width > maxW && line) {
+                        ctx2.fillText(line.trim(), cx, yy);
+                        line = words[i] + ' ';
+                        yy += lh;
+                    } else {
+                        line = test;
+                    }
+                }
+                if (line.trim()) {
+                    ctx2.fillText(line.trim(), cx, yy);
+                    yy += lh;
+                }
+            });
+            return yy;
+        }
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#222';
+        ctx.font = '13px Libre Baskerville, serif';
+        let body =
+            'Командование Military Medical Service S.A.N.G. по итогам проверки ' + typeLabel +
+            ' военнослужащего ' + name + ' (ID: ' + id + ')' +
+            ' за период на ' + dateStr + '. По рапорту учтено ' + total + ' баллов.';
+        y = wrapTextCenter(ctx, body, W / 2, y, contentW, 20);
+        y += 14;
+
+        // Юридический / регламентный блок — заполняет середину бланка
+        ctx.font = '11px Libre Baskerville, serif';
+        ctx.fillStyle = '#333';
+        const legalBlock =
+            'Настоящее служебное заключение составлено в рамках внутреннего порядка Military Medical Service San Andreas National Guard и отражает результат проверки представленных доказательств, ссылок и начисленных баллов.\n\n' +
+            'Проверяющий подтверждает, что сведения в рапорте сопоставлены с требованиями службы, нормами отчётности за период и правилами оформления доказательной базы. Заключение носит административный характер для учёта вклада сотрудника, еженедельной отчётности и (при необходимости) рассмотрения вопроса о повышении.\n\n' +
+            'Документ может быть использован как приложение к архивной копии рапорта. Изменение баллов или состава записей после вынесения заключения допускается только по решению командования MMS · SANG с повторной проверкой.';
+        y = wrapTextCenter(ctx, legalBlock, W / 2, y, contentW - 20, 17);
+        y += 16;
+
+        ctx.font = '700 13px Cinzel, serif';
+        ctx.fillStyle = '#111';
+        ctx.fillText('ЗАКЛЮЧЕНИЕ КОМАНДОВАНИЯ:', W / 2, y);
+        y += 22;
+
+        ctx.font = '13px Libre Baskerville, serif';
+        ctx.fillStyle = '#222';
+        const decisionText = $('decisionText').value.trim() ||
+            (decision === 'approve'
+                ? 'Рапорт принят к зачёту. Баллы подтверждены.'
+                : 'Рапорт к зачёту не принят. Требуется устранение замечаний.');
+        y = wrapTextCenter(ctx, decisionText, W / 2, y, contentW, 20);
+        y += 10;
+
+        const extra = $('extraText').value.trim();
+        if (extra) {
+            y = wrapTextCenter(ctx, 'Указание командования: ' + extra, W / 2, y, contentW, 20);
+            y += 10;
+        }
+
+        if (entries.length) {
+            y += 4;
+            ctx.font = 'italic 11px Libre Baskerville, serif';
+            ctx.fillStyle = '#444';
+            const dig = 'По рапорту представлено записей: ' + entries.length +
+                '. Направления: ' + [...new Set(entries.map(e => e.category || 'прочее'))].join(', ') + '.';
+            y = wrapTextCenter(ctx, dig, W / 2, y, contentW, 16);
+        }
+
+        y += 14;
+        ctx.font = '13px Libre Baskerville, serif';
+        ctx.fillStyle = '#222';
+        const verdict = decision === 'approve'
+            ? 'Отметка: ОДОБРЕНО. Рапорт зачтён по службе' +
+              (isPromo ? ' и допускается к рассмотрению вопроса о повышении.' : '.')
+            : 'Отметка: НЕ ОДОБРЕНО. Рапорт на зачёт не принимается до устранения указанных замечаний.';
+        y = wrapTextCenter(ctx, verdict, W / 2, y, contentW, 20);
+
+        // Stamps area
+        const selected = stamps.filter(s => s.selected);
+        const approved = decision === 'approve';
+        let stampY = Math.max(y + 40, H - 230);
+        if (selected.length) {
+            ctx.textAlign = 'left';
+            ctx.font = '10px Oswald, sans-serif';
+            ctx.fillStyle = '#666';
+            ctx.fillText('ПЕЧАТИ КОМАНДОВАНИЯ:', margin, stampY - 12);
+
+            const gap = 16;
+            const stampW = 150;
+            let sx = margin;
+            selected.forEach((s, i) => {
+                if (sx + stampW > W - margin) {
+                    sx = margin;
+                    stampY += 80;
+                }
+                drawStamp(ctx, sx, stampY, s, approved);
+                sx += stampW + gap;
+            });
+        } else {
+            ctx.fillStyle = '#999';
+            ctx.font = '11px Oswald, sans-serif';
+            ctx.fillText('Печати не выбраны', margin, stampY);
+        }
+
+        // Footer
+        ctx.fillStyle = '#888';
+        ctx.font = '9px Oswald, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('MMS · SANG · Служебное заключение командования · ' + docNo, W / 2, H - 32);
+    };
+
+    window.downloadPng = function () {
+        drawA4();
+        const canvas = $('a4Canvas');
+        const name = ($('empName').value.trim() || 'report').replace(/\s+/g, '_');
+        const id = ($('empId').value.trim() || 'id');
+        const a = document.createElement('a');
+        a.download = 'MMS_Decision_' + name + '_' + id + '_' + ($('docNo').value || 'doc') + '.png';
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+        toast('PNG сохранён');
+    };
+
+    /* init */
+    $('repDate').value = todayISO();
+    $('docNo').value = genDocNo();
+    loadStamps();
+    setDecision('approve');
+    renderEntries();
+    renderReasons();
+    if ($('repType')) {
+        $('repType').addEventListener('change', function () {
+            $('docNo').value = genDocNo();
+            scheduleDraw();
+        });
+    }
+    if ($('repDate')) {
+        $('repDate').addEventListener('change', function () {
+            $('docNo').value = genDocNo();
+            scheduleDraw();
+        });
+    }
+    drawA4();
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeEntryDetail();
+            if (typeof closeLightbox === 'function') closeLightbox();
+        }
+    });
+})();
+</script>
+</body>
+</html>
