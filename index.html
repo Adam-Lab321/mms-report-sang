@@ -4803,6 +4803,11 @@
                             <li>Нажми <b>«Отправить в Discord»</b> — уйдёт текст + файл + <b>PNG-лист A4 с фото</b> + отдельные фото с номерами пунктов.</li>
                         </ol>
                         <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">Администрация смотрит PNG прямо в Discord, без Word и без программ.</div>
+                        <div style="margin-top:12px;padding:10px 12px;border-radius:8px;border:1px solid rgba(212,175,55,0.2);background:rgba(0,0,0,0.25);font-size:11px;line-height:1.5;color:var(--text-secondary);">
+                            <b style="color:var(--gold);">Учёт сдачи MMS</b><br>
+                            При отправке фиксируются <b>метаданные</b> для учёта подразделения: время, тип рапорта, ID сотрудника, лицензия (если активна), результат доставки.
+                            Полные webhook Discord и пароли <b>не сохраняются</b>. Данные хранятся на инфраструктуре Cloudflare (Workers / KV) для командования MMS, <b>третьим лицам не передаются</b>.
+                        </div>
                     </div>
 
                     <div class="dc-webhook-ok" id="dcWebhookStatus">Канал: еженедельный рапорт · ping @High MMS</div>
@@ -7047,6 +7052,14 @@
                 const fd = new FormData();
                 fd.append('mode', isPromo ? 'promotion' : 'week');
                 fd.append('payload_json', JSON.stringify(payload));
+                // Метаданные для журнала учёта (без секретов)
+                try {
+                    fd.append('meta_static_id', String(id || ''));
+                    fd.append('meta_name', String(name || ''));
+                    fd.append('meta_points', String(points != null ? points : ''));
+                    fd.append('meta_license_user', (typeof mmsLicenseInfo !== 'undefined' && mmsLicenseInfo && mmsLicenseInfo.userId) ? String(mmsLicenseInfo.userId) : '');
+                    fd.append('meta_license_org', (typeof mmsLicenseInfo !== 'undefined' && mmsLicenseInfo && mmsLicenseInfo.org) ? String(mmsLicenseInfo.org) : '');
+                } catch (_) {}
 
                 // --- Единый пакет или выбранные файлы ---
                 let entriesForPng = (typeof entries !== 'undefined' && Array.isArray(entries) && entries.length)
