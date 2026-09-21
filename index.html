@@ -15,7 +15,34 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js">
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js">
+    <script>
+    window.__mmsLoadScript = function (src) {
+      return new Promise(function (resolve, reject) {
+        var s = document.createElement('script');
+        s.src = src;
+        s.async = true;
+        s.onload = function () { resolve(true); };
+        s.onerror = function () { reject(new Error('fail ' + src)); };
+        document.head.appendChild(s);
+      });
+    };
+    window.__mmsEnsureJSZip = async function () {
+      if (typeof JSZip !== 'undefined') return true;
+      var urls = [
+        'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+        'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js'
+      ];
+      for (var i = 0; i < urls.length; i++) {
+        try {
+          await window.__mmsLoadScript(urls[i]);
+          if (typeof JSZip !== 'undefined') return true;
+        } catch (e) {}
+      }
+      return false;
+    };
+    // предзагрузка в фоне
+    window.__mmsEnsureJSZip().catch(function () {});
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Cinzel:wght@400;700;900&family=Great+Vibes&family=Special+Elite&display=swap" rel="stylesheet" />
 
@@ -6701,10 +6728,45 @@
             };
         }
 
-        async function mmsBuildPackageZip(opts) {
-            if (typeof JSZip === 'undefined') {
-                throw new Error('JSZip не загружен — проверьте интернет (CDN)');
+        async function mmsBlobToBase64(blob) {
+            return new Promise(function (resolve, reject) {
+                const r = new FileReader();
+                r.onload = function () {
+                    const s = String(r.result || '');
+                    const i = s.indexOf(',');
+                    resolve(i >= 0 ? s.slice(i + 1) : s);
+                };
+                r.onerror = reject;
+                r.readAsDataURL(blob);
+            });
+        }
+
+        async function mmsBuildPackageJsonFallback(opts, wordBlob, pngPages, payload, fileNameBase) {
+            const wordB64 = wordBlob ? await mmsBlobToBase64(wordBlob) : null;
+            const pngs = [];
+            for (let i = 0; i < (pngPages || []).length; i++) {
+                pngs.push({
+                    name: 'page' + (i + 1) + '.png',
+                    base64: await mmsBlobToBase64(pngPages[i])
+                });
             }
+            const pack = {
+                format: 'mms-package-v1-json',
+                createdAt: new Date().toISOString(),
+                reportType: payload.reportType,
+                employee: payload.employee,
+                totalPoints: payload.totalPoints,
+                report: payload,
+                wordDocBase64: wordB64,
+                previews: pngs
+            };
+            const blob = new Blob([JSON.stringify(pack)], { type: 'application/json' });
+            return { blob: blob, payload: payload, fileName: fileNameBase + '.mms.json' };
+        }
+
+        async function mmsBuildPackageZip(opts) {
+            const okZip = (typeof JSZip !== 'undefined') || (await window.__mmsEnsureJSZip());
+
             const isPromo = !!(opts && opts.isPromo);
             const name = (opts && opts.name) || 'Сотрудник';
             const id = (opts && opts.id) || '0';
@@ -6715,6 +6777,28 @@
             const entriesData = (opts && opts.entriesData) || (typeof entries !== 'undefined' ? entries : []);
 
             const payload = mmsBuildReviewPayload(isPromo, points, name, id);
+
+            // Если JSZip недоступен — сразу JSON-пакет
+            if (!okZip || typeof JSZip === 'undefined') {
+                let wordBlob = null;
+                try {
+                    const fullName = name + (id ? (' (ID: ' + id + ')') : '');
+                    if (typeof generateWordBlob === 'function') {
+                        wordBlob = generateWordBlob(fullName, name, dateStr, points, entriesData, !!(typeof hasArchiveStamp !== 'undefined' && hasArchiveStamp));
+                    }
+                } catch (wErr) { console.warn(wErr); }
+                let pages = [];
+                try {
+                    if (typeof mmsGenerateReportPngs === 'function') {
+                        pages = await mmsGenerateReportPngs({
+                            fullName: name, id: id, dateStr: dateStr, total: points,
+                            typeLabel: typeLabel, entriesData: entriesData, summary: summary
+                        });
+                    }
+                } catch (pErr) { console.warn(pErr); }
+                return await mmsBuildPackageJsonFallback(opts, wordBlob, pages, payload, mmsPackageBaseName());
+            }
+
             const zip = new JSZip();
             const folder = zip.folder('mms_report') || zip;
 
@@ -6769,6 +6853,28 @@
                 console.warn('PNG in package:', pErr);
             }
 
+            if (!okZip || typeof JSZip === 'undefined') {
+                // Без CDN: один .mms.json (JSON + Word + PNG внутри)
+                let wordBlob = null;
+                try {
+                    const first = name.split(/\s+/)[0] || name;
+                    const fullName = name + (id ? (' (ID: ' + id + ')') : '');
+                    if (typeof generateWordBlob === 'function') {
+                        wordBlob = generateWordBlob(fullName, name, dateStr, points, entriesData, !!(typeof hasArchiveStamp !== 'undefined' && hasArchiveStamp));
+                    }
+                } catch (_) {}
+                let pages = [];
+                try {
+                    if (typeof mmsGenerateReportPngs === 'function') {
+                        pages = await mmsGenerateReportPngs({
+                            fullName: name, id: id, dateStr: dateStr, total: points,
+                            typeLabel: typeLabel, entriesData: entriesData, summary: summary
+                        });
+                    }
+                } catch (_) {}
+                return await mmsBuildPackageJsonFallback(opts, wordBlob, pages, payload, mmsPackageBaseName());
+            }
+
             const blob = await zip.generateAsync({
                 type: 'blob',
                 compression: 'DEFLATE',
@@ -6818,7 +6924,35 @@
         }
 
         async function mmsReadPackageFile(file) {
-            if (typeof JSZip === 'undefined') throw new Error('JSZip не загружен');
+            const n = String(file.name || '').toLowerCase();
+            // JSON-пакет без ZIP
+            if (n.endsWith('.mms.json') || n.endsWith('.json')) {
+                const text = await file.text();
+                const pack = JSON.parse(text);
+                if (pack && pack.format === 'mms-package-v1-json' && pack.report) {
+                    const out = { data: pack.report, files: [] };
+                    if (pack.wordDocBase64) {
+                        const bin = atob(pack.wordDocBase64);
+                        const arr = new Uint8Array(bin.length);
+                        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+                        out.files.push({ name: 'report.doc', blob: new Blob([arr], { type: 'application/msword' }) });
+                    }
+                    (pack.previews || []).forEach(function (pg) {
+                        if (!pg || !pg.base64) return;
+                        const bin = atob(pg.base64);
+                        const arr = new Uint8Array(bin.length);
+                        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+                        out.files.push({ name: pg.name || 'page.png', blob: new Blob([arr], { type: 'image/png' }) });
+                    });
+                    return out;
+                }
+                // обычный report.json
+                if (pack && (pack.entries || pack.format === 'mms-review-v1-full')) {
+                    return { data: pack, files: [] };
+                }
+            }
+            const okZip = (typeof JSZip !== 'undefined') || (await window.__mmsEnsureJSZip());
+            if (!okZip || typeof JSZip === 'undefined') throw new Error('JSZip не загружен и это не .mms.json');
             const zip = await JSZip.loadAsync(file);
             // report.json may be at root or mms_report/
             let jsonPath = null;
@@ -6924,7 +7058,7 @@
                 for (let fi = 0; fi < fileList.length; fi++) {
                     const f = fileList[fi];
                     const n = String(f.name || '').toLowerCase();
-                    if (n.endsWith('.mms.zip') || n.endsWith('.mms') || (n.endsWith('.zip') && n.indexOf('mms') >= 0) || n.endsWith('.zip')) {
+                    if (n.endsWith('.mms.json') || n.endsWith('.mms.zip') || n.endsWith('.mms') || (n.endsWith('.zip') && n.indexOf('mms') >= 0) || n.endsWith('.zip')) {
                         try {
                             setStatus('Читаю пакет ' + f.name + '…', null);
                             const pack = await mmsReadPackageFile(f);
