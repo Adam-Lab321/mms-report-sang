@@ -13,6 +13,8 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js">
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Cinzel:wght@400;700;900&family=Great+Vibes&family=Special+Elite&display=swap" rel="stylesheet" />
 
     <style>
@@ -6233,6 +6235,202 @@
             }
         }
 
+
+        // ===== PNG A4 рапорт + именованные фото для Discord =====
+        function mmsEscHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function mmsDataUrlToBlob(dataUrl) {
+            try {
+                const parts = String(dataUrl).split(',');
+                const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
+                const bin = atob(parts[1] || '');
+                const arr = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+                return new Blob([arr], { type: mime });
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function mmsSafeFilePart(s, maxLen) {
+            return String(s || 'file')
+                .replace(/[^\w\u0400-\u04FF\-]+/g, '_')
+                .replace(/_+/g, '_')
+                .slice(0, maxLen || 40) || 'file';
+        }
+
+        /** Собирает фото из entries: имя вида 01_1_название.jpg под номером пункта */
+        function mmsCollectNamedPhotos(entriesData) {
+            const out = [];
+            const list = Array.isArray(entriesData) ? entriesData : [];
+            list.forEach(function(entry, ei) {
+                const n = ei + 1;
+                const pad = (n < 10 ? '0' : '') + n;
+                const atts = Array.isArray(entry.attachments) ? entry.attachments : [];
+                atts.forEach(function(a, ai) {
+                    if (!a || !a.dataUrl) return;
+                    const blob = mmsDataUrlToBlob(a.dataUrl);
+                    if (!blob) return;
+                    const base = mmsSafeFilePart(a.name || ('foto' + (ai + 1)), 30);
+                    const ext = (blob.type && blob.type.indexOf('png') >= 0) ? 'png' : 'jpg';
+                    const pts = a.points ? ('_' + a.points + 'b') : '';
+                    const fname = pad + '_' + (ai + 1) + '_' + base + pts + '.' + ext;
+                    out.push({ blob: blob, name: fname, entryIndex: n, points: a.points || 0 });
+                });
+            });
+            return out;
+        }
+
+        /** Строит off-screen A4 HTML (как Word) с фото под каждым пунктом */
+        function mmsBuildA4ReportNode(opts) {
+            const fullName = opts.fullName || '—';
+            const id = opts.id || '—';
+            const dateStr = opts.dateStr || '—';
+            const total = opts.total != null ? opts.total : 0;
+            const typeLabel = opts.typeLabel || 'Еженедельный рапорт';
+            const data = Array.isArray(opts.entriesData) ? opts.entriesData : [];
+            const summary = opts.summary || '';
+
+            const root = document.createElement('div');
+            root.id = 'mms-a4-export-root';
+            root.setAttribute('style',
+                'position:fixed;left:-10000px;top:0;width:794px;background:#f7f1e8;color:#1a1a1a;' +
+                'font-family:Oswald,Segoe UI,sans-serif;box-sizing:border-box;padding:36px 40px 48px;z-index:-1;'
+            );
+
+            let rowsHtml = '';
+            data.forEach(function(entry, index) {
+                const num = index + 1;
+                const cat = mmsEscHtml(entry.category || 'прочее');
+                const link = mmsEscHtml(entry.link || '');
+                const date = mmsEscHtml(entry.date || '');
+                const rowPts = (typeof entryTotalPoints === 'function') ? entryTotalPoints(entry) : (entry.points || 0);
+                let photosHtml = '';
+                const atts = Array.isArray(entry.attachments) ? entry.attachments : [];
+                if (atts.length) {
+                    photosHtml = '<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:10px;">';
+                    atts.forEach(function(a, ai) {
+                        const cap = mmsEscHtml((a.name || ('снимок ' + (ai + 1))) + (a.points ? (' · +' + a.points) : ''));
+                        const label = num + '.' + (ai + 1);
+                        if (a.dataUrl) {
+                            photosHtml +=
+                                '<div style="text-align:center;max-width:200px;">' +
+                                '<div style="font-size:10px;color:#6a5a4a;margin-bottom:3px;letter-spacing:0.5px;">№' + label + '</div>' +
+                                '<img src="' + a.dataUrl + '" alt="' + cap + '" crossorigin="anonymous" ' +
+                                'style="max-width:190px;max-height:150px;object-fit:contain;border:1px solid #c9a227;border-radius:4px;background:#fff;" />' +
+                                '<div style="font-size:10px;color:#555;margin-top:3px;line-height:1.2;">' + cap + '</div></div>';
+                        } else {
+                            photosHtml += '<div style="font-size:11px;color:#888;">№' + label + ' ' + cap + ' (нет файла)</div>';
+                        }
+                    });
+                    photosHtml += '</div>';
+                }
+                rowsHtml +=
+                    '<tr>' +
+                    '<td style="border:1px solid #8a7a6a;padding:10px 8px;text-align:center;vertical-align:top;width:48px;background:#faf8f5;font-weight:700;">' + num + '</td>' +
+                    '<td style="border:1px solid #8a7a6a;padding:10px 8px;text-align:center;vertical-align:top;width:90px;background:#faf8f5;">' + date + '</td>' +
+                    '<td style="border:1px solid #8a7a6a;padding:10px 12px;vertical-align:top;background:#fff;">' +
+                    '<div style="font-size:12px;color:#1a3a8a;font-weight:600;margin-bottom:4px;">' + cat + '</div>' +
+                    (link ? ('<div style="font-size:11px;word-break:break-all;color:#333;margin-bottom:4px;">' + link + '</div>') : '') +
+                    photosHtml +
+                    '</td>' +
+                    '<td style="border:1px solid #8a7a6a;padding:10px 8px;text-align:center;vertical-align:top;width:64px;background:#faf8f5;font-weight:700;color:#8a6a12;">' + rowPts + '</td>' +
+                    '</tr>';
+            });
+
+            root.innerHTML =
+                '<div style="text-align:center;border-bottom:3px double #d4af37;padding-bottom:14px;margin-bottom:18px;">' +
+                '<div style="font-family:Cinzel,serif;font-size:22px;letter-spacing:4px;color:#1a3a8a;font-weight:700;">⚔ MMS · S.A.N.G.</div>' +
+                '<div style="font-size:13px;letter-spacing:2px;color:#6a5a4a;margin-top:4px;text-transform:uppercase;">Military Medical Service</div>' +
+                '<div style="font-size:16px;margin-top:10px;color:#1a1a1a;font-weight:600;">' + mmsEscHtml(typeLabel) + '</div>' +
+                '</div>' +
+                '<div style="background:#fff;border:1px solid #d4c4a8;border-radius:8px;padding:12px 16px;margin-bottom:16px;">' +
+                '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px;line-height:1.6;">' +
+                '<div><b style="color:#1a3a8a;">Сотрудник:</b> ' + mmsEscHtml(fullName) + '</div>' +
+                '<div><b style="color:#1a3a8a;">Static ID:</b> ' + mmsEscHtml(id) + '</div>' +
+                '<div><b style="color:#1a3a8a;">Дата:</b> ' + mmsEscHtml(dateStr) + '</div>' +
+                '<div><b style="color:#1a3a8a;">Итого баллов:</b> <span style="color:#8a6a12;font-weight:700;">' + mmsEscHtml(total) + '</span></div>' +
+                '</div>' +
+                (summary ? ('<div style="margin-top:8px;font-size:12px;color:#444;"><b>Комментарий:</b> ' + mmsEscHtml(summary) + '</div>') : '') +
+                '</div>' +
+                '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+                '<thead><tr style="background:#1a3a8a;color:#f5e6c8;">' +
+                '<th style="padding:8px;border:1px solid #1a3a8a;">№</th>' +
+                '<th style="padding:8px;border:1px solid #1a3a8a;">Дата</th>' +
+                '<th style="padding:8px;border:1px solid #1a3a8a;">Доказательство / фото</th>' +
+                '<th style="padding:8px;border:1px solid #1a3a8a;">Баллы</th>' +
+                '</tr></thead><tbody>' + (rowsHtml || '<tr><td colspan="4" style="padding:16px;text-align:center;border:1px solid #8a7a6a;">Нет записей</td></tr>') +
+                '</tbody></table>' +
+                '<div style="margin-top:18px;text-align:center;font-size:11px;color:#6a5a4a;letter-spacing:1px;">MMS REPORT · лист для просмотра администрацией · без доп. программ</div>';
+
+            document.body.appendChild(root);
+            return root;
+        }
+
+        /** Рендер A4 в PNG (при длинном рапорте — несколько страниц) */
+        async function mmsGenerateReportPngs(opts) {
+            if (typeof html2canvas !== 'function') {
+                throw new Error('html2canvas не загружен');
+            }
+            const node = mmsBuildA4ReportNode(opts);
+            // ждём отрисовку картинок
+            const imgs = Array.prototype.slice.call(node.querySelectorAll('img'));
+            await Promise.all(imgs.map(function(img) {
+                return img.complete ? Promise.resolve() : new Promise(function(resolve) {
+                    img.onload = img.onerror = resolve;
+                    setTimeout(resolve, 2500);
+                });
+            }));
+            await new Promise(function(r) { setTimeout(r, 80); });
+
+            const canvas = await html2canvas(node, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#f7f1e8',
+                logging: false,
+                windowWidth: 794
+            });
+
+            try { node.remove(); } catch (_) {}
+
+            const pageH = Math.round(1123 * 2); // A4 height at scale 2
+            const pages = [];
+            if (canvas.height <= pageH + 40) {
+                const blob = await new Promise(function(resolve) {
+                    canvas.toBlob(function(b) { resolve(b); }, 'image/png', 0.95);
+                });
+                if (blob) pages.push(blob);
+            } else {
+                let y = 0;
+                let page = 1;
+                while (y < canvas.height) {
+                    const h = Math.min(pageH, canvas.height - y);
+                    const pageCanvas = document.createElement('canvas');
+                    pageCanvas.width = canvas.width;
+                    pageCanvas.height = h;
+                    const ctx = pageCanvas.getContext('2d');
+                    ctx.fillStyle = '#f7f1e8';
+                    ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+                    ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+                    const blob = await new Promise(function(resolve) {
+                        pageCanvas.toBlob(function(b) { resolve(b); }, 'image/png', 0.92);
+                    });
+                    if (blob) pages.push(blob);
+                    y += pageH;
+                    page++;
+                    if (page > 8) break; // защита
+                }
+            }
+            return pages;
+        }
+
         async function sendReportToDiscord() {
             const status = document.getElementById('dcStatus');
             const btn = document.getElementById('dcSendBtn');
@@ -6301,10 +6499,18 @@
                 const fd = new FormData();
                 fd.append('mode', isPromo ? 'promotion' : 'week');
                 fd.append('payload_json', JSON.stringify(payload));
+
+                // Источник записей для PNG/фото: текущий рапорт (приоритет) или пусто
+                const entriesForPng = (typeof entries !== 'undefined' && Array.isArray(entries) && entries.length)
+                    ? entries
+                    : [];
+
+                let fileIdx = 0;
+                // 1) Пользовательский файл (HTML/Word/JSON) или авто-JSON
                 if (file) {
-                    fd.append('files[0]', file, file.name || 'MMS_report.bin');
-                } else {
-                    // Авто-пакет: полный JSON рапорта (с фото, если есть в entries)
+                    fd.append('files[' + fileIdx + ']', file, file.name || 'MMS_report.bin');
+                    fileIdx++;
+                } else if (entriesForPng.length) {
                     const autoPayload = {
                         format: 'mms-review-v1-full',
                         status: 'pending_review',
@@ -6312,7 +6518,7 @@
                         reportDate: (dateInput && dateInput.value) ? dateInput.value : getTodayDate(),
                         totalPoints: points,
                         employee: { name: name, fullName: name, id: id },
-                        entries: (typeof entries !== 'undefined' && Array.isArray(entries)) ? JSON.parse(JSON.stringify(entries)) : [],
+                        entries: JSON.parse(JSON.stringify(entriesForPng)),
                         exportedAt: new Date().toISOString(),
                         includesPhotos: true,
                         hasArchiveStamp: !!(typeof hasArchiveStamp !== 'undefined' && hasArchiveStamp),
@@ -6320,8 +6526,44 @@
                     };
                     const jsonBlob = new Blob([JSON.stringify(autoPayload, null, 2)], { type: 'application/json' });
                     const autoName = 'MMS_' + (isPromo ? 'inc' : 'week') + '_' + String(name || 'report').replace(/\s+/g, '_') + '_' + id + '_review.json';
-                    fd.append('files[0]', jsonBlob, autoName);
+                    fd.append('files[' + fileIdx + ']', jsonBlob, autoName);
+                    fileIdx++;
                 }
+
+                // 2) PNG-лист(ы) A4 как Word — с фото под каждым пунктом
+                try {
+                    setStatus('Формирование PNG-листа рапорта...', null);
+                    const pngPages = await mmsGenerateReportPngs({
+                        fullName: name,
+                        id: id,
+                        dateStr: dateStr,
+                        total: points,
+                        typeLabel: typeLabel,
+                        entriesData: entriesForPng,
+                        summary: summary
+                    });
+                    pngPages.forEach(function(blob, i) {
+                        if (fileIdx >= 9) return; // лимит Discord ~10 файлов
+                        const pn = 'MMS_' + (isPromo ? 'inc' : 'week') + '_' + id + '_page' + (i + 1) + '.png';
+                        fd.append('files[' + fileIdx + ']', blob, pn);
+                        fileIdx++;
+                    });
+                } catch (pngErr) {
+                    console.warn('PNG generate failed:', pngErr);
+                }
+
+                // 3) Отдельные фото с нумерацией под пунктами: 01_1_name.jpg
+                const namedPhotos = mmsCollectNamedPhotos(entriesForPng);
+                namedPhotos.forEach(function(ph) {
+                    if (fileIdx >= 10) return;
+                    fd.append('files[' + fileIdx + ']', ph.blob, ph.name);
+                    fileIdx++;
+                });
+
+                if (fileIdx === 0) {
+                    throw new Error('Нет файла и нет записей для отправки');
+                }
+
                 res = await fetch(MMS_PROXY_URL, {
                     method: 'POST',
                     headers: {
@@ -6332,8 +6574,8 @@
                 if (!res.ok) { let errText = ''; try { errText = await res.text(); } catch (_) {} throw new Error('Discord ' + res.status + (errText ? ': ' + errText.slice(0, 160) : '')); }
                 const seconds = ((performance.now() - started) / 1000).toFixed(1);
                 const dest = isPromo ? 'канал повышения' : 'еженедельный канал';
-                setStatus('✅ Отправлено в ' + dest + (file ? ' с файлом' : '') + ' · ' + seconds + ' сек.', true);
-                showToast(isPromo ? 'Рапорт на повышение отправлен' : 'Еженедельный рапорт отправлен', 'success');
+                setStatus('✅ Отправлено в ' + dest + ' (HTML/JSON + PNG + фото) · ' + seconds + ' сек.', true);
+                showToast(isPromo ? 'Рапорт на повышение отправлен (с PNG)' : 'Еженедельный рапорт отправлен (с PNG)', 'success');
                 if (fileInput) { fileInput.value = ''; discordFilePoints = null; discordFileMeta = null; }
                 const fn = document.getElementById('dcFileName'); if (fn) fn.textContent = 'Файл не выбран';
                 refreshDiscordSubmitForm();
