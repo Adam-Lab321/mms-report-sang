@@ -4752,11 +4752,11 @@
                     <div class="dc-card">
                         <label class="dc-label">Файл отчёта</label>
                         <div class="dc-file-row">
-                            <input type="file" id="dcFile" class="dc-file-hidden" onchange="onDiscordFileChosen(event)" />
-                            <button type="button" class="dc-file-btn" onclick="document.getElementById('dcFile').click()">Выбрать файл</button>
-                            <span class="dc-file-name" id="dcFileName">Файл не выбран</span>
+                            <input type="file" id="dcFile" class="dc-file-hidden" multiple accept=".html,.htm,.doc,.json,image/*,.png,.jpg,.jpeg" onchange="onDiscordFileChosen(event)" />
+                            <button type="button" class="dc-file-btn" onclick="document.getElementById('dcFile').click()">Выбрать файлы</button>
+                            <span class="dc-file-name" id="dcFileName">Файлы не выбраны</span>
                         </div>
-                        <p class="dc-hint">Word (.doc), JSON, HTML или картинка. Word-файл, созданный этой программой, читается автоматически.</p>
+                        <p class="dc-hint">Можно выбрать несколько файлов: Word (.doc), JSON, HTML и картинки. PNG-лист A4 сформируется автоматически.</p>
                     </div>
 
 
@@ -6192,22 +6192,33 @@
 
         async function onDiscordFileChosen(ev) {
             const input = ev && ev.target ? ev.target : document.getElementById('dcFile');
-            const file = input && input.files && input.files[0] ? input.files[0] : null;
+            const allFiles = input && input.files ? Array.prototype.slice.call(input.files) : [];
+            const file = allFiles.length ? allFiles[0] : null;
             const nameEl = document.getElementById('dcFileName');
             const st = document.getElementById('dcStatus');
             discordFilePoints = null;
             discordFileMeta = null;
             if (!file) {
-                if (nameEl) nameEl.textContent = 'Файл не выбран';
+                if (nameEl) nameEl.textContent = 'Файлы не выбраны';
                 if (st) st.textContent = '';
                 refreshDiscordSubmitForm();
                 return;
             }
-            if (nameEl) nameEl.textContent = file.name;
-            const lower = (file.name || '').toLowerCase();
-            if (st) { st.textContent = '⏳ Читаю файл…'; st.style.color = 'var(--text-muted)'; }
+            if (nameEl) {
+                nameEl.textContent = allFiles.length === 1
+                    ? file.name
+                    : (allFiles.length + ' файлов: ' + allFiles.map(function (f) { return f.name; }).join(', '));
+            }
+            // для баллов предпочитаем JSON среди выбранных
+            let parseFile = file;
+            for (let i = 0; i < allFiles.length; i++) {
+                if (/\.json$/i.test(allFiles[i].name)) { parseFile = allFiles[i]; break; }
+            }
+            const lower = (parseFile.name || '').toLowerCase();
+            if (st) { st.textContent = '⏳ Читаю файл(ы)…'; st.style.color = 'var(--text-muted)'; }
 
             try {
+                const file = parseFile;
                 if (lower.endsWith('.json') || (file.type && file.type.indexOf('json') !== -1)) {
                     const data = JSON.parse(await file.text());
                     let pts = Number.isFinite(Number(data.totalPoints)) ? Number(data.totalPoints) : null;
@@ -6393,58 +6404,205 @@
 
         /** Рендер A4 в PNG (при длинном рапорте — несколько страниц) */
         async function mmsGenerateReportPngs(opts) {
-            if (typeof html2canvas !== 'function') {
-                throw new Error('html2canvas не загружен');
-            }
-            const node = mmsBuildA4ReportNode(opts);
-            // ждём отрисовку картинок
-            const imgs = Array.prototype.slice.call(node.querySelectorAll('img'));
-            await Promise.all(imgs.map(function(img) {
-                return img.complete ? Promise.resolve() : new Promise(function(resolve) {
-                    img.onload = img.onerror = resolve;
-                    setTimeout(resolve, 2500);
-                });
-            }));
-            await new Promise(function(r) { setTimeout(r, 80); });
+            // Надёжный PNG без html2canvas (canvas 2D) — работает стабильнее
+            const fullName = opts.fullName || '—';
+            const id = opts.id || '—';
+            const dateStr = opts.dateStr || '—';
+            const total = opts.total != null ? opts.total : 0;
+            const typeLabel = opts.typeLabel || 'Еженедельный рапорт';
+            const data = Array.isArray(opts.entriesData) ? opts.entriesData : [];
+            const summary = opts.summary || '';
 
-            const canvas = await html2canvas(node, {
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#f7f1e8',
-                logging: false,
-                windowWidth: 794
+            const W = 794;
+            const margin = 36;
+            const contentW = W - margin * 2;
+            const lineH = 18;
+
+            // Предзагрузка картинок
+            const photoJobs = [];
+            data.forEach(function (entry, ei) {
+                const atts = Array.isArray(entry.attachments) ? entry.attachments : [];
+                atts.forEach(function (a, ai) {
+                    if (!a || !a.dataUrl) return;
+                    photoJobs.push(new Promise(function (resolve) {
+                        const img = new Image();
+                        img.onload = function () { resolve({ ei: ei, ai: ai, img: img, name: a.name || ('foto' + (ai + 1)), points: a.points || 0 }); };
+                        img.onerror = function () { resolve(null); };
+                        img.src = a.dataUrl;
+                    }));
+                });
+            });
+            const loadedPhotos = (await Promise.all(photoJobs)).filter(Boolean);
+            const photosByEntry = {};
+            loadedPhotos.forEach(function (p) {
+                if (!photosByEntry[p.ei]) photosByEntry[p.ei] = [];
+                photosByEntry[p.ei].push(p);
             });
 
-            try { node.remove(); } catch (_) {}
+            // Черновик высоты
+            let estH = 220;
+            data.forEach(function (entry, ei) {
+                estH += 56;
+                const ph = photosByEntry[ei] || [];
+                if (ph.length) estH += Math.ceil(ph.length / 3) * 130;
+            });
+            estH = Math.max(1123, estH + 80);
 
-            const pageH = Math.round(1123 * 2); // A4 height at scale 2
+            const canvas = document.createElement('canvas');
+            canvas.width = W;
+            const scale = 2;
+            // рисуем в логических пикселях, потом масштабируем через второй canvas при экспорте
+            canvas.width = W * scale;
+            canvas.height = estH * scale;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(scale, scale);
+            ctx.fillStyle = '#f7f1e8';
+            ctx.fillRect(0, 0, W, estH);
+
+            let y = margin;
+            // Header
+            ctx.fillStyle = '#1a3a8a';
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 22px Cinzel, serif';
+            ctx.fillText('MMS · S.A.N.G.', W / 2, y);
+            y += 22;
+            ctx.font = '13px Oswald, sans-serif';
+            ctx.fillStyle = '#6a5a4a';
+            ctx.fillText('Military Medical Service', W / 2, y);
+            y += 20;
+            ctx.fillStyle = '#1a1a1a';
+            ctx.font = 'bold 16px Oswald, sans-serif';
+            ctx.fillText(String(typeLabel), W / 2, y);
+            y += 14;
+            ctx.strokeStyle = '#d4af37';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(margin, y);
+            ctx.lineTo(W - margin, y);
+            ctx.stroke();
+            y += 22;
+
+            ctx.textAlign = 'left';
+            ctx.font = '13px Oswald, sans-serif';
+            ctx.fillStyle = '#222';
+            ctx.fillText('Сотрудник: ' + fullName, margin, y);
+            ctx.fillText('ID: ' + id, margin + 360, y);
+            y += lineH;
+            ctx.fillText('Дата: ' + dateStr, margin, y);
+            ctx.fillStyle = '#8a6a12';
+            ctx.font = 'bold 14px Oswald, sans-serif';
+            ctx.fillText('Итого баллов: ' + total, margin + 360, y);
+            y += lineH + 4;
+            if (summary) {
+                ctx.fillStyle = '#444';
+                ctx.font = '12px Oswald, sans-serif';
+                ctx.fillText('Комментарий: ' + String(summary).slice(0, 90), margin, y);
+                y += lineH;
+            }
+            y += 8;
+
+            // Table header
+            ctx.fillStyle = '#1a3a8a';
+            ctx.fillRect(margin, y, contentW, 28);
+            ctx.fillStyle = '#f5e6c8';
+            ctx.font = 'bold 12px Oswald, sans-serif';
+            ctx.fillText('№', margin + 8, y + 18);
+            ctx.fillText('Дата', margin + 40, y + 18);
+            ctx.fillText('Доказательство / фото', margin + 130, y + 18);
+            ctx.fillText('Баллы', margin + contentW - 50, y + 18);
+            y += 32;
+
+            data.forEach(function (entry, ei) {
+                const num = ei + 1;
+                const rowPts = (typeof entryTotalPoints === 'function') ? entryTotalPoints(entry) : (entry.points || 0);
+                const ph = photosByEntry[ei] || [];
+                const photoRows = Math.ceil(ph.length / 3);
+                const blockH = 40 + (photoRows > 0 ? photoRows * 125 : 0);
+
+                ctx.fillStyle = (ei % 2 === 0) ? '#faf8f5' : '#ffffff';
+                ctx.fillRect(margin, y, contentW, blockH);
+                ctx.strokeStyle = '#c9b89a';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(margin, y, contentW, blockH);
+
+                ctx.fillStyle = '#1a1a1a';
+                ctx.font = 'bold 13px Oswald, sans-serif';
+                ctx.fillText(String(num), margin + 10, y + 20);
+                ctx.font = '12px Oswald, sans-serif';
+                ctx.fillText(String(entry.date || '—'), margin + 40, y + 20);
+                ctx.fillStyle = '#1a3a8a';
+                ctx.fillText(String(entry.category || 'прочее').slice(0, 28), margin + 130, y + 18);
+                ctx.fillStyle = '#333';
+                ctx.font = '11px Oswald, sans-serif';
+                const link = String(entry.link || '').slice(0, 55);
+                if (link) ctx.fillText(link, margin + 130, y + 34);
+                ctx.fillStyle = '#8a6a12';
+                ctx.font = 'bold 13px Oswald, sans-serif';
+                ctx.fillText(String(rowPts), margin + contentW - 40, y + 22);
+
+                // photos
+                ph.forEach(function (p, pi) {
+                    const col = pi % 3;
+                    const row = Math.floor(pi / 3);
+                    const px = margin + 130 + col * 150;
+                    const py = y + 42 + row * 125;
+                    try {
+                        const maxW = 140, maxH = 100;
+                        let dw = p.img.width, dh = p.img.height;
+                        const r = Math.min(maxW / dw, maxH / dh, 1);
+                        dw *= r; dh *= r;
+                        ctx.drawImage(p.img, px, py, dw, dh);
+                        ctx.strokeStyle = '#c9a227';
+                        ctx.strokeRect(px, py, dw, dh);
+                        ctx.fillStyle = '#555';
+                        ctx.font = '10px Oswald, sans-serif';
+                        ctx.fillText('№' + num + '.' + (pi + 1) + ' ' + String(p.name || '').slice(0, 18), px, py + dh + 12);
+                    } catch (e) {}
+                });
+
+                y += blockH + 4;
+            });
+
+            if (!data.length) {
+                ctx.fillStyle = '#777';
+                ctx.font = '14px Oswald, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Нет записей в рапорте — PNG-сводка по карточке', W / 2, y + 40);
+                y += 80;
+            }
+
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#6a5a4a';
+            ctx.font = '11px Oswald, sans-serif';
+            ctx.fillText('MMS REPORT · лист для администрации · без доп. программ', W / 2, y + 24);
+
+            // Обрезаем пустое
+            const usedH = Math.min(canvas.height, Math.ceil((y + 50) * scale));
+            const pageH = Math.round(1123 * scale);
             const pages = [];
-            if (canvas.height <= pageH + 40) {
-                const blob = await new Promise(function(resolve) {
-                    canvas.toBlob(function(b) { resolve(b); }, 'image/png', 0.95);
+            let sy = 0;
+            let pageNo = 0;
+            while (sy < usedH && pageNo < 8) {
+                const h = Math.min(pageH, usedH - sy);
+                const pageCanvas = document.createElement('canvas');
+                pageCanvas.width = canvas.width;
+                pageCanvas.height = h;
+                const pctx = pageCanvas.getContext('2d');
+                pctx.fillStyle = '#f7f1e8';
+                pctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+                pctx.drawImage(canvas, 0, sy, canvas.width, h, 0, 0, canvas.width, h);
+                const blob = await new Promise(function (resolve) {
+                    pageCanvas.toBlob(function (b) { resolve(b); }, 'image/png');
                 });
                 if (blob) pages.push(blob);
-            } else {
-                let y = 0;
-                let page = 1;
-                while (y < canvas.height) {
-                    const h = Math.min(pageH, canvas.height - y);
-                    const pageCanvas = document.createElement('canvas');
-                    pageCanvas.width = canvas.width;
-                    pageCanvas.height = h;
-                    const ctx = pageCanvas.getContext('2d');
-                    ctx.fillStyle = '#f7f1e8';
-                    ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-                    ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
-                    const blob = await new Promise(function(resolve) {
-                        pageCanvas.toBlob(function(b) { resolve(b); }, 'image/png', 0.92);
-                    });
-                    if (blob) pages.push(blob);
-                    y += pageH;
-                    page++;
-                    if (page > 8) break; // защита
-                }
+                sy += pageH;
+                pageNo++;
+            }
+            if (!pages.length) {
+                const blob = await new Promise(function (resolve) {
+                    canvas.toBlob(function (b) { resolve(b); }, 'image/png');
+                });
+                if (blob) pages.push(blob);
             }
             return pages;
         }
@@ -6469,10 +6627,11 @@
             const typeLabel = isPromo ? 'Рапорт на повышение' : 'Еженедельный рапорт';
             const summary = ((document.getElementById('dcSummary') || {}).value || '').trim();
             const fileInput = document.getElementById('dcFile');
-            const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+            const fileList = (fileInput && fileInput.files && fileInput.files.length) ? Array.prototype.slice.call(fileInput.files) : [];
+            const file = fileList.length ? fileList[0] : null;
 
             if (!name || !id) { setStatus('Заполни карточку сотрудника (ФИО и ID)', false); showToast('Нет данных сотрудника', 'error'); return; }
-            if (!file && (!entries || !entries.length)) { setStatus('Прикрепи файл отчёта или добавь записи в рапорт', false); showToast('Нужен файл или записи', 'error'); return; }
+            if (!fileList.length && (!entries || !entries.length)) { setStatus('Прикрепи файл(ы) отчёта или добавь записи в рапорт', false); showToast('Нужен файл или записи', 'error'); return; }
 
             const roleId = String(MMS_DISCORD_ROLE_ID || '').replace(/\D/g, '');
             const roleMention = roleId ? '<@&' + roleId + '>' : MMS_DISCORD_ROLE_LABEL;
@@ -6540,10 +6699,13 @@
                 }
 
                 let fileIdx = 0;
-                // 1) Пользовательский файл (HTML/Word/JSON) или авто-JSON
-                if (file) {
-                    fd.append('files[' + fileIdx + ']', file, file.name || 'MMS_report.bin');
-                    fileIdx++;
+                // 1) Все выбранные пользователем файлы (Word + JSON + HTML + др.)
+                if (fileList.length) {
+                    fileList.forEach(function (f) {
+                        if (fileIdx >= 8) return;
+                        fd.append('files[' + fileIdx + ']', f, f.name || ('file_' + fileIdx));
+                        fileIdx++;
+                    });
                 } else if (entriesForPng.length) {
                     const autoPayload = {
                         format: 'mms-review-v1-full',
