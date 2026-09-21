@@ -6085,20 +6085,16 @@
         }
 
         // ===== СДАЧА В DISCORD =====
-        // Два webhook: еженедельный рапорт и рапорт на повышение → разные каналы.
-        // При утечке HTML — пересоздайте оба webhook в Discord.
-        const MMS_DISCORD_WEBHOOK_WEEKLY = 'https://discord.com/api/webhooks/1551215868657139745/8o7FpNNPPll3ce0-4JF6xrFcRXMm3yMHaJK16KWbI5dC9E6v9KD5ROpST7UMYxmScX-I';
-        const MMS_DISCORD_WEBHOOK_PROMOTION = 'https://discord.com/api/webhooks/1551279007172001842/kyjU1lO9r8MXVCzQ5X8Aaoyp2b3kU8tXmJWVo9VGaRw5r5JdtMTl5M-HVZJnrAr_gyQK';
+        // Webhook'и спрятаны в Cloudflare Worker. На сайте их больше нет.
+        const MMS_PROXY_URL = 'https://mms-report-proxy.asakulin874.workers.dev';
+        const MMS_PROXY_TOKEN = '9fK2mP8xL4vN6qR1wZ3yT7bC5';
+
         // Роль High MMS — рабочий ping <@&1551254597354655866> (оба канала)
         const MMS_DISCORD_ROLE_ID = '1551254597354655866';
         const MMS_DISCORD_ROLE_LABEL = '@High MMS';
         let discordSubmitMode = 'week'; // week | promotion
         let discordFilePoints = null; // баллы из прикреплённого файла
         let discordFileMeta = null;
-
-        function getDiscordWebhookForMode(mode) {
-            return (mode === 'promotion') ? MMS_DISCORD_WEBHOOK_PROMOTION : MMS_DISCORD_WEBHOOK_WEEKLY;
-        }
 
         function updateDiscordChannelStatus() {
             const el = document.getElementById('dcWebhookStatus');
@@ -6256,14 +6252,11 @@
             const isPromo = discordSubmitMode === 'promotion';
             const typeLabel = isPromo ? 'Рапорт на повышение' : 'Еженедельный рапорт';
             const summary = ((document.getElementById('dcSummary') || {}).value || '').trim();
-            // Два канала: weekly → старый webhook, promotion → новый
-            const webhook = getDiscordWebhookForMode(discordSubmitMode);
             const fileInput = document.getElementById('dcFile');
             const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
 
             if (!name || !id) { setStatus('Заполни карточку сотрудника (ФИО и ID)', false); showToast('Нет данных сотрудника', 'error'); return; }
             if (!file && (!entries || !entries.length)) { setStatus('Прикрепи файл отчёта или добавь записи в рапорт', false); showToast('Нужен файл или записи', 'error'); return; }
-            if (!webhook) { setStatus('Webhook для этого типа рапорта не настроен', false); showToast('Нет webhook', 'error'); return; }
 
             const roleId = String(MMS_DISCORD_ROLE_ID || '').replace(/\D/g, '');
             const roleMention = roleId ? '<@&' + roleId + '>' : MMS_DISCORD_ROLE_LABEL;
@@ -6306,6 +6299,7 @@
                 let res;
                 // Всегда отправляем вложение-файлом (в Discord виден файл для скачивания, а не «простыня» кода)
                 const fd = new FormData();
+                fd.append('mode', isPromo ? 'promotion' : 'week');
                 fd.append('payload_json', JSON.stringify(payload));
                 if (file) {
                     fd.append('files[0]', file, file.name || 'MMS_report.bin');
@@ -6328,7 +6322,13 @@
                     const autoName = 'MMS_' + (isPromo ? 'inc' : 'week') + '_' + String(name || 'report').replace(/\s+/g, '_') + '_' + id + '_review.json';
                     fd.append('files[0]', jsonBlob, autoName);
                 }
-                res = await fetch(webhook, { method: 'POST', body: fd });
+                res = await fetch(MMS_PROXY_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + MMS_PROXY_TOKEN
+                    },
+                    body: fd
+                });
                 if (!res.ok) { let errText = ''; try { errText = await res.text(); } catch (_) {} throw new Error('Discord ' + res.status + (errText ? ': ' + errText.slice(0, 160) : '')); }
                 const seconds = ((performance.now() - started) / 1000).toFixed(1);
                 const dest = isPromo ? 'канал повышения' : 'еженедельный канал';
