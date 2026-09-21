@@ -4347,27 +4347,28 @@
             <button class="nav-btn" id="navFeedback" onclick="switchTab('feedback', event)" data-tooltip="💬 Создать предложение или жалобу в формате Word">
                 <span class="icon">💬</span> Предложения и жалобы
             </button>
+            <button class="nav-btn" id="btnAssistant" onclick="toggleAssistant(event)" data-tooltip="🤖 Венера — помощник по работе с рапортом">
+                <span class="icon">🤖</span> Помощник
+            </button>
             <button class="nav-btn" id="navDiscordSubmit" onclick="switchTab('discord', event)" data-tooltip="Отправить рапорт в Discord с данными из карточки">
                 <span class="icon">📨</span> Сдача в Discord
             </button>
-            <button class="nav-btn" id="btnAssistant" onclick="toggleAssistant(event)" data-tooltip="🤖 Помощник по работе с рапортом">
-                <span class="icon">🤖</span> Помощник
-            </button>
         </div>
 
-        <!-- ЭКСПОРТ -->
+        <!-- ДОКУМЕНТЫ (бывший Экспорт) -->
         <div class="nav-group">
-            <div class="nav-group-title">Экспорт</div>
-            <button class="nav-btn" id="btnWord" onclick="downloadWord(event)" data-tooltip="📄 Сформировать отчёт в Word">
+            <div class="nav-group-title">Документы</div>
+            <button class="nav-btn" id="btnMmsPackage" onclick="downloadMmsPackage(event)" data-tooltip="Пакет для проверяющего: JSON + Word + HTML + PNG в одном .mms.zip">
+                <span class="icon">📦</span> Пакет для проверки
+            </button>
+            <button class="nav-btn" id="btnWord" onclick="downloadWord(event)" data-tooltip="📄 Официальный рапорт A4 в Word">
                 <span class="icon">📄</span> Отчёт в Word
             </button>
-            <button class="nav-btn" id="btnExcel" onclick="downloadExcel(event)" data-tooltip="📊 Сформировать отчёт в Excel">
+            <!-- Excel и «Сдать на проверку» скрыты: Excel не используется, проверка = пакет -->
+            <button class="nav-btn" id="btnExcel" onclick="downloadExcel(event)" style="display:none;" aria-hidden="true" data-tooltip="📊 Отчёт в Excel">
                 <span class="icon">📊</span> Отчёт в Excel
             </button>
-            <button class="nav-btn" id="btnMmsPackage" onclick="downloadMmsPackage(event)" data-tooltip="Единый пакет: JSON + Word + PNG в одном файле .mms.zip">
-                <span class="icon">📦</span> Пакет MMS
-            </button>
-            <button class="nav-btn" id="btnSubmitReview" onclick="exportForReview(event)" data-tooltip="Отправить рапорт на проверку (JSON для программы проверяющего)">
+            <button class="nav-btn" id="btnSubmitReview" onclick="exportForReview(event)" style="display:none;" aria-hidden="true" data-tooltip="Сдать на проверку">
                 <span class="icon">📤</span> Сдать на проверку
             </button>
         </div>
@@ -6814,19 +6815,24 @@
                 reportType: payload.reportType,
                 employee: payload.employee,
                 totalPoints: points,
-                files: ['manifest.json', 'report.json', 'report.doc', 'preview/page1.png']
+                files: ['manifest.json', 'report.json', 'report.doc', 'report.html', 'preview/page1.png']
             };
             folder.file('manifest.json', JSON.stringify(manifest, null, 2));
             folder.file('report.json', JSON.stringify(payload, null, 2));
 
-            // Word
+            // Word + HTML (один и тот же HTML-шаблон: .doc для Word, .html для браузера)
             try {
-                const first = name.split(/\s+/)[0] || name;
-                const last = name.split(/\s+/).slice(1).join(' ') || '';
                 const fullName = name + (id ? (' (ID: ' + id + ')') : '');
                 if (typeof generateWordBlob === 'function') {
                     const wordBlob = generateWordBlob(fullName, name, dateStr, points, entriesData, !!(typeof hasArchiveStamp !== 'undefined' && hasArchiveStamp));
                     folder.file('report.doc', wordBlob);
+                    // Тот же контент как самодостаточный HTML для просмотра в браузере
+                    try {
+                        const htmlText = await wordBlob.text();
+                        folder.file('report.html', new Blob([htmlText], { type: 'text/html;charset=utf-8' }));
+                    } catch (hErr) {
+                        console.warn('HTML in package:', hErr);
+                    }
                 }
             } catch (wErr) {
                 console.warn('Word in package:', wErr);
@@ -6849,7 +6855,7 @@
                     for (let i = 0; i < pages.length; i++) {
                         prev.file('page' + (i + 1) + '.png', pages[i]);
                     }
-                    manifest.files = ['manifest.json', 'report.json', 'report.doc'].concat(
+                    manifest.files = ['manifest.json', 'report.json', 'report.doc', 'report.html'].concat(
                         pages.map(function (_, i) { return 'preview/page' + (i + 1) + '.png'; })
                     );
                     folder.file('manifest.json', JSON.stringify(manifest, null, 2));
@@ -6903,7 +6909,7 @@
             const points = typeof getEntriesTotal === 'function' ? getEntriesTotal(entries) : entries.reduce(function (s, en) { return s + (en.points || 0); }, 0);
             const isPromo = (typeof reportMode !== 'undefined' && reportMode === 'promotion');
             try {
-                showToast('Собираю пакет MMS…', 'info');
+                showToast('Собираю пакет для проверки…', 'info');
                 const pack = await mmsBuildPackageZip({
                     isPromo: isPromo,
                     name: name,
@@ -6921,7 +6927,7 @@
                 a.click();
                 document.body.removeChild(a);
                 setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
-                showToast('Пакет скачан: ' + pack.fileName, 'success');
+                showToast('Пакет для проверки скачан: ' + pack.fileName, 'success');
             } catch (err) {
                 console.error(err);
                 showToast('Ошибка пакета: ' + (err.message || err), 'error');
@@ -9747,7 +9753,7 @@
 
             // ——— КОНСТРУКТОР ———
             constructor() {
-                this.version = '6.1';
+                this.version = '6.2';
                 this.confidenceThreshold = 0.22;
                 this.developerMode = (typeof mmsRestoreDeveloperAccess === 'function' && mmsRestoreDeveloperAccess());
                 this.context = {
@@ -10307,7 +10313,7 @@
                             '• ⬆️ Отдельный рапорт на повышение (данные не смешиваются)',
                             '• 📈 График динамики баллов (без формы регистрации)',
                             '• 📁 Архив, тестовый режим, отмена действий',
-                            '• 📄 Word/Excel — по желанию (основная сдача через Discord)',
+                            '• 📦 Пакет для проверки + 📄 Word (основная сдача через Discord)',
                             '• 🔐 Лицензия с паролем 2FA',
                             '',
                             'Спросите: «как сдать отчёт», «discord», «повышение», «правила фото».'
@@ -10328,7 +10334,7 @@
                     ],
                     action: () => {
                         return 'В рапорте сотрудника используются печати статуса сдачи:\n\n' +
-                            '🔵 «НА ПРОВЕРКЕ — MMS · SANG» — синяя, в интерфейсе и при экспорте Word/Excel.\n' +
+                            '🔵 «НА ПРОВЕРКЕ — MMS · SANG» — синяя, в интерфейсе и при экспорте Word и пакет для проверки.\n' +
                             '🔵 «ОЖИДАЕТ ПРОВЕРКИ» — синяя, парная печать статуса.\n' +
                             '🔴 «АРХИВНАЯ КОПИЯ» — красная, при восстановлении из архива с печатью.\n\n' +
                             'Печати «Одобрено» ставят только проверяющие в отдельной программе (mms_reviewer).\n' +
@@ -10386,17 +10392,76 @@
                         'куда сохранить отчёт', 'зачем экспорт', 'почему word',
                         'что такое word отчёт', 'чем excel отличается',
                         'как скачать word', 'как скачать excel', 'для чего выгрузка',
-                        'куда девается файл'
+                        'куда девается файл', 'пакет для проверки', 'пакет проверки',
+                        'как сделать пакет', 'сформировать пакет', 'mms пакет',
+                        'что такое пакет', 'зачем пакет'
                     ],
                     action: () => {
-                        return '📄 Экспорт и сдача:\n\n' +
-                            '• Основной способ сдать рапорт — вкладка «Сдача в Discord» (не Word).\n' +
-                            '• Word и Excel — дополнительные файлы для себя или архива, не обязательны для сдачи.\n' +
-                            '• В Discord два канала: еженедельный рапорт и рапорт на повышение (выбор кнопками).\n' +
-                            '• Перед сдачей: ФИО, Static ID, записи/баллы, при необходимости файл.\n\n' +
-                            'Спросите «как сдать отчёт в Discord» — пошагово.';
+                        return '📄 Документы и сдача:\n\n' +
+                            '• Основной способ сдать рапорт — «Сдача в Discord».\n' +
+                            '• «Пакет для проверки» — один .mms.zip: JSON + Word + HTML + PNG для проверяющего.\n' +
+                            '• «Отчёт в Word» — официальный лист A4 (тот же вид, что HTML в пакете).\n' +
+                            '• Excel больше не используется.\n' +
+                            '• В Discord: еженедельный канал или канал на повышение.\n\n' +
+                            'Спросите «как сдать отчёт в Discord» или «пакет для проверки».';
                     },
-                    help: 'Объясняет экспорт и сдачу (Discord — основной путь).'
+                    help: 'Объясняет документы и сдачу (Discord + пакет для проверки).'
+                }, {
+                    id: 'make_review_package',
+                    category: 'export',
+                    priority: 10,
+                    patterns: [
+                        'сделать пакет для проверки', 'скачать пакет для проверки',
+                        'сформировать пакет', 'пакет для проверяющего',
+                        'собрать пакет', 'скачать пакет mms', 'mms.zip',
+                        'подготовить пакет', 'выгрузить пакет'
+                    ],
+                    action: () => {
+                        try {
+                            if (typeof entries === 'undefined' || !entries.length) {
+                                return 'Нет записей для пакета. Сначала добавьте доказательства в рапорт.';
+                            }
+                            if (typeof downloadMmsPackage === 'function') {
+                                downloadMmsPackage(null);
+                                return '📦 Собираю пакет для проверки (.mms.zip): JSON + Word + HTML + PNG.\nОткройте HTML в браузере или Word — содержимое одинаковое.';
+                            }
+                            return 'Функция пакета недоступна. Используйте кнопку «Пакет для проверки» в меню «Документы».';
+                        } catch (e) {
+                            return 'Не удалось собрать пакет: ' + (e && e.message ? e.message : e);
+                        }
+                    },
+                    help: 'Собирает единый пакет для проверяющего.'
+                }, {
+                    id: 'ui_map',
+                    category: 'help',
+                    priority: 8,
+                    patterns: [
+                        'где кнопка', 'где находится', 'какое меню', 'что в меню',
+                        'список кнопок', 'где сдача', 'где пакет', 'где word',
+                        'обзор интерфейса', 'карта меню', 'что слева'
+                    ],
+                    action: () => {
+                        try {
+                            const groups = [];
+                            document.querySelectorAll('.nav-group').forEach(function (g) {
+                                const titleEl = g.querySelector('.nav-group-title');
+                                const title = titleEl ? titleEl.textContent.trim() : 'Меню';
+                                const items = [];
+                                g.querySelectorAll('.nav-btn').forEach(function (b) {
+                                    if (b.style.display === 'none' || b.getAttribute('aria-hidden') === 'true') return;
+                                    const t = (b.textContent || '').replace(/\s+/g, ' ').trim();
+                                    if (t) items.push('• ' + t);
+                                });
+                                if (items.length) groups.push(title + ':\n' + items.join('\n'));
+                            });
+                            if (!groups.length) return 'Не удалось прочитать меню. Обновите страницу (Ctrl+F5).';
+                            return '🗺 Текущее меню слева (актуально после обновлений):\n\n' + groups.join('\n\n') +
+                                '\n\nСпросите, например: «как сдать в Discord» или «пакет для проверки».';
+                        } catch (e) {
+                            return 'Не удалось прочитать интерфейс.';
+                        }
+                    },
+                    help: 'Показывает актуальный список кнопок левого меню (читается из страницы).'
                 }, {
                     id: 'about_undo',
                     category: 'help',
@@ -10733,7 +10798,7 @@
                             '1. Карточка сотрудника — ФИО и Static ID.\n' +
                             '2. Добавьте доказательства (ссылки, даты, баллы; фото — только рабочие).\n' +
                             '3. Проверьте итог и дубликаты ссылок.\n' +
-                            '4. (По желанию) сохраните архив; Word/Excel — не обязательны для сдачи.\n' +
+                            '4. (По желанию) сохраните архив; Word и пакет для проверки — не обязательны для сдачи.\n' +
                             '5. Откройте вкладку «Сдача в Discord».\n' +
                             '6. Выберите тип: «Еженедельный» или «На повышение» — это разные каналы.\n' +
                             '7. При необходимости прикрепите файл → «Отправить в Discord».\n' +
@@ -10857,7 +10922,7 @@
                         'защита от копирования'
                     ],
                     action: () => {
-                        return 'В приложении включена защита от копирования текста (кроме полей ввода). Исходный код через Венеру не выдаётся. Данные хранятся локально в браузере (localStorage). Для надёжного хранения используйте архив и скачанные файлы Word/Excel.';
+                        return 'В приложении включена защита от копирования текста (кроме полей ввода). Исходный код через Венеру не выдаётся. Данные хранятся локально в браузере (localStorage). Для надёжного хранения используйте архив и скачанные файлы Word и пакет для проверки.';
                     },
                     help: 'Политика безопасности.'
                 }, {
@@ -10870,7 +10935,7 @@
                         'как подвести итоги недели', 'зачем недельный отчет'
                     ],
                     action: () => {
-                        return '📅 Еженедельная отчётность:\n\nПо сумме баллов за неделю сравнивают вклад сотрудников.\n\nРекомендуется:\n1. В течение недели добавлять доказательства с баллами.\n2. Сохранить копию в архив.\n3. Сдать через Discord → режим «Еженедельный» (отдельный канал).\n4. Word/Excel — по желанию, не вместо Discord.\n\nРапорт на повышение сдаётся отдельно (другой канал).';
+                        return '📅 Еженедельная отчётность:\n\nПо сумме баллов за неделю сравнивают вклад сотрудников.\n\nРекомендуется:\n1. В течение недели добавлять доказательства с баллами.\n2. Сохранить копию в архив.\n3. Сдать через Discord → режим «Еженедельный» (отдельный канал).\n4. Word и пакет для проверки — по желанию, не вместо Discord.\n\nРапорт на повышение сдаётся отдельно (другой канал).';
                     },
                     help: 'Еженедельная отчётность и сдача в Discord.'
                 }, {
@@ -10890,7 +10955,7 @@
                             : '\n\nЧтобы открыть раздел: в меню нажмите «Рапорт на повышение» или скажите мне «открой рапорт на повышение».';
                         return '⬆️ Рапорт на повышение:\n\n' +
                             'Отдельный тип рапорта для рассмотрения повышения по службе.\n' +
-                            'Интерфейс тот же (ссылки-доказательства, даты, баллы, архив, Word/Excel),\n' +
+                            'Интерфейс тот же (ссылки-доказательства, даты, баллы, архив, Word и пакет для проверки),\n' +
                             'но данные хранятся в отдельном «отсеке» и не смешиваются с ежедневной / еженедельной отчётностью.\n\n' +
                             '• Ежедневная отчётность — текущая работа за период, недельные итоги.\n' +
                             '• Рапорт на повышение — пакет доказательств специально под рассмотрение повышения.\n\n' +
@@ -10940,7 +11005,7 @@
                         'на другом компьютере', 'синхронизация'
                     ],
                     action: () => {
-                        return '💾 Данные отчёта хранятся локально в браузере (localStorage) на этом устройстве.\n\n• После обновления страницы записи обычно сохраняются.\n• На другом компьютере или в другом браузере данных не будет.\n• Очистка данных сайта в браузере сотрёт отчёт.\n\nДля надёжности: архив + скачанный Word/Excel.';
+                        return '💾 Данные отчёта хранятся локально в браузере (localStorage) на этом устройстве.\n\n• После обновления страницы записи обычно сохраняются.\n• На другом компьютере или в другом браузере данных не будет.\n• Очистка данных сайта в браузере сотрёт отчёт.\n\nДля надёжности: архив + скачанный Word и пакет для проверки.';
                     },
                     help: 'Где хранятся данные.'
                 }, {
@@ -11139,7 +11204,7 @@
                         'excel пустой', 'ошибка скачивания'
                     ],
                     action: () => {
-                        return 'Если файл пустой или не скачался:\n1. Добавьте хотя бы одну запись.\n2. Заполните ФИО в карточке.\n3. Разрешите скачивания в браузере.\n4. Попробуйте ещё раз или Excel вместо Word.\n\nВ демо-сборках экспорт может быть отключён — в полной версии кнопки Word/Excel активны.';
+                        return 'Если файл пустой или не скачался:\n1. Добавьте хотя бы одну запись.\n2. Заполните ФИО в карточке.\n3. Разрешите скачивания в браузере.\n4. Попробуйте ещё раз или Excel вместо Word.\n\nВ демо-сборках экспорт может быть отключён — в полной версии кнопки Word и пакет для проверки активны.';
                     },
                     help: 'Проблемы со скачиванием.'
                 }, {
@@ -11706,7 +11771,9 @@
                     { id: 'about_draft', re: /тестовый|тестов|песочниц|draft/, priority: 18 },
                     { id: 'about_stamps', re: /печат|штамп|одобрен|hoffman|corruption|брет|адам/, priority: 17 },
                     { id: 'open_report_viewer', re: /открыть\s*(чужой\s*)?отч|просмотр\s*отч|импорт\s*отч|загрузить\s*отч|файл\s*отч/, priority: 22 },
-                    { id: 'about_export', re: /экспорт|выгруз|скачать\s*(word|excel|отчёт|отчет)|ворд|эксель|\bword\b|\bexcel\b/, priority: 17 },
+                    { id: 'about_export', re: /экспорт|выгруз|скачать\s*(word|excel|отчёт|отчет)|ворд|эксель|\bword\b|\bexcel\b|пакет\s*для\s*провер|пакет\s*mms|сформировать\s*пакет/, priority: 17 },
+                    { id: 'make_review_package', re: /сделать\s*пакет|скачать\s*пакет|собрать\s*пакет|mms\.zip|пакет\s*для\s*провер/, priority: 20 },
+                    { id: 'ui_map', re: /где\s*кнопк|что\s*в\s*меню|карта\s*меню|список\s*кноп|где\s*находит/, priority: 18 },
                     { id: 'about_undo', re: /отмен|undo|откат/, priority: 16 },
                     { id: 'about_feedback', re: /жалоб|предложен|обращен/, priority: 15 },
                     { id: 'how_to_report', re: /сдать|отправ.*рапорт|куда\s*(сдать|отправить|девать)|discord|дискорд/, priority: 22 },
