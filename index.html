@@ -4789,7 +4789,7 @@
                             <button type="button" class="dc-file-btn" onclick="document.getElementById('dcFile').click()">Выбрать файлы</button>
                             <span class="dc-file-name" id="dcFileName">Файлы не выбраны</span>
                         </div>
-                        <p class="dc-hint">Лучше один файл <b>Пакет MMS</b> (.mms.zip). Или несколько: JSON / Word / HTML. PNG-лист соберётся сам.</p>
+                        <p class="dc-hint">Файл <b>не обязателен</b> — отчёт собирается из текущего рапорта. Прикреплять можно только безопасные типы: Word, HTML, JSON, ZIP/MMS, картинки, PDF (до 12 МБ). Пустые и исполняемые файлы отклоняются.</p>
                     </div>
 
 
@@ -4797,13 +4797,13 @@
                         <div style="font-family:Oswald,sans-serif;font-size:13px;letter-spacing:1px;color:var(--gold);margin-bottom:8px;">📋 КАК ПРАВИЛЬНО СДАТЬ РАПОРТ</div>
                         <ol style="margin:0;padding-left:18px;font-size:12px;line-height:1.55;color:var(--text-secondary);">
                             <li><b>Заполни карточку</b> — ФИО и Static ID.</li>
-                            <li><b>Добавь записи</b> в рапорт и прикрепи <b>фото к пунктам</b> (доказательства).</li>
-                            <li>По желанию скачай <b>«Отчёт в Word»</b> для себя / архива.</li>
+                            <li><b>Добавь записи</b> в рапорт (доказательства и баллы).</li>
                             <li>Вкладка <b>«Сдача в Discord»</b>: выбери тип (еженедельный / повышение).</li>
-                            <li>Можно прикрепить готовый <b>HTML / JSON / Word</b> — или отправить из текущего рапорта.</li>
-                            <li>Нажми <b>«Отправить в Discord»</b> — уйдёт текст + файл + <b>PNG-лист A4 с фото</b> + отдельные фото с номерами пунктов.</li>
+                            <li>Нажми <b>«Отправить в Discord»</b> — уйдёт <b>один Word-файл</b> (.doc) и краткое описание (кто, дата, баллы).</li>
+                            <li>PNG «для администрации» и JSON <b>больше не отправляются</b>.</li>
+                            <li>Полный пакет (JSON+Word+HTML) — кнопка <b>«Пакет для проверки»</b> в меню «Документы», не через Discord.</li>
                         </ol>
-                        <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">Администрация смотрит PNG прямо в Discord, без Word и без программ.</div>
+                        <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">Проверяющие открывают вложение в Word. В сообщении Discord всегда видно: сотрудник, ID, дата и баллы — даже если имя файла обрезано.</div>
                         <div style="margin-top:12px;padding:10px 12px;border-radius:8px;border:1px solid rgba(212,175,55,0.2);background:rgba(0,0,0,0.25);font-size:11px;line-height:1.5;color:var(--text-secondary);">
                             <b style="color:var(--gold);">Учёт сдачи MMS</b><br>
                             При отправке фиксируются <b>метаданные</b> для учёта подразделения: время, тип рапорта, ID сотрудника, лицензия (если активна), результат доставки.
@@ -6300,6 +6300,32 @@
                 refreshDiscordSubmitForm();
                 return;
             }
+            // Минимальная защита: пустые / исполняемые / слишком большие
+            for (let i = 0; i < allFiles.length; i++) {
+                const f = allFiles[i];
+                const nm = String(f.name || '');
+                if (!(f.size > 0)) {
+                    if (st) { st.textContent = '❌ Пустой файл отклонён: ' + nm; st.style.color = '#ff6b6b'; }
+                    if (input) input.value = '';
+                    if (nameEl) nameEl.textContent = 'Файлы не выбраны';
+                    showToast('Пустой файл нельзя прикрепить', 'error');
+                    return;
+                }
+                if (f.size > 12 * 1024 * 1024) {
+                    if (st) { st.textContent = '❌ Файл больше 12 МБ: ' + nm; st.style.color = '#ff6b6b'; }
+                    if (input) input.value = '';
+                    if (nameEl) nameEl.textContent = 'Файлы не выбраны';
+                    showToast('Файл слишком большой (макс. 12 МБ)', 'error');
+                    return;
+                }
+                if (/\.(exe|bat|cmd|msi|scr|js|vbs|ps1|jar|dll|com|pif)(\.|$)/i.test(nm)) {
+                    if (st) { st.textContent = '❌ Запрещённый тип файла: ' + nm; st.style.color = '#ff6b6b'; }
+                    if (input) input.value = '';
+                    if (nameEl) nameEl.textContent = 'Файлы не выбраны';
+                    showToast('Этот тип файла нельзя прикреплять', 'error');
+                    return;
+                }
+            }
             if (nameEl) {
                 nameEl.textContent = allFiles.length === 1
                     ? file.name
@@ -7038,7 +7064,6 @@
                 timestamp: new Date().toISOString()
             };
             if (summary) embed.fields.push({ name: '💬 Комментарий', value: summary.slice(0, 1000), inline: false });
-            if (file) embed.fields.push({ name: '📎 Файл', value: '`' + file.name.replace(/`/g, '') + '`', inline: false });
 
             const contentTitle = isPromo
                 ? '**⬆️ СДАЧА: РАПОРТ НА ПОВЫШЕНИЕ**\n'
@@ -7067,124 +7092,108 @@
                     fd.append('meta_license_org', (typeof mmsLicenseInfo !== 'undefined' && mmsLicenseInfo && mmsLicenseInfo.org) ? String(mmsLicenseInfo.org) : '');
                 } catch (_) {}
 
-                // --- Единый пакет или выбранные файлы ---
-                let entriesForPng = (typeof entries !== 'undefined' && Array.isArray(entries) && entries.length)
+                // --- Одно вложение в Discord: только Word (.doc) ---
+                // Без PNG «для администрации», без report.json, без пустых файлов
+                function mmsIsSafeUploadFile(f) {
+                    if (!f || !(f.size > 0)) return { ok: false, reason: 'пустой файл' };
+                    const maxBytes = 12 * 1024 * 1024; // 12 МБ
+                    if (f.size > maxBytes) return { ok: false, reason: 'больше 12 МБ' };
+                    const name = String(f.name || '');
+                    // Двойные расширения вроде report.doc.exe
+                    if (/\.(exe|bat|cmd|msi|scr|js|vbs|ps1|jar|dll|com|pif)(\.|$)/i.test(name)) {
+                        return { ok: false, reason: 'запрещённый тип (' + name + ')' };
+                    }
+                    const lower = name.toLowerCase();
+                    const allowed = [
+                        '.doc', '.docx', '.html', '.htm', '.json',
+                        '.zip', '.mms', '.mms.zip', '.mms.json',
+                        '.png', '.jpg', '.jpeg', '.webp', '.gif', '.pdf'
+                    ];
+                    const okExt = allowed.some(function (ext) { return lower.endsWith(ext); });
+                    if (!okExt) return { ok: false, reason: 'неподдерживаемое расширение' };
+                    return { ok: true };
+                }
+
+                // Проверка пользовательских файлов (если прикрепили)
+                for (let fi = 0; fi < fileList.length; fi++) {
+                    const chk = mmsIsSafeUploadFile(fileList[fi]);
+                    if (!chk.ok) {
+                        throw new Error('Файл отклонён: ' + (fileList[fi].name || 'без имени') + ' — ' + chk.reason);
+                    }
+                }
+
+                let entriesForDoc = (typeof entries !== 'undefined' && Array.isArray(entries) && entries.length)
                     ? entries
                     : [];
 
-                // Распаковка .mms.zip / .zip если выбран
-                let packageExtras = [];
+                // Если выбран пакет/JSON — берём из него записи для Word (сами файлы в Discord не шлём)
                 for (let fi = 0; fi < fileList.length; fi++) {
                     const f = fileList[fi];
                     const n = String(f.name || '').toLowerCase();
-                    if (n.endsWith('.mms.json') || n.endsWith('.mms.zip') || n.endsWith('.mms') || (n.endsWith('.zip') && n.indexOf('mms') >= 0) || n.endsWith('.zip')) {
+                    if (n.endsWith('.mms.json') || n.endsWith('.mms.zip') || n.endsWith('.mms') ||
+                        (n.endsWith('.zip') && n.indexOf('mms') >= 0) || n.endsWith('.json')) {
                         try {
-                            setStatus('Читаю пакет ' + f.name + '…', null);
-                            const pack = await mmsReadPackageFile(f);
-                            if (pack.data && Array.isArray(pack.data.entries) && pack.data.entries.length) {
-                                entriesForPng = pack.data.entries;
-                                if (pack.data.totalPoints != null && !isNaN(Number(pack.data.totalPoints))) {
-                                    // points already set from form; keep form priority
-                                }
-                            }
-                            packageExtras = packageExtras.concat(pack.files || []);
-                        } catch (packErr) {
-                            console.warn('package read', packErr);
-                        }
-                    }
-                }
-
-                // Если локальных записей нет — JSON из вложений
-                if ((!entriesForPng || !entriesForPng.length) && fileList.length) {
-                    for (let fi = 0; fi < fileList.length; fi++) {
-                        const f = fileList[fi];
-                        const n = String(f.name || '').toLowerCase();
-                        if (n.endsWith('.json') || (f.type && f.type.indexOf('json') >= 0)) {
-                            try {
+                            setStatus('Читаю данные из ' + f.name + '…', null);
+                            if (n.endsWith('.json') || n.endsWith('.mms.json')) {
                                 const parsed = JSON.parse(await f.text());
-                                if (parsed && Array.isArray(parsed.entries) && parsed.entries.length) {
-                                    entriesForPng = parsed.entries;
-                                    break;
+                                const list = (parsed && parsed.entries) || (parsed && parsed.report && parsed.report.entries);
+                                if (Array.isArray(list) && list.length) entriesForDoc = list;
+                            } else {
+                                const pack = await mmsReadPackageFile(f);
+                                if (pack && pack.data && Array.isArray(pack.data.entries) && pack.data.entries.length) {
+                                    entriesForDoc = pack.data.entries;
                                 }
-                            } catch (_) {}
+                            }
+                        } catch (packErr) {
+                            console.warn('read for discord', packErr);
                         }
                     }
                 }
 
-                let fileIdx = 0;
-
-                // Собираем единый пакет в памяти и отправляем его части (JSON + PNG + Word)
-                // плюс пользовательские файлы (если не дублируют пакет)
-                try {
-                    if (entriesForPng.length) {
-                        setStatus('Собираю пакет MMS (JSON + Word + PNG)…', null);
-                        const pack = await mmsBuildPackageZip({
-                            isPromo: isPromo,
-                            name: name,
-                            id: id,
-                            points: points,
-                            dateStr: dateStr,
-                            typeLabel: typeLabel,
-                            summary: summary,
-                            entriesData: entriesForPng
-                        });
-                        // 1) сам пакет одним файлом
-                        if (fileIdx < 10) {
-                            fd.append('files[' + fileIdx + ']', pack.blob, pack.fileName);
-                            fileIdx++;
-                        }
-                        // 2) внутри также вытащим PNG для превью в Discord
-                        try {
-                            const z = await JSZip.loadAsync(pack.blob);
-                            const pngNames = [];
-                            z.forEach(function (path) {
-                                if (/\.png$/i.test(path)) pngNames.push(path);
-                            });
-                            pngNames.sort();
-                            for (let pi = 0; pi < pngNames.length && fileIdx < 10; pi++) {
-                                const blob = await z.file(pngNames[pi]).async('blob');
-                                const base = pngNames[pi].split('/').pop();
-                                fd.append('files[' + fileIdx + ']', blob, base);
-                                fileIdx++;
-                            }
-                            // report.json отдельным файлом — удобно проверяющему
-                            if (fileIdx < 10) {
-                                const jpath = Object.keys(z.files).find(function (x) { return /report\.json$/i.test(x); });
-                                if (jpath) {
-                                    const jblob = await z.file(jpath).async('blob');
-                                    fd.append('files[' + fileIdx + ']', jblob, 'report.json');
-                                    fileIdx++;
-                                }
-                            }
-                        } catch (ex) {
-                            console.warn('expand package for discord', ex);
-                        }
-                    }
-                } catch (packBuildErr) {
-                    console.warn(packBuildErr);
-                    setStatus('Пакет не собран: ' + (packBuildErr.message || packBuildErr) + ' — шлю файлы как есть', false);
+                if (!entriesForDoc.length) {
+                    throw new Error('Нет записей для отчёта. Добавьте доказательства или прикрепите пакет/JSON с записями.');
                 }
 
-                // Пользовательские файлы (не zip-пакеты уже разобранные)
-                fileList.forEach(function (f) {
-                    if (fileIdx >= 10) return;
-                    const n = String(f.name || '').toLowerCase();
-                    if (n.endsWith('.mms.zip') || n.endsWith('.mms')) return; // уже вложили собранный/прочитанный пакет
-                    fd.append('files[' + fileIdx + ']', f, f.name || ('file_' + fileIdx));
-                    fileIdx++;
-                });
-
-                // Доп. файлы из загруженного пакета (doc и т.д.), если ещё есть слоты
-                packageExtras.forEach(function (pf) {
-                    if (fileIdx >= 10) return;
-                    if (/\.png$/i.test(pf.name)) return; // png уже добавили из свежего пакета
-                    fd.append('files[' + fileIdx + ']', pf.blob, pf.name);
-                    fileIdx++;
-                });
-
-                if (fileIdx === 0) {
-                    throw new Error('Нет файла и нет записей для отправки');
+                setStatus('Собираю Word-отчёт…', null);
+                const fullName = name + (id ? (' (ID: ' + id + ')') : '');
+                if (typeof generateWordBlob !== 'function') {
+                    throw new Error('Генератор Word недоступен');
                 }
+                const wordBlob = generateWordBlob(
+                    fullName,
+                    name,
+                    dateStr,
+                    points,
+                    entriesForDoc,
+                    !!(typeof hasArchiveStamp !== 'undefined' && hasArchiveStamp)
+                );
+                if (!wordBlob || !(wordBlob.size > 0)) {
+                    throw new Error('Word-файл пустой — отправка отменена');
+                }
+
+                // Понятное имя: MMS_Еженед_Имя_ID_дата.doc (Discord всё равно может обрезать — описание в embed)
+                const safeName = mmsSafeFilePart(name.replace(/\s+/g, '_'), 28) || 'Sotrudnik';
+                const modeTag = isPromo ? 'Povyshenie' : 'Ezhened';
+                const dateTag = (dateStr && dateStr !== '—') ? dateStr.replace(/\./g, '-') : new Date().toISOString().slice(0, 10);
+                const docFileName = 'MMS_' + modeTag + '_' + safeName + '_' + id + '_' + dateTag + '.doc';
+
+                // Описание вложения в embed (имена в Discord часто обрезаются)
+                const fileDesc =
+                    '**Word-отчёт MMS**\n' +
+                    'Сотрудник: **' + name + '** · ID `' + id + '`\n' +
+                    'Тип: ' + typeLabel + '\n' +
+                    'Дата: ' + dateStr + ' · Баллы: **' + points + '** · Записей: ' + entriesForDoc.length + '\n' +
+                    'Файл: `' + docFileName + '`\n' +
+                    '_Откройте вложение в Word / LibreOffice. Это официальный лист рапорта._';
+                embed.fields.push({ name: '📎 Вложение', value: fileDesc.slice(0, 1020), inline: false });
+                // обновить payload после правки embed
+                payload.embeds = [embed];
+                // перезаписать payload_json (уже добавлен выше — заменим через новый FormData порядок)
+                // FormData уже содержит старый payload_json — удалим и добавим заново
+                fd.delete('payload_json');
+                fd.append('payload_json', JSON.stringify(payload));
+
+                fd.append('files[0]', wordBlob, docFileName);
 
                 res = await fetch(MMS_PROXY_URL, {
                     method: 'POST',
@@ -7196,8 +7205,8 @@
                 if (!res.ok) { let errText = ''; try { errText = await res.text(); } catch (_) {} throw new Error('Discord ' + res.status + (errText ? ': ' + errText.slice(0, 160) : '')); }
                 const seconds = ((performance.now() - started) / 1000).toFixed(1);
                 const dest = isPromo ? 'канал повышения' : 'еженедельный канал';
-                setStatus('✅ Отправлено в ' + dest + ' (пакет MMS) · ' + seconds + ' сек.', true);
-                showToast(isPromo ? 'Пакет на повышение отправлен' : 'Пакет еженедельного рапорта отправлен', 'success');
+                setStatus('✅ Отправлено в ' + dest + ' (Word-отчёт) · ' + seconds + ' сек.', true);
+                showToast(isPromo ? 'Word-отчёт на повышение отправлен' : 'Еженедельный Word-отчёт отправлен', 'success');
                 if (fileInput) { fileInput.value = ''; discordFilePoints = null; discordFileMeta = null; }
                 const fn = document.getElementById('dcFileName'); if (fn) fn.textContent = 'Файл не выбран';
                 refreshDiscordSubmitForm();
