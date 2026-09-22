@@ -4917,7 +4917,10 @@
                 Выберите файл отчёта сотрудника.<br><br>
                 <strong>Поддерживаются:</strong><br>
                 • HTML-отчёты (.html, .htm)<br>
-                • Документы Word (.doc)<br><br>
+                • Word (.doc) — как HTML внутри<br>
+                • JSON рапорта (.json)<br>
+                • Пакет для проверки (.mms.zip / .zip)<br><br>
+                Из пакета откроется <b>report.html</b> (или Word/JSON).<br>
                 Текущие данные вашего рапорта <strong>не изменятся</strong>.
             </p>
             <div class="btn-group">
@@ -4949,7 +4952,7 @@
         </div>
     </div>
 
-    <input type="file" id="reportViewFileInput" accept=".html,.htm,.doc" style="display:none;" onchange="handleReportViewImport(event)" />
+    <input type="file" id="reportViewFileInput" accept=".html,.htm,.doc,.docx,.json,.zip,.mms,application/zip" style="display:none;" onchange="handleReportViewImport(event)" />
 
     <!-- ========== MINI-ПОДСКАЗЧИК ========== -->
     <div class="helper-bubble" id="helperBubble">
@@ -5283,6 +5286,49 @@
             mmsUpdateWatermark();
         }
 
+        /** Проверка лицензии на Cloudflare (секрет только на Worker) */
+        async function mmsActivateOnCloudflare(lic, password) {
+            try {
+                const payload = {
+                    license: {
+                        org: lic.org,
+                        userId: lic.userId,
+                        issueDate: lic.issueDate,
+                        expires: lic.expires || '',
+                        signature: lic.signature,
+                        passwordHash: lic.passwordHash || ''
+                    },
+                    password: password || '',
+                    fingerprint: (typeof mmsGetFingerprint === 'function') ? mmsGetFingerprint() : ''
+                };
+                const res = await fetch(MMS_LICENSE_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                let data = null;
+                try { data = await res.json(); } catch (_) { data = null; }
+                if (!res.ok || !data || !data.ok) {
+                    const err = (data && data.error) ? data.error : ('HTTP ' + res.status);
+                    console.warn('CF license:', err);
+                    return { ok: false, error: err };
+                }
+                try {
+                    localStorage.setItem('mmsCfSession', JSON.stringify({
+                        sessionToken: data.sessionToken || '',
+                        userId: data.userId || '',
+                        org: data.org || '',
+                        at: Date.now()
+                    }));
+                } catch (_) {}
+                return { ok: true, data: data };
+            } catch (e) {
+                console.warn('CF license network:', e);
+                // Сеть недоступна — не блокируем локальную активацию
+                return { ok: false, error: 'Нет связи с сервером лицензий', offline: true };
+            }
+        }
+
         async function mmsActivateFromFile(file) {
             const st = document.getElementById('licenseStatus');
             const pwdWrap = document.getElementById('licensePasswordWrap');
@@ -5409,6 +5455,20 @@
             const reused = mmsNoteLicenseUse(result.signature);
             mmsSaveActivation(result);
             mmsPendingLicense = null;
+
+            // Синхронизация с Cloudflare (секрет проверяется на Worker)
+            try {
+                const pwdForCf = (document.getElementById('licensePasswordInput') || {}).value || password || '';
+                const cf = await mmsActivateOnCloudflare(result, pwdForCf);
+                if (cf.ok) {
+                    console.log('CF license OK', cf.data && cf.data.userId);
+                } else if (!cf.offline) {
+                    console.warn('CF license rejected:', cf.error);
+                    // Не блокируем вход, если локальная подпись валидна — dual-mode
+                }
+            } catch (cfErr) {
+                console.warn('CF license:', cfErr);
+            }
 
             const pwdWrap = document.getElementById('licensePasswordWrap');
             if (pwdWrap) pwdWrap.style.display = 'none';
@@ -6204,6 +6264,8 @@
         // Webhook'и спрятаны в Cloudflare Worker. На сайте их больше нет.
         const MMS_PROXY_URL = 'https://mms-report-proxy.asakulin874.workers.dev';
         const MMS_PROXY_TOKEN = '9fK2mP8xL4vN6qR1wZ3yT7bC5';
+        const MMS_LICENSE_API = 'https://mms-report-proxy.asakulin874.workers.dev/license';
+        const MMS_STATS_API = 'https://mms-report-proxy.asakulin874.workers.dev/stats';
 
         // Роль High MMS — рабочий ping <@&1551254597354655866> (оба канала)
         const MMS_DISCORD_ROLE_ID = '1551254597354655866';
@@ -7041,6 +7103,18 @@
             if (!name || !id) { setStatus('Заполни карточку сотрудника (ФИО и ID)', false); showToast('Нет данных сотрудника', 'error'); return; }
             if (!fileList.length && (!entries || !entries.length)) { setStatus('Прикрепи файл(ы) отчёта или добавь записи в рапорт', false); showToast('Нужен файл или записи', 'error'); return; }
 
+            // Защита от случайной сдачи
+            const confirmMsg =
+                'Отправить рапорт в Discord?\n\n' +
+                name + ' (ID ' + id + ')\n' +
+                typeLabel + ' · ' + points + ' баллов\n\n' +
+                'Повторная сдача с этого ID — не раньше чем через 2 минуты.';
+            if (!window.confirm(confirmMsg)) {
+                setStatus('Отправка отменена', false);
+                showToast('Отправка отменена', 'info');
+                return;
+            }
+
             const roleId = String(MMS_DISCORD_ROLE_ID || '').replace(/\D/g, '');
             const roleMention = roleId ? '<@&' + roleId + '>' : MMS_DISCORD_ROLE_LABEL;
             const allowedMentions = roleId ? { roles: [roleId] } : { parse: [] };
@@ -7082,6 +7156,7 @@
                 // Всегда отправляем вложение-файлом (в Discord виден файл для скачивания, а не «простыня» кода)
                 const fd = new FormData();
                 fd.append('mode', isPromo ? 'promotion' : 'week');
+                fd.append('confirm_submit', '1');
                 fd.append('payload_json', JSON.stringify(payload));
                 // Метаданные для журнала учёта (без секретов)
                 try {
@@ -7202,7 +7277,18 @@
                     },
                     body: fd
                 });
-                if (!res.ok) { let errText = ''; try { errText = await res.text(); } catch (_) {} throw new Error('Discord ' + res.status + (errText ? ': ' + errText.slice(0, 160) : '')); }
+                if (!res.ok) {
+                    let errText = '';
+                    try {
+                        const raw = await res.text();
+                        try {
+                            const j = JSON.parse(raw);
+                            errText = j.error || j.message || raw;
+                        } catch (_) { errText = raw; }
+                    } catch (_) {}
+                    if (res.status === 429) throw new Error(errText || 'Слишком частая сдача — подождите 2 минуты');
+                    throw new Error('Ошибка ' + res.status + (errText ? ': ' + String(errText).slice(0, 200) : ''));
+                }
                 const seconds = ((performance.now() - started) / 1000).toFixed(1);
                 const dest = isPromo ? 'канал повышения' : 'еженедельный канал';
                 setStatus('✅ Отправлено в ' + dest + ' (Word-отчёт) · ' + seconds + ' сек.', true);
@@ -8730,13 +8816,8 @@
         function handleReportViewImport(event) {
             const file = event.target.files && event.target.files[0];
             if (!file) return;
-
-            const fileName = file.name.toLowerCase();
-            if (!fileName.endsWith('.html') && !fileName.endsWith('.htm') && !fileName.endsWith('.doc')) {
-                showToast('⚠️ Поддерживаются только файлы .html, .htm, .doc', 'warning');
-                event.target.value = '';
-                return;
-            }
+            const inputEl = event.target;
+            const fileName = String(file.name || '').toLowerCase();
 
             const modal = document.getElementById('reportViewerModal');
             const loading = document.getElementById('reportViewerLoading');
@@ -8747,35 +8828,135 @@
             modal.classList.add('show');
             document.body.style.overflow = 'hidden';
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const src = String(e.target.result || '');
-                    if (!/<\s*(?:!doctype|html|head|body)[\s>]/i.test(src)) {
-                        loading.classList.remove('show');
-                        modal.classList.remove('show');
-                        document.body.style.overflow = '';
-                        showToast('⚠️ Файл не похож на HTML-отчёт MMS', 'warning');
-                        return;
-                    }
-                    setTimeout(function() {
-                        openReportViewer(src, file.name);
-                    }, 600);
-                } catch (err) {
-                    loading.classList.remove('show');
-                    modal.classList.remove('show');
-                    document.body.style.overflow = '';
-                    showToast('❌ Ошибка: ' + err.message, 'error');
-                }
-            };
-            reader.onerror = function() {
+            function fail(msg) {
                 loading.classList.remove('show');
                 modal.classList.remove('show');
                 document.body.style.overflow = '';
-                showToast('❌ Не удалось прочитать файл', 'error');
-            };
-            reader.readAsText(file, 'utf-8');
-            event.target.value = '';
+                showToast(msg, 'warning');
+                try { inputEl.value = ''; } catch (_) {}
+            }
+
+            function showHtml(html, label) {
+                if (!html || !/<\s*(?:!doctype|html|head|body|table)[\s>]/i.test(String(html))) {
+                    fail('⚠️ Файл не похож на отчёт MMS (нет HTML)');
+                    return;
+                }
+                setTimeout(function () {
+                    openReportViewer(String(html), label || file.name);
+                }, 400);
+            }
+
+            /** Собирает простой HTML-просмотр из JSON рапорта */
+            function htmlFromReviewJson(data, label) {
+                const emp = (data && data.employee) || {};
+                const name = emp.fullName || emp.name || '—';
+                const id = emp.id || '—';
+                const total = data.totalPoints != null ? data.totalPoints : '—';
+                const date = data.reportDate || data.exportedAt || '—';
+                const type = (data.reportType === 'promotion' || data.mode === 'promotion') ? 'Рапорт на повышение' : 'Еженедельный рапорт';
+                const list = Array.isArray(data.entries) ? data.entries : [];
+                let rows = '';
+                list.forEach(function (en, i) {
+                    const pts = (typeof entryTotalPoints === 'function') ? entryTotalPoints(en) : (en.points || 0);
+                    const link = en.link ? '<a href="' + String(en.link).replace(/"/g, '&quot;') + '" target="_blank" rel="noopener">' + String(en.link).replace(/</g, '&lt;').slice(0, 80) + '</a>' : '—';
+                    let photos = '';
+                    if (Array.isArray(en.attachments)) {
+                        en.attachments.forEach(function (a) {
+                            if (a && a.dataUrl) {
+                                photos += '<div style="margin:6px 0"><img src="' + a.dataUrl + '" alt="" style="max-width:220px;max-height:160px;border:1px solid #c9a227;border-radius:4px"/></div>';
+                            }
+                        });
+                    }
+                    rows += '<tr><td style="text-align:center;border:1px solid #333;padding:8px">' + (i + 1) + '</td>' +
+                        '<td style="text-align:center;border:1px solid #333;padding:8px">' + String(en.date || '—').replace(/</g, '&lt;') + '</td>' +
+                        '<td style="border:1px solid #333;padding:8px">' + link + photos + '</td>' +
+                        '<td style="text-align:center;border:1px solid #333;padding:8px;font-weight:700">' + pts + '</td></tr>';
+                });
+                return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>MMS Report</title></head><body style="font-family:Oswald,Arial,sans-serif;padding:24px;background:#f7f3ea;color:#2a241e">' +
+                    '<h2 style="text-align:center;letter-spacing:2px">MMS · S.A.N.G.</h2>' +
+                    '<p style="text-align:center;color:#666">' + type + '</p>' +
+                    '<p><b>Сотрудник:</b> ' + String(name).replace(/</g, '&lt;') + ' &nbsp; <b>ID:</b> ' + String(id).replace(/</g, '&lt;') +
+                    ' &nbsp; <b>Дата:</b> ' + String(date).replace(/</g, '&lt;') + ' &nbsp; <b>Баллы:</b> ' + total + '</p>' +
+                    '<table style="width:100%;border-collapse:collapse;margin-top:16px"><thead><tr style="background:#1a3a8a;color:#fff">' +
+                    '<th style="padding:8px;border:1px solid #333">№</th><th style="padding:8px;border:1px solid #333">Дата</th>' +
+                    '<th style="padding:8px;border:1px solid #333">Доказательство</th><th style="padding:8px;border:1px solid #333">Баллы</th></tr></thead><tbody>' +
+                    rows + '</tbody></table>' +
+                    '<p style="margin-top:20px;font-size:12px;color:#888">Просмотр из ' + String(label || 'JSON').replace(/</g, '&lt;') + ' · данные рапорта не изменены</p>' +
+                    '</body></html>';
+            }
+
+            async function openFromPackageBlob(blob, label) {
+                const okZip = (typeof JSZip !== 'undefined') || (await window.__mmsEnsureJSZip());
+                if (!okZip || typeof JSZip === 'undefined') {
+                    fail('⚠️ Для открытия пакета нужен JSZip (проверьте интернет / CDN)');
+                    return;
+                }
+                const zip = await JSZip.loadAsync(blob);
+                const names = Object.keys(zip.files);
+                // Приоритет: report.html → report.doc → report.json
+                let htmlPath = names.find(function (n) { return /report\.html$/i.test(n) && !zip.files[n].dir; });
+                let docPath = names.find(function (n) { return /report\.doc$/i.test(n) && !zip.files[n].dir; });
+                let jsonPath = names.find(function (n) { return /report\.json$/i.test(n) && !zip.files[n].dir; });
+                if (htmlPath) {
+                    const html = await zip.file(htmlPath).async('string');
+                    showHtml(html, (label || file.name) + ' → report.html');
+                    return;
+                }
+                if (docPath) {
+                    const html = await zip.file(docPath).async('string');
+                    showHtml(html, (label || file.name) + ' → report.doc');
+                    return;
+                }
+                if (jsonPath) {
+                    const raw = await zip.file(jsonPath).async('string');
+                    const data = JSON.parse(raw);
+                    showHtml(htmlFromReviewJson(data, 'report.json'), (label || file.name) + ' → report.json');
+                    return;
+                }
+                fail('⚠️ В пакете нет report.html / report.doc / report.json');
+            }
+
+            (async function () {
+                try {
+                    if (fileName.endsWith('.html') || fileName.endsWith('.htm') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
+                        const src = await file.text();
+                        showHtml(src, file.name);
+                        return;
+                    }
+                    if (fileName.endsWith('.json') || fileName.endsWith('.mms.json')) {
+                        const data = JSON.parse(await file.text());
+                        // JSON-пакет fallback
+                        if (data && data.format && String(data.format).indexOf('mms-package') >= 0 && data.report) {
+                            showHtml(htmlFromReviewJson(data.report, file.name), file.name);
+                            return;
+                        }
+                        if (data && data.wordDocBase64) {
+                            try {
+                                const bin = atob(data.wordDocBase64);
+                                const arr = new Uint8Array(bin.length);
+                                for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+                                const html = await new Blob([arr]).text();
+                                if (/<\s*html/i.test(html)) {
+                                    showHtml(html, file.name + ' (Word из пакета)');
+                                    return;
+                                }
+                            } catch (_) {}
+                        }
+                        showHtml(htmlFromReviewJson(data.report || data, file.name), file.name);
+                        return;
+                    }
+                    if (fileName.endsWith('.zip') || fileName.endsWith('.mms') || fileName.endsWith('.mms.zip')) {
+                        await openFromPackageBlob(file, file.name);
+                        return;
+                    }
+                    fail('⚠️ Поддерживаются: .html, .doc, .json, .mms.zip / .zip');
+                } catch (err) {
+                    console.error(err);
+                    fail('❌ Ошибка: ' + (err && err.message ? err.message : err));
+                } finally {
+                    try { inputEl.value = ''; } catch (_) {}
+                }
+            })();
         }
 
         function getReportViewerTheme() {
@@ -10636,7 +10817,7 @@
                         try {
                             if (typeof importReport === 'function') {
                                 importReport(null);
-                                return '📂 Открываю выбор файла отчёта (.html / .htm / .doc).\n\nВыберите скачанный HTML-отчёт — он откроется только для просмотра, ваши данные не изменятся.\n\nЕсли окно не появилось: разрешите всплывающие/файловые диалоги в браузере и попробуйте ещё раз.';
+                                return '📂 Открываю выбор файла отчёта.\n\nПоддерживаются: HTML, Word (.doc), JSON, пакет .mms.zip.\nИз пакета откроется report.html (или Word/JSON). Просмотр не меняет ваш рапорт.\n\nЕсли окно не появилось — разрешите диалог выбора файла в браузере.';
                             }
                         } catch (e) {
                             return 'Не удалось вызвать диалог. Нажмите в сайдбаре кнопку открытия отчёта вручную. Ошибка: ' + (e && e.message ? e.message : e);
