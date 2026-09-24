@@ -8065,75 +8065,247 @@
         }
 
         // ===== SAVE / LOAD =====
+        // ===== НАДЁЖНОЕ ХРАНЕНИЕ (localStorage + IndexedDB) =====
+        const MMS_IDB_NAME = 'mmsReportDB';
+        const MMS_IDB_STORE = 'reports';
+        let _mmsIdb = null;
+        let _mmsSaveTimer = null;
+        let _mmsLastSaveOk = true;
+
+        function mmsOpenIdb() {
+            return new Promise(function (resolve, reject) {
+                if (_mmsIdb) { resolve(_mmsIdb); return; }
+                if (!window.indexedDB) { reject(new Error('no idb')); return; }
+                const req = indexedDB.open(MMS_IDB_NAME, 1);
+                req.onupgradeneeded = function (e) {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(MMS_IDB_STORE)) {
+                        db.createObjectStore(MMS_IDB_STORE);
+                    }
+                };
+                req.onsuccess = function (e) { _mmsIdb = e.target.result; resolve(_mmsIdb); };
+                req.onerror = function () { reject(req.error || new Error('idb open fail')); };
+            });
+        }
+
+        function mmsIdbPut(key, value) {
+            return mmsOpenIdb().then(function (db) {
+                return new Promise(function (resolve, reject) {
+                    try {
+                        const tx = db.transaction(MMS_IDB_STORE, 'readwrite');
+                        tx.objectStore(MMS_IDB_STORE).put(value, key);
+                        tx.oncomplete = function () { resolve(true); };
+                        tx.onerror = function () { reject(tx.error); };
+                    } catch (err) { reject(err); }
+                });
+            }).catch(function () { return false; });
+        }
+
+        function mmsIdbGet(key) {
+            return mmsOpenIdb().then(function (db) {
+                return new Promise(function (resolve, reject) {
+                    try {
+                        const tx = db.transaction(MMS_IDB_STORE, 'readonly');
+                        const req = tx.objectStore(MMS_IDB_STORE).get(key);
+                        req.onsuccess = function () { resolve(req.result || null); };
+                        req.onerror = function () { reject(req.error); };
+                    } catch (err) { reject(err); }
+                });
+            }).catch(function () { return null; });
+        }
+
+        function mmsStripHeavyData(data) {
+            // Убираем base64-фото, чтобы влезть в квоту localStorage (~5 МБ)
+            const clone = JSON.parse(JSON.stringify(data));
+            function stripList(list) {
+                if (!Array.isArray(list)) return;
+                list.forEach(function (en) {
+                    if (Array.isArray(en.attachments)) {
+                        en.attachments = en.attachments.map(function (a) {
+                            return {
+                                id: a.id,
+                                name: a.name || 'снимок',
+                                points: parseInt(a.points, 10) || 0,
+                                dataUrl: null,
+                                _stripped: true
+                            };
+                        });
+                    }
+                });
+            }
+            stripList(clone.entries);
+            if (Array.isArray(clone.archiveReports)) {
+                clone.archiveReports.forEach(function (r) {
+                    stripList(r.entriesData || r.entries);
+                    if (r.wordDataUrl && String(r.wordDataUrl).length > 50000) r.wordDataUrl = null;
+                });
+            }
+            clone._photosStripped = true;
+            return clone;
+        }
+
+        function mmsBuildReportPayload() {
+            return {
+                entries: draftMode ? draftEntries : entries,
+                evidenceCounter: draftMode ? draftEvidenceCounter : evidenceCounter,
+                savedPoints: draftMode ? draftSavedPoints : savedPoints,
+                lastUsedPoints: lastUsedPoints,
+                lastUsedDate: lastUsedDate,
+                archiveReports: archiveReports,
+                draftMode: false,
+                draftEntries: [],
+                draftSavedPoints: {},
+                draftEvidenceCounter: 0,
+                draftHasArchiveStamp: false,
+                hasArchiveStamp: draftMode ? draftHasArchiveStamp : hasArchiveStamp,
+                hasApprovalStamps: hasApprovalStamps,
+                reportDate: reportDate,
+                isFirstLoad: false,
+                hasEnteredName: hasEnteredName,
+                venusActivityLog: (venusActivityLog || []).slice(-VENUS_LOG_LIMIT),
+                reportMode: reportMode,
+                savedAt: Date.now()
+            };
+        }
+
+        function mmsWriteLocal(key, data) {
+            localStorage.setItem(key, JSON.stringify(data));
+        }
+
         function saveToLocalStorage() {
             try {
-                const data = {
-                    entries: draftMode ? draftEntries : entries,
-                    evidenceCounter: draftMode ? draftEvidenceCounter : evidenceCounter,
-                    savedPoints: draftMode ? draftSavedPoints : savedPoints,
-                    lastUsedPoints,
-                    lastUsedDate,
-                    archiveReports,
-                    draftMode: false,
-                    draftEntries: [],
-                    draftSavedPoints: {},
-                    draftEvidenceCounter: 0,
-                    draftHasArchiveStamp: false,
-                    hasArchiveStamp: draftMode ? draftHasArchiveStamp : hasArchiveStamp,
-                    hasApprovalStamps: hasApprovalStamps,
-                    reportDate,
-                    isFirstLoad: false,
-                    hasEnteredName: hasEnteredName,
-                    venusActivityLog: venusActivityLog.slice(-VENUS_LOG_LIMIT),
-                    reportMode: reportMode
-                };
-                // Каждый режим — свой ключ localStorage (данные не перемешиваются)
+                const data = mmsBuildReportPayload();
                 const key = REPORT_STORAGE_KEYS[reportMode] || REPORT_STORAGE_KEYS.daily;
-                localStorage.setItem(key, JSON.stringify(data));
-                // Профиль и общие флаги дублируем в daily-ключ для совместимости
+                let savedLight = false;
+
+                // 1) Полные данные → IndexedDB (много места, фото сохраняются)
+                try { mmsIdbPut(key, data); } catch (_) {}
+
+                // 2) localStorage — быстрый синхронный бэкап
+                try {
+                    mmsWriteLocal(key, data);
+                } catch (quotaErr) {
+                    try {
+                        const light = mmsStripHeavyData(data);
+                        mmsWriteLocal(key, light);
+                        savedLight = true;
+                        if (typeof showToast === 'function') {
+                            showToast('⚠️ Хранилище браузера переполнено: фото не сохранены локально. Скачайте «Пакет для проверки».', 'warning', 4500);
+                        }
+                    } catch (e2) {
+                        console.error('saveToLocalStorage quota fail', e2);
+                        _mmsLastSaveOk = false;
+                        if (typeof showToast === 'function') {
+                            showToast('❌ Не удалось сохранить рапорт в браузере. Освободите место или скачайте JSON/пакет.', 'error', 5000);
+                        }
+                        return false;
+                    }
+                }
+
+                // Профиль и общие флаги в daily-ключ
                 if (reportMode !== 'daily') {
                     try {
                         const dailyRaw = localStorage.getItem(REPORT_STORAGE_KEYS.daily);
                         let dailyData = dailyRaw ? JSON.parse(dailyRaw) : {};
                         dailyData.hasEnteredName = hasEnteredName;
-                        dailyData.venusActivityLog = venusActivityLog.slice(-VENUS_LOG_LIMIT);
+                        dailyData.venusActivityLog = (venusActivityLog || []).slice(-VENUS_LOG_LIMIT);
+                        dailyData.savedAt = Date.now();
                         localStorage.setItem(REPORT_STORAGE_KEYS.daily, JSON.stringify(dailyData));
+                        mmsIdbPut(REPORT_STORAGE_KEYS.daily, dailyData);
                     } catch (_) {}
                 }
+
+                // Профиль отдельно (на случай сбоя основного ключа)
+                try {
+                    const first = (document.getElementById('firstName') || {}).value || '';
+                    const last = (document.getElementById('lastName') || {}).value || '';
+                    const id = (document.getElementById('staticId') || {}).value || '';
+                    if (first || last || id) {
+                        localStorage.setItem('mmsProfile', JSON.stringify({ first: first, last: last, id: id }));
+                    }
+                } catch (_) {}
+
+                _mmsLastSaveOk = true;
                 const status = document.getElementById('saveStatus');
                 if (status) {
                     status.classList.add('show');
-                    setTimeout(() => status.classList.remove('show'), 1800);
+                    status.textContent = savedLight ? '⚠️ Сохранено без фото' : '✅ Сохранено';
+                    setTimeout(function () { status.classList.remove('show'); }, 1800);
                 }
-            } catch (e) { console.error(e); }
+                return true;
+            } catch (e) {
+                console.error(e);
+                _mmsLastSaveOk = false;
+                if (typeof showToast === 'function') {
+                    showToast('❌ Ошибка сохранения: ' + (e && e.message ? e.message : e), 'error', 4000);
+                }
+                return false;
+            }
+        }
+
+        /** Отложенное автосохранение (не чаще раза в 800 мс) */
+        function scheduleSaveToLocalStorage() {
+            if (_mmsSaveTimer) clearTimeout(_mmsSaveTimer);
+            _mmsSaveTimer = setTimeout(function () {
+                _mmsSaveTimer = null;
+                try { saveToLocalStorage(); } catch (_) {}
+            }, 800);
+        }
+
+        function mmsApplyLoadedData(data) {
+            if (!data || typeof data !== 'object') return false;
+            entries = Array.isArray(data.entries) ? data.entries : [];
+            evidenceCounter = data.evidenceCounter || entries.length || 0;
+            savedPoints = data.savedPoints || {};
+            lastUsedPoints = data.lastUsedPoints || 0;
+            lastUsedDate = data.lastUsedDate || '';
+            archiveReports = Array.isArray(data.archiveReports) ? data.archiveReports : [];
+            draftMode = false;
+            draftEntries = [];
+            draftSavedPoints = {};
+            draftEvidenceCounter = 0;
+            draftHasArchiveStamp = false;
+            hasArchiveStamp = data.hasArchiveStamp || false;
+            hasApprovalStamps = data.hasApprovalStamps || false;
+            if (data.reportDate) reportDate = data.reportDate;
+            if (data.isFirstLoad !== undefined) isFirstLoad = data.isFirstLoad;
+            if (data.hasEnteredName !== undefined) hasEnteredName = data.hasEnteredName;
+            venusActivityLog = Array.isArray(data.venusActivityLog) ? data.venusActivityLog.slice(-VENUS_LOG_LIMIT) : [];
+            try { syncDraftUI(); } catch (_) {}
+            try { updateArchiveStampDisplay(); } catch (_) {}
+            return true;
         }
 
         function loadFromLocalStorage() {
             try {
                 // Всегда стартуем с ежедневного режима; promotion подгружается при переключении
                 reportMode = 'daily';
-                const saved = localStorage.getItem(REPORT_STORAGE_KEYS.daily);
+                const key = REPORT_STORAGE_KEYS.daily;
+                let data = null;
+                const saved = localStorage.getItem(key);
                 if (saved) {
-                    const data = JSON.parse(saved);
-                    entries = data.entries || [];
-                    evidenceCounter = data.evidenceCounter || 0;
-                    savedPoints = data.savedPoints || {};
-                    lastUsedPoints = data.lastUsedPoints || 0;
-                    lastUsedDate = data.lastUsedDate || '';
-                    archiveReports = data.archiveReports || [];
-                    draftMode = false;
-                    draftEntries = [];
-                    draftSavedPoints = {};
-                    draftEvidenceCounter = 0;
-                    draftHasArchiveStamp = false;
-                    hasArchiveStamp = data.hasArchiveStamp || false;
-                    hasApprovalStamps = data.hasApprovalStamps || false;
-                    if (data.reportDate) reportDate = data.reportDate;
-                    if (data.isFirstLoad !== undefined) isFirstLoad = data.isFirstLoad;
-                    if (data.hasEnteredName !== undefined) hasEnteredName = data.hasEnteredName;
-                    venusActivityLog = Array.isArray(data.venusActivityLog) ? data.venusActivityLog.slice(-VENUS_LOG_LIMIT) : [];
-                    syncDraftUI();
-                    updateArchiveStampDisplay();
+                    try { data = JSON.parse(saved); } catch (_) { data = null; }
+                }
+                if (data && mmsApplyLoadedData(data)) {
+                    // Асинхронно подтянуть более полную копию из IndexedDB (с фото), если есть
+                    mmsIdbGet(key).then(function (idbData) {
+                        if (!idbData || !idbData.entries) return;
+                        const idbTs = idbData.savedAt || 0;
+                        const lsTs = (data && data.savedAt) || 0;
+                        // IndexedDB новее или в localStorage были вырезаны фото
+                        const lsStripped = !!(data && data._photosStripped);
+                        const idbHasPhotos = (idbData.entries || []).some(function (en) {
+                            return Array.isArray(en.attachments) && en.attachments.some(function (a) { return a && a.dataUrl; });
+                        });
+                        if (idbTs >= lsTs || (lsStripped && idbHasPhotos)) {
+                            if (reportMode === 'daily') {
+                                mmsApplyLoadedData(idbData);
+                                try { renderTable(); } catch (_) {}
+                                try { updateArchiveSelect(); } catch (_) {}
+                                try { validateFields(); } catch (_) {}
+                            }
+                        }
+                    }).catch(function () {});
                     return true;
                 }
             } catch (e) { console.error(e); }
@@ -12613,10 +12785,24 @@
         };
 
         window.addEventListener('beforeunload', function() {
-            if (editingId !== null) toggleEdit(editingId);
-            saveToLocalStorage();
-            if (venus) venus._log('Закрытие страницы', 'сохранение состояния');
+            try { if (editingId !== null) toggleEdit(editingId); } catch (_) {}
+            try { saveToLocalStorage(); } catch (_) {}
+            if (venus) try { venus._log('Закрытие страницы', 'сохранение состояния'); } catch (_) {}
         });
+
+        // Автосохранение при уходе со вкладки и каждые 30 сек
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'hidden') {
+                try { saveToLocalStorage(); } catch (_) {}
+            }
+        });
+        setInterval(function () {
+            try {
+                if (typeof entries !== 'undefined' && entries && entries.length >= 0) {
+                    saveToLocalStorage();
+                }
+            } catch (_) {}
+        }, 30000);
     </script>
 
     <!-- end -->
