@@ -221,7 +221,12 @@
         }
         input,
         textarea,
-        .editable-input {
+        .editable-input,
+        #reportTable,
+        #reportTable td,
+        #reportTable a,
+        #report a,
+        a[href] {
             -webkit-user-select: text !important;
             -moz-user-select: text !important;
             -ms-user-select: text !important;
@@ -4495,6 +4500,8 @@
                         📋 Регистрация достижений
                         <span class="save-status" id="saveStatus">✅ Сохранено</span>
                         <span class="badge" id="modeBadge" style="display:none;margin-left:8px;font-size:10px;letter-spacing:1px;">ЕЖЕДНЕВНЫЙ</span>
+                        <button type="button" id="btnSaveReport" onclick="manualSaveReport(event)" title="Сохранить рапорт в браузере"
+                            style="margin-left:10px;padding:4px 12px;font-size:11px;letter-spacing:1px;border-radius:6px;border:1px solid rgba(212,175,55,0.45);background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#000;font-family:'Oswald',sans-serif;font-weight:600;cursor:pointer;vertical-align:middle;">💾 СОХРАНИТЬ</button>
                     </h3>
 
                     <div class="form-panel">
@@ -5070,23 +5077,39 @@
         // ============================================================
         const MMS_LICENSE_SECRET = 'MMS-SANG-2026-Grechkaaa-HMAC-Secret-Key-v1!';
         const MMS_LICENSE_STORAGE = 'mmsLicenseActivation';
-        const MMS_LICENSE_RECHECK_MS = 0; // не используется: срок только из поля expires ключа
+        // Срок лицензии только из поля expires ключа (генератор)
         const MMS_DEV_UNLOCK_KEY = 'mmsDevUnlock';
         const MMS_USED_KEYS = 'mmsLicenseUsedSigs';
 
         let mmsLicenseActive = false;
         let mmsLicenseInfo = null;
 
+        function mmsGetOrCreateDeviceId() {
+            try {
+                let id = localStorage.getItem('mmsDeviceId');
+                if (id && /^dev_[a-z0-9]+$/i.test(id)) return id;
+                const rand = (window.crypto && crypto.getRandomValues)
+                    ? Array.from(crypto.getRandomValues(new Uint8Array(8))).map(function (b) {
+                        return b.toString(16).padStart(2, '0');
+                    }).join('')
+                    : String(Date.now()) + Math.random().toString(16).slice(2);
+                id = 'dev_' + rand;
+                localStorage.setItem('mmsDeviceId', id);
+                return id;
+            } catch (e) {
+                return 'dev_fallback';
+            }
+        }
+
         function mmsGetFingerprint() {
             try {
+                // Стабильный ID устройства в localStorage + мягкие признаки среды
                 const parts = [
-                    navigator.userAgent || '',
+                    mmsGetOrCreateDeviceId(),
                     navigator.language || '',
-                    String(screen.width) + 'x' + String(screen.height),
-                    String(screen.colorDepth || ''),
                     Intl.DateTimeFormat().resolvedOptions().timeZone || '',
-                    String(navigator.hardwareConcurrency || ''),
-                    String(navigator.platform || '')
+                    String(navigator.platform || ''),
+                    String(screen.width) + 'x' + String(screen.height)
                 ];
                 const s = parts.join('|');
                 let h = 2166136261;
@@ -5794,39 +5817,37 @@
         // ПОЛНАЯ ЛОГИКА (включая калькулятор и интеграцию с Венерой)
         // ============================================================
 
-        // ===== ЗАЩИТА ОТ КОПИРОВАНИЯ =====
+        // ===== ЗАЩИТА ОТ КОПИРОВАНИЯ (разрешены поля ввода, таблица, ссылки, отчёт) =====
+        function mmsIsCopyAllowedTarget(target) {
+            if (!target) return false;
+            const el = target.nodeType === 3 ? target.parentElement : target;
+            if (!el || !el.closest) return false;
+            if (el.closest('input, textarea, .editable-input, [contenteditable="true"]')) return true;
+            if (el.closest('#reportTable, #report, a[href], .link-cell, .evidence-link, td a, #tabAchievements .value')) return true;
+            return false;
+        }
         document.addEventListener('copy', function(e) {
-            const target = e.target;
-            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.classList.contains(
-                    'editable-input')) {
-                return;
-            }
+            if (mmsIsCopyAllowedTarget(e.target)) return;
+            const sel = window.getSelection && window.getSelection();
+            if (sel && sel.anchorNode && mmsIsCopyAllowedTarget(sel.anchorNode)) return;
             e.preventDefault();
-            showToast('📋 Копирование защищено', 'warning', 1500);
+            showToast('📋 Копирование защищено (ссылки из таблицы можно копировать)', 'warning', 1800);
             return false;
         });
         document.addEventListener('cut', function(e) {
-            const target = e.target;
-            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.classList.contains(
-                    'editable-input')) {
-                return;
-            }
+            if (mmsIsCopyAllowedTarget(e.target)) return;
             e.preventDefault();
             showToast('✂️ Вырезание защищено', 'warning', 1500);
             return false;
         });
         document.addEventListener('contextmenu', function(e) {
-            const target = e.target;
-            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.classList.contains(
-                    'editable-input')) {
-                return;
-            }
+            if (mmsIsCopyAllowedTarget(e.target)) return;
             e.preventDefault();
             showToast('🛡️ Контекстное меню защищено', 'warning', 1500);
             return false;
         });
         document.addEventListener('dragstart', function(e) {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (mmsIsCopyAllowedTarget(e.target)) return;
             e.preventDefault();
             return false;
         });
@@ -5943,9 +5964,9 @@
         let pendingAttachments = []; // { id, name, points, dataUrl }
         let selectedEntryIds = new Set();
         let pointsNorm = 0;
-        const MAX_ATTACH_PER_ENTRY = 6;
-        const MAX_ATTACH_DIM = 640;
-        const MAX_ATTACH_QUALITY = 0.72;
+        const MAX_ATTACH_PER_ENTRY = 8;
+        const MAX_ATTACH_DIM = 960;
+        const MAX_ATTACH_QUALITY = 0.78;
 
         function getReportTitle() {
             return reportMode === 'promotion'
@@ -6004,9 +6025,12 @@
             if (titleEl) titleEl.textContent = getReportTitle();
             const secTitle = document.getElementById('achievementsSectionTitle');
             if (secTitle) {
-                secTitle.innerHTML = reportMode === 'promotion'
-                    ? '⬆️ Рапорт на повышение <span class="save-status" id="saveStatus">✅ Сохранено</span>'
-                    : '📋 Регистрация достижений <span class="save-status" id="saveStatus">✅ Сохранено</span>';
+                const titleTxt = reportMode === 'promotion' ? '⬆️ Рапорт на повышение' : '📋 Регистрация достижений';
+                secTitle.innerHTML = titleTxt +
+                    ' <span class="save-status" id="saveStatus">✅ Сохранено</span>' +
+                    ' <span class="badge" id="modeBadge" style="display:none;margin-left:8px;font-size:10px;letter-spacing:1px;"></span>' +
+                    ' <button type="button" id="btnSaveReport" onclick="manualSaveReport(event)" title="Сохранить рапорт в браузере"' +
+                    ' style="margin-left:10px;padding:4px 12px;font-size:11px;letter-spacing:1px;border-radius:6px;border:1px solid rgba(212,175,55,0.45);background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#000;font-family:\'Oswald\',sans-serif;font-weight:600;cursor:pointer;vertical-align:middle;">💾 СОХРАНИТЬ</button>';
             }
             const navDaily = document.getElementById('navDailyReport');
             const navPromo = document.getElementById('navPromotionReport');
@@ -8273,8 +8297,20 @@
             }).catch(function () { return null; });
         }
 
-        function mmsStripHeavyData(data) {
-            // Убираем base64-фото, чтобы влезть в квоту localStorage (~5 МБ)
+        // Цель: полный рапорт с фото до ~30 МБ в IndexedDB; localStorage — лёгкий бэкап
+        const MMS_IDB_SOFT_LIMIT = 30 * 1024 * 1024; // 30 МБ
+        const MMS_LS_SOFT_LIMIT = 4.5 * 1024 * 1024; // ~4.5 МБ запас под квоту LS
+
+        function mmsEstimateBytes(obj) {
+            try { return new Blob([JSON.stringify(obj)]).size; } catch (_) {
+                try { return JSON.stringify(obj).length * 2; } catch (e2) { return 0; }
+            }
+        }
+
+        function mmsStripHeavyData(data, opts) {
+            opts = opts || {};
+            const stripPhotos = opts.stripPhotos !== false;
+            const stripArchiveWord = opts.stripArchiveWord !== false;
             const clone = JSON.parse(JSON.stringify(data));
             function stripList(list) {
                 if (!Array.isArray(list)) return;
@@ -8285,21 +8321,26 @@
                                 id: a.id,
                                 name: a.name || 'снимок',
                                 points: parseInt(a.points, 10) || 0,
-                                dataUrl: null,
-                                _stripped: true
+                                dataUrl: stripPhotos ? null : a.dataUrl,
+                                _stripped: !!stripPhotos
                             };
                         });
                     }
                 });
             }
-            stripList(clone.entries);
+            if (stripPhotos) stripList(clone.entries);
             if (Array.isArray(clone.archiveReports)) {
                 clone.archiveReports.forEach(function (r) {
-                    stripList(r.entriesData || r.entries);
-                    if (r.wordDataUrl && String(r.wordDataUrl).length > 50000) r.wordDataUrl = null;
+                    if (stripPhotos) stripList(r.entriesData || r.entries);
+                    // Word-вложения архива не держим в localStorage — только метаданные
+                    if (stripArchiveWord && r.wordDataUrl) {
+                        r._hadWord = true;
+                        r.wordDataUrl = null;
+                    }
                 });
             }
-            clone._photosStripped = true;
+            if (stripPhotos) clone._photosStripped = true;
+            if (stripArchiveWord) clone._archiveWordStripped = true;
             return clone;
         }
 
@@ -8332,49 +8373,78 @@
             localStorage.setItem(key, JSON.stringify(data));
         }
 
+        function manualSaveReport(e) {
+            if (e) { try { e.preventDefault(); } catch (_) {} }
+            window.__mmsAllowEmptySave = true;
+            window.__mmsUserClearedEntries = true;
+            const ok = saveToLocalStorage();
+            window.__mmsAllowEmptySave = false;
+            if (ok !== false && typeof showToast === 'function') {
+                showToast('💾 Рапорт сохранён в браузере', 'success', 2200);
+            }
+            return ok;
+        }
+
         function saveToLocalStorage() {
             try {
                 const data = mmsBuildReportPayload();
                 const key = REPORT_STORAGE_KEYS[reportMode] || REPORT_STORAGE_KEYS.daily;
                 let savedLight = false;
+                let sizeWarn = '';
 
-                // ЗАЩИТА: не затирать уже сохранённые записи пустым массивом
-                // (бывает при F5/beforeunload, если in-memory ещё не успел загрузиться)
+                // ЗАЩИТА: не затирать непустой рапорт «пустым» при F5 до загрузки данных.
                 try {
                     const existingRaw = localStorage.getItem(key);
                     if (existingRaw) {
                         const existing = JSON.parse(existingRaw);
                         const oldCount = Array.isArray(existing.entries) ? existing.entries.length : 0;
                         const newCount = Array.isArray(data.entries) ? data.entries.length : 0;
-                        if (oldCount > 0 && newCount === 0 && !window.__mmsAllowEmptySave) {
-                            console.warn('[MMS] skip empty save over', oldCount, 'entries');
+                        const userIntent = !!(window.__mmsAllowEmptySave || window.__mmsUserClearedEntries);
+                        const bootGuard = !window.__mmsDataReady;
+                        if (oldCount > 0 && newCount === 0 && !userIntent && bootGuard) {
+                            console.warn('[MMS] skip empty save over', oldCount, 'entries (boot)');
                             return false;
                         }
                     }
                 } catch (_) {}
 
-                // 1) Полные данные → IndexedDB (много места, фото сохраняются)
+                const fullBytes = mmsEstimateBytes(data);
+                // 1) IndexedDB — основное хранилище (цель до ~30 МБ с фото)
+                if (fullBytes > MMS_IDB_SOFT_LIMIT) {
+                    sizeWarn = 'Данные >30 МБ: сохраните «Пакет для проверки», иначе браузер может отказать.';
+                    console.warn('[MMS] payload', fullBytes, 'bytes exceeds soft 30MB');
+                }
                 try { mmsIdbPut(key, data); } catch (_) {}
 
-                // 2) localStorage — быстрый синхронный бэкап
+                // 2) localStorage — лёгкий бэкап: без Word-архивов; фото только если влезают
+                let lsData = mmsStripHeavyData(data, { stripPhotos: false, stripArchiveWord: true });
+                let lsBytes = mmsEstimateBytes(lsData);
+                if (lsBytes > MMS_LS_SOFT_LIMIT) {
+                    lsData = mmsStripHeavyData(data, { stripPhotos: true, stripArchiveWord: true });
+                    lsBytes = mmsEstimateBytes(lsData);
+                    savedLight = true;
+                }
                 try {
-                    mmsWriteLocal(key, data);
+                    mmsWriteLocal(key, lsData);
                 } catch (quotaErr) {
                     try {
-                        const light = mmsStripHeavyData(data);
+                        const light = mmsStripHeavyData(data, { stripPhotos: true, stripArchiveWord: true });
                         mmsWriteLocal(key, light);
                         savedLight = true;
                         if (typeof showToast === 'function') {
-                            showToast('⚠️ Хранилище браузера переполнено: фото не сохранены локально. Скачайте «Пакет для проверки».', 'warning', 4500);
+                            showToast('⚠️ localStorage переполнен: фото только в IndexedDB. При сбое скачайте пакет.', 'warning', 4500);
                         }
                     } catch (e2) {
                         console.error('saveToLocalStorage quota fail', e2);
                         _mmsLastSaveOk = false;
                         if (typeof showToast === 'function') {
-                            showToast('❌ Не удалось сохранить рапорт в браузере. Освободите место или скачайте JSON/пакет.', 'error', 5000);
+                            showToast('❌ Не удалось сохранить в localStorage. Данные в IndexedDB (если доступна). Скачайте пакет.', 'error', 5000);
                         }
-                        return false;
+                        // IDB уже пытались записать — не fail полностью
                     }
+                }
+                if (sizeWarn && typeof showToast === 'function') {
+                    showToast('⚠️ ' + sizeWarn, 'warning', 4000);
                 }
 
                 // Профиль и общие флаги в daily-ключ
@@ -9797,7 +9867,10 @@
             pendingAttachments = [];
             renderPendingAttachments();
             renderTable();
+            window.__mmsDirty = true;
+            window.__mmsUserClearedEntries = false;
             saveToLocalStorage();
+            window.__mmsDirty = false;
             document.getElementById('link').value = '';
             document.getElementById('points').value = '0';
             const fh = document.getElementById('filePickHint');
@@ -9828,7 +9901,11 @@
                 pushUndo('delete', { entry, savedPointsBackup: backup });
                 updateArchiveStampDisplay();
                 renderTable();
-                saveToLocalStorage();
+                if (entries.length === 0) window.__mmsUserClearedEntries = true;
+                window.__mmsAllowEmptySave = true;
+                try { saveToLocalStorage(); } finally {
+                    window.__mmsAllowEmptySave = false;
+                }
                 if (chartVisible) buildChart();
                 showToast('Удалено (можно отменить кнопкой «Назад»)', 'success');
             });
@@ -10144,7 +10221,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             try {
                 if (typeof mmsInitLicenseUI === 'function') mmsInitLicenseUI();
-                if (typeof mmsCheckLicenseOnStart === 'function') mmsCheckLicenseOnStart();
+                // mmsCheckLicenseOnStart только в window.onload — без двойного вызова
             } catch (e) { console.error('license early init', e); }
             var welcome = document.getElementById('tabWelcome');
             var title = document.getElementById('typewriterTitle');
@@ -12935,6 +13012,8 @@
                 } else {
                     restoreLastDate();
                 }
+                window.__mmsDataReady = true;
+                window.__mmsUserClearedEntries = false;
                 // Подстраховка: если в памяти 0, а в LS есть записи — восстановить
                 try {
                     const raw = localStorage.getItem(REPORT_STORAGE_KEYS.daily);
@@ -12986,19 +13065,21 @@
             if (venus) try { venus._log('Закрытие страницы', 'сохранение состояния'); } catch (_) {}
         });
 
-        // Автосохранение при уходе со вкладки и каждые 30 сек
+        // Автосохранение: при уходе со вкладки; периодически только если были изменения
+        window.__mmsDirty = false;
         document.addEventListener('visibilitychange', function () {
             if (document.visibilityState === 'hidden') {
-                try { saveToLocalStorage(); } catch (_) {}
+                try { saveToLocalStorage(); window.__mmsDirty = false; } catch (_) {}
             }
         });
         setInterval(function () {
             try {
-                if (typeof entries !== 'undefined' && entries && entries.length >= 0) {
+                if (window.__mmsDirty && window.__mmsDataReady) {
                     saveToLocalStorage();
+                    window.__mmsDirty = false;
                 }
             } catch (_) {}
-        }, 30000);
+        }, 120000); // 2 мин, только при dirty
     </script>
 
     <!-- end -->
