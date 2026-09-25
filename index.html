@@ -7742,21 +7742,25 @@
                 // Без PNG «для администрации», без report.json, без пустых файлов
                 function mmsIsSafeUploadFile(f) {
                     if (!f || !(f.size > 0)) return { ok: false, reason: 'пустой файл' };
-                    const maxBytes = 12 * 1024 * 1024; // 12 МБ
-                    if (f.size > maxBytes) return { ok: false, reason: 'больше 12 МБ' };
+                    const maxBytes = 8 * 1024 * 1024; // 8 МБ
+                    if (f.size > maxBytes) return { ok: false, reason: 'больше 8 МБ' };
                     const name = String(f.name || '');
-                    // Двойные расширения вроде report.doc.exe
-                    if (/\.(exe|bat|cmd|msi|scr|js|vbs|ps1|jar|dll|com|pif)(\.|$)/i.test(name)) {
-                        return { ok: false, reason: 'запрещённый тип (' + name + ')' };
+                    // Двойные расширения и опасные типы
+                    if (/\.(exe|bat|cmd|msi|scr|js|vbs|ps1|jar|dll|com|pif|wsf|cpl|hta|msh|reg)(\.|$)/i.test(name)) {
+                        return { ok: false, reason: 'запрещённый тип файла (' + name + '). Вирусные/исполняемые файлы отклоняются.' };
+                    }
+                    if (/[\x00-\x1f]/.test(name)) {
+                        return { ok: false, reason: 'недопустимые символы в имени файла' };
                     }
                     const lower = name.toLowerCase();
+                    // Только документы отчёта / картинки доказательств
                     const allowed = [
                         '.doc', '.docx', '.html', '.htm', '.json',
                         '.zip', '.mms', '.mms.zip', '.mms.json',
                         '.png', '.jpg', '.jpeg', '.webp', '.gif', '.pdf'
                     ];
                     const okExt = allowed.some(function (ext) { return lower.endsWith(ext); });
-                    if (!okExt) return { ok: false, reason: 'неподдерживаемое расширение' };
+                    if (!okExt) return { ok: false, reason: 'неподдерживаемое расширение. Разрешены только отчёты и изображения.' };
                     return { ok: true };
                 }
 
@@ -7823,23 +7827,26 @@
                 const dateTag = (dateStr && dateStr !== '—') ? dateStr.replace(/\./g, '-') : new Date().toISOString().slice(0, 10);
                 const docFileName = 'MMS_' + modeTag + '_' + safeName + '_' + id + '_' + dateTag + '.doc';
 
-                // Описание вложения в embed (имена в Discord часто обрезаются)
-                const fileDesc =
-                    '**Word-отчёт MMS**\n' +
-                    'Сотрудник: **' + name + '** · ID `' + id + '`\n' +
-                    'Тип: ' + typeLabel + '\n' +
-                    'Дата: ' + dateStr + ' · Баллы: **' + points + '** · Записей: ' + entriesForDoc.length + '\n' +
-                    'Файл: `' + docFileName + '`\n' +
-                    '_Откройте вложение в Word / LibreOffice. Это официальный лист рапорта._';
-                embed.fields.push({ name: '📎 Вложение', value: fileDesc.slice(0, 1020), inline: false });
-                // обновить payload после правки embed
+                // Без поля «Вложение» — в Discord достаточно файла + таблицы полей
+                // Проверка целостности: только наш HTML-Word (начинается с <!DOCTYPE / <html)
+                const headProbe = await wordBlob.slice(0, 64).text();
+                const head = String(headProbe || '').replace(/^\uFEFF/, '').trim().toLowerCase();
+                if (!(head.startsWith('<!doctype') || head.startsWith('<html'))) {
+                    throw new Error('Файл отклонён: Word-отчёт повреждён или подменён. Отправка запрещена.');
+                }
+                if (/<script|javascript:|onerror\s*=|eval\s*\(/i.test(headProbe) || wordBlob.size > 6 * 1024 * 1024) {
+                    throw new Error('Файл отклонён: подозрительное содержимое. Отправка запрещена.');
+                }
+
                 payload.embeds = [embed];
-                // перезаписать payload_json (уже добавлен выше — заменим через новый FormData порядок)
-                // FormData уже содержит старый payload_json — удалим и добавим заново
                 fd.delete('payload_json');
                 fd.append('payload_json', JSON.stringify(payload));
+                // Discord webhook ждёт file (или files[n]) — шлём как file
+                fd.append('file', wordBlob, docFileName);
 
-                fd.append('files[0]', wordBlob, docFileName);
+                // Маркер: отчёт сгенерирован клиентом MMS
+                fd.append('meta_doc_ok', '1');
+                fd.append('meta_entries', String(entriesForDoc.length));
 
                 res = await fetch(MMS_PROXY_URL, {
                     method: 'POST',
