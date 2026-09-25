@@ -4836,7 +4836,10 @@
 
                     <div class="dc-webhook-ok" id="dcWebhookStatus">Канал: еженедельный рапорт · ping @High MMS</div>
 
-                    <button type="button" class="dc-send-btn" id="dcSendBtn" onclick="sendReportToDiscord()">Отправить в Discord</button>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:center;margin-top:18px;">
+                        <button type="button" class="dc-send-btn" id="dcPreviewBtn" onclick="openDiscordPreviewModal()">Предпросмотр</button>
+                        <button type="button" class="dc-send-btn" id="dcSendBtn" onclick="sendReportToDiscord()">Отправить в Discord</button>
+                    </div>
                     <p class="dc-status" id="dcStatus"></p>
                 </div>
             </div>
@@ -4972,6 +4975,26 @@
                 <iframe id="reportViewerFrame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals" referrerpolicy="no-referrer"></iframe>
             </div>
             <div class="report-viewer-hint">Просмотр чужого отчёта. Закрытие не изменяет текущие данные.</div>
+        </div>
+    </div>
+
+    <div class="report-viewer-modal" id="discordPreviewModal" aria-hidden="true">
+        <div class="report-viewer-content" style="max-width:1100px;">
+            <div class="report-viewer-header">
+                <div class="report-viewer-title" id="discordPreviewTitle">👁️ ПРЕДПРОСМОТР РАПОРТА</div>
+                <div class="report-viewer-theme" title="Размер предпросмотра">
+                    <button type="button" id="discordPreviewCompact" class="rv-theme-btn active" onclick="setDiscordPreviewSize('compact')" title="Обычный размер">▣</button>
+                    <button type="button" id="discordPreviewFull" class="rv-theme-btn" onclick="setDiscordPreviewSize('full')" title="На весь экран">⛶</button>
+                </div>
+                <button class="report-viewer-close" onclick="closeDiscordPreviewModal()">✕</button>
+            </div>
+            <div class="report-viewer-frame-wrap" id="discordPreviewFrameWrap" style="height:70vh;min-height:420px;">
+                <iframe id="discordPreviewFrame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals" referrerpolicy="no-referrer"></iframe>
+            </div>
+            <div class="report-viewer-actions" style="display:flex;justify-content:flex-end;gap:12px;padding-top:14px;">
+                <button class="btn btn-cancel" type="button" onclick="closeDiscordPreviewModal()">Отмена</button>
+                <button class="dc-send-btn" type="button" onclick="sendDiscordPreviewConfirmed()">Отправить в Discord</button>
+            </div>
         </div>
     </div>
 
@@ -6631,6 +6654,158 @@
             }
         }
 
+        let discordPreviewSize = 'compact';
+
+        function escapeDiscordPreviewHtml(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function buildDiscordPreviewHtml() {
+            const first = (document.getElementById('firstName') || {}).value || '';
+            const last = (document.getElementById('lastName') || {}).value || '';
+            const id = (document.getElementById('staticId') || {}).value || '—';
+            const name = (first + ' ' + last).trim() || '—';
+            const dateInput = document.getElementById('reportDate');
+            const dateStr = (dateInput && dateInput.value) ? dateInput.value.split('-').reverse().join('.') : '—';
+            const total = discordFilePoints !== null && !isNaN(discordFilePoints) ? discordFilePoints : (typeof getEntriesTotal === 'function' ? getEntriesTotal(entries) : (entries || []).reduce((sum, e) => sum + (parseInt(e.points, 10) || 0), 0));
+            const isPromo = discordSubmitMode === 'promotion';
+            const typeLabel = isPromo ? 'Рапорт на повышение' : 'Еженедельный рапорт';
+            const list = Array.isArray(entries) && entries.length ? entries : [];
+            const rows = list.length ? list.map((entry, idx) => {
+                const pts = (typeof entryTotalPoints === 'function') ? entryTotalPoints(entry) : (parseInt(entry.points, 10) || 0);
+                const link = escapeDiscordPreviewHtml(entry.link || entry.proof || entry.description || '—');
+                const date = escapeDiscordPreviewHtml(entry.date || '—');
+                const cat = escapeDiscordPreviewHtml(entry.category || '—');
+                return `
+                    <tr>
+                        <td style="border:1px solid #c9a227;padding:8px;text-align:center;">${idx + 1}</td>
+                        <td style="border:1px solid #c9a227;padding:8px;">${date}</td>
+                        <td style="border:1px solid #c9a227;padding:8px;">${link}</td>
+                        <td style="border:1px solid #c9a227;padding:8px;">${cat}</td>
+                        <td style="border:1px solid #c9a227;padding:8px;text-align:center;font-weight:700;">${pts}</td>
+                    </tr>`;
+            }).join('') : '<tr><td colspan="5" style="border:1px solid #c9a227;padding:16px;text-align:center;">Нет записей</td></tr>';
+
+            return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      margin: 0; background: #111; color: #f3efe8; font-family: Arial, sans-serif; padding: 24px;
+    }
+    .wrap {
+      max-width: 980px; margin: 0 auto; background: #171717; border: 1px solid rgba(212,175,55,0.4); border-radius: 16px; padding: 24px; box-shadow: 0 8px 25px rgba(0,0,0,0.35);
+    }
+    .title {
+      text-align: center; font-size: 24px; letter-spacing: 2px; font-weight: 700; color: #d4af37; margin-bottom: 6px;
+    }
+    .subtitle {
+      text-align: center; color: #d5cab0; font-size: 12px; letter-spacing: 2px; margin-bottom: 20px;
+    }
+    .meta {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px;
+    }
+    .meta-item {
+      background: rgba(255,255,255,0.02); border: 1px solid rgba(212,175,55,0.2); border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.5;
+    }
+    .meta-item b { color: #d4af37; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th { background: rgba(212,175,55,0.12); color: #f0c756; border: 1px solid #c9a227; padding: 10px 8px; font-size: 12px; text-transform: uppercase; }
+    td { border: 1px solid #c9a227; padding: 10px 8px; font-size: 12px; color: #f3efe8; vertical-align: top; }
+    .total { margin-top: 18px; text-align: right; font-size: 18px; font-weight: 700; color: #d4af37; }
+    @media (max-width: 760px) {
+      body { padding: 12px; }
+      .wrap { padding: 14px; }
+      table { font-size: 11px; }
+      .title { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title">MMS · S.A.N.G.</div>
+    <div class="subtitle">${escapeDiscordPreviewHtml(typeLabel)}</div>
+
+    <div class="meta">
+      <div class="meta-item"><b>Сотрудник:</b><br>${escapeDiscordPreviewHtml(name)}</div>
+      <div class="meta-item"><b>Static ID:</b><br>${escapeDiscordPreviewHtml(id)}</div>
+      <div class="meta-item"><b>Дата:</b><br>${escapeDiscordPreviewHtml(dateStr)}</div>
+      <div class="meta-item"><b>Баллы:</b><br>${escapeDiscordPreviewHtml(total)}</div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>№</th>
+          <th>Дата</th>
+          <th>Доказательство</th>
+          <th>Категория</th>
+          <th>Баллы</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+
+    <div class="total">Итого: ${escapeDiscordPreviewHtml(total)} баллов</div>
+  </div>
+</body>
+</html>`;
+        }
+
+        function openDiscordPreviewModal() {
+            const modal = document.getElementById('discordPreviewModal');
+            const frame = document.getElementById('discordPreviewFrame');
+            if (!modal || !frame) return;
+            const html = buildDiscordPreviewHtml();
+            frame.srcdoc = html;
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+            setDiscordPreviewSize(discordPreviewSize);
+        }
+
+        function closeDiscordPreviewModal() {
+            const modal = document.getElementById('discordPreviewModal');
+            const frame = document.getElementById('discordPreviewFrame');
+            if (!modal) return;
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+            if (frame) {
+                frame.removeAttribute('srcdoc');
+                frame.src = 'about:blank';
+            }
+        }
+
+        function setDiscordPreviewSize(size) {
+            discordPreviewSize = size === 'full' ? 'full' : 'compact';
+            const wrap = document.getElementById('discordPreviewFrameWrap');
+            const compactBtn = document.getElementById('discordPreviewCompact');
+            const fullBtn = document.getElementById('discordPreviewFull');
+            if (wrap) {
+                wrap.style.height = discordPreviewSize === 'full' ? '82vh' : '70vh';
+                wrap.style.minHeight = discordPreviewSize === 'full' ? '520px' : '420px';
+            }
+            if (compactBtn) compactBtn.classList.toggle('active', discordPreviewSize === 'compact');
+            if (fullBtn) fullBtn.classList.toggle('active', discordPreviewSize === 'full');
+        }
+
+        function sendDiscordPreviewConfirmed() {
+            closeDiscordPreviewModal();
+            sendReportToDiscord();
+        }
+
+        document.getElementById('discordPreviewModal').addEventListener('click', function(e) {
+            if (e.target === this) closeDiscordPreviewModal();
+        });
+
 
         // ===== PNG A4 рапорт + именованные фото для Discord =====
         function mmsEscHtml(s) {
@@ -7460,28 +7635,45 @@
                     },
                     body: fd
                 });
-                if (!res.ok) {
-                    let errText = '';
-                    try {
-                        const raw = await res.text();
+
+                let responseData = null;
+                let responseText = '';
+                try {
+                    const text = await res.text();
+                    responseText = text;
+                    if (text) {
                         try {
-                            const j = JSON.parse(raw);
-                            errText = j.error || j.message || raw;
-                        } catch (_) { errText = raw; }
-                    } catch (_) {}
-                    if (res.status === 429) throw new Error(errText || 'Слишком частая сдача — подождите 2 минуты');
-                    throw new Error('Ошибка ' + res.status + (errText ? ': ' + String(errText).slice(0, 200) : ''));
+                            responseData = JSON.parse(text);
+                        } catch (_) {
+                            responseData = null;
+                        }
+                    }
+                } catch (_) {}
+
+                if (!res.ok || (responseData && responseData.ok === false)) {
+                    const errMessage = (responseData && (responseData.error || responseData.message)) || responseText || `Ошибка ${res.status}`;
+                    throw new Error(String(errMessage).slice(0, 220));
                 }
+
+                const success = !!(responseData && responseData.discord_ok === true) || res.ok;
+                const message = (responseData && responseData.message) || (success ? 'Рапорт успешно отправлен в Discord' : 'Рапорт сохранён');
                 const seconds = ((performance.now() - started) / 1000).toFixed(1);
                 const dest = isPromo ? 'канал повышения' : 'еженедельный канал';
                 setStatus('✅ Отправлено в ' + dest + ' (Word-отчёт) · ' + seconds + ' сек.', true);
-                showToast(isPromo ? 'Word-отчёт на повышение отправлен' : 'Еженедельный Word-отчёт отправлен', 'success');
+
+                if (responseData && responseData.discord_ok === false) {
+                    showToast(message || 'Рапорт сохранён, но Discord не принял', 'warning', 5000);
+                } else {
+                    showToast('Рапорт успешно отправлен в Discord', 'success', 4500);
+                }
+
                 if (fileInput) { fileInput.value = ''; discordFilePoints = null; discordFileMeta = null; }
                 const fn = document.getElementById('dcFileName'); if (fn) fn.textContent = 'Файл не выбран';
                 refreshDiscordSubmitForm();
             } catch (err) {
-                setStatus('Ошибка: ' + (err.message || err), false);
-                showToast('Не удалось отправить', 'error');
+                const text = err && err.message ? err.message : String(err || 'Не удалось отправить');
+                setStatus('Ошибка: ' + text, false);
+                showToast(text, 'error', 5000);
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = 'Отправить в Discord'; }
             }
