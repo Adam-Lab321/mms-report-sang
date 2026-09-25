@@ -2575,6 +2575,145 @@
         }
 
         /* ========== REPORT VIEWER ========== */
+
+        /* Discord preview — layout */
+        .discord-preview-content {
+            width: min(1100px, 96vw) !important;
+            height: min(88vh, 900px) !important;
+            max-width: none !important;
+        }
+        .discord-preview-content.is-full {
+            width: 98vw !important;
+            height: 96vh !important;
+            border-radius: 8px !important;
+        }
+        #discordPreviewFrameWrap {
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            height: auto !important;
+            background: #f5e6c8 !important;
+            display: flex !important;
+        }
+        #discordPreviewFrame {
+            width: 100% !important;
+            height: 100% !important;
+            border: 0 !important;
+            background: #f5e6c8 !important;
+            display: block !important;
+            flex: 1 !important;
+        }
+        .discord-preview-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 12px 16px;
+            border-top: 1px solid rgba(212, 175, 55, 0.2);
+            background: rgba(0, 0, 0, 0.35);
+            flex-shrink: 0;
+        }
+        .dp-btn {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            font-size: 14px;
+            padding: 10px 22px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
+            transition: transform 0.15s, filter 0.15s;
+        }
+        .dp-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+        .dp-cancel {
+            background: #3a3a3a;
+            color: #eee;
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+        .dp-send {
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: #000;
+            min-width: 220px;
+        }
+        .profile-photo-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 18px;
+            padding: 14px 16px;
+            background: rgba(0,0,0,0.22);
+            border: 1px solid rgba(212, 175, 55, 0.18);
+            border-radius: 10px;
+        }
+        .profile-photo-card .ph-avatar {
+            width: 78px;
+            height: 78px;
+            border-radius: 50%;
+            border: 2px solid rgba(212, 175, 55, 0.55);
+            background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .profile-photo-card .ph-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+        .profile-photo-card .ph-avatar .ph-ico { font-size: 32px; opacity: 0.7; }
+        .profile-photo-card .ph-body { flex: 1; min-width: 0; }
+        .profile-photo-card .ph-label {
+            font-size: 10px;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .profile-photo-card .ph-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.45;
+            margin: 6px 0 10px;
+        }
+        .profile-photo-card .ph-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .profile-photo-card .ph-file-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 6px;
+            border: 1px solid rgba(212,175,55,0.35);
+            background: rgba(212,175,55,0.1);
+            color: var(--gold);
+            font-family: 'Oswald', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+        }
+        .profile-photo-card .ph-file-btn:hover { background: rgba(212,175,55,0.18); }
+        .profile-photo-card .ph-clear {
+            padding: 7px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: 'Oswald', sans-serif;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .profile-photo-card .ph-clear:hover { color: #f87171; border-color: rgba(248,113,113,0.4); }
+        #profilePhotoInput { display: none !important; }
+
         .report-viewer-modal {
             display: flex;
             position: fixed;
@@ -4558,14 +4697,19 @@
             <div class="tab-content" id="tabProfile">
                 <div class="profile-card">
                     <h2>👤 Карточка сотрудника</h2>
-                    <div class="profile-photo-wrap">
-                        <img id="profilePhotoPreview" src="" alt="Фото" style="display:none;" />
-                        <div id="profilePhotoPlaceholder" style="width:72px;height:72px;border-radius:50%;background:#1a1a1a;border:2px solid rgba(212,175,55,0.4);display:flex;align-items:center;justify-content:center;font-size:28px;">👤</div>
-                        <div>
-                            <label style="font-size:8px;color:var(--gold);letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:6px;">Фото персонажа</label>
-                            <input type="file" id="profilePhotoInput" accept="image/jpeg,image/png,image/webp,image/gif" style="font-size:12px;color:var(--text-secondary);max-width:220px;" />
+                    <div class="profile-photo-card">
+                        <div class="ph-avatar">
+                            <span class="ph-ico" id="profilePhotoPlaceholder">👤</span>
+                            <img id="profilePhotoPreview" alt="Фото персонажа" />
+                        </div>
+                        <div class="ph-body">
+                            <div class="ph-label">Фото персонажа</div>
                             <div class="ph-hint">Желательно фото персонажа из игры. Допускается любое нейтральное изображение (без политики и оскорбительного контента). Только для визуала в интерфейсе.</div>
-                            <button type="button" onclick="clearProfilePhoto()" style="margin-top:6px;padding:4px 10px;font-size:11px;background:#333;border:1px solid #555;color:#ccc;border-radius:4px;cursor:pointer;">Убрать фото</button>
+                            <div class="ph-actions">
+                                <label class="ph-file-btn" for="profilePhotoInput">📷 Выбрать фото</label>
+                                <input type="file" id="profilePhotoInput" accept="image/jpeg,image/png,image/webp,image/gif" />
+                                <button type="button" class="ph-clear" onclick="clearProfilePhoto()">Убрать</button>
+                            </div>
                         </div>
                     </div>
                     <div class="card-grid">
@@ -5090,21 +5234,21 @@
     </div>
 
     <div class="report-viewer-modal" id="discordPreviewModal" aria-hidden="true">
-        <div class="report-viewer-content" style="max-width:1100px;">
+        <div class="report-viewer-content discord-preview-content" id="discordPreviewContent">
             <div class="report-viewer-header">
                 <div class="report-viewer-title" id="discordPreviewTitle">👁️ ПРЕДПРОСМОТР РАПОРТА</div>
                 <div class="report-viewer-theme" title="Размер предпросмотра">
                     <button type="button" id="discordPreviewCompact" class="rv-theme-btn active" onclick="setDiscordPreviewSize('compact')" title="Обычный размер">▣</button>
                     <button type="button" id="discordPreviewFull" class="rv-theme-btn" onclick="setDiscordPreviewSize('full')" title="На весь экран">⛶</button>
                 </div>
-                <button class="report-viewer-close" onclick="closeDiscordPreviewModal()">✕</button>
+                <button class="report-viewer-close" onclick="closeDiscordPreviewModal()" type="button">✕</button>
             </div>
-            <div class="report-viewer-frame-wrap" id="discordPreviewFrameWrap" style="height:70vh;min-height:420px;">
-                <iframe id="discordPreviewFrame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals" referrerpolicy="no-referrer"></iframe>
+            <div class="report-viewer-frame-wrap" id="discordPreviewFrameWrap">
+                <iframe id="discordPreviewFrame" title="Предпросмотр рапорта" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals" referrerpolicy="no-referrer"></iframe>
             </div>
-            <div class="report-viewer-actions" style="display:flex;justify-content:flex-end;gap:12px;padding-top:14px;">
-                <button class="btn btn-cancel" type="button" onclick="closeDiscordPreviewModal()">Отмена</button>
-                <button class="dc-send-btn" type="button" onclick="sendDiscordPreviewConfirmed()">Отправить в Discord</button>
+            <div class="discord-preview-actions">
+                <button type="button" class="dp-btn dp-cancel" onclick="closeDiscordPreviewModal()">Отмена</button>
+                <button type="button" class="dp-btn dp-send" onclick="sendDiscordPreviewConfirmed()">Отправить в Discord</button>
             </div>
         </div>
     </div>
@@ -6782,92 +6926,61 @@
             const name = (first + ' ' + last).trim() || '—';
             const dateInput = document.getElementById('reportDate');
             const dateStr = (dateInput && dateInput.value) ? dateInput.value.split('-').reverse().join('.') : '—';
-            const total = discordFilePoints !== null && !isNaN(discordFilePoints) ? discordFilePoints : (typeof getEntriesTotal === 'function' ? getEntriesTotal(entries) : (entries || []).reduce((sum, e) => sum + (parseInt(e.points, 10) || 0), 0));
+            const total = discordFilePoints !== null && !isNaN(discordFilePoints)
+                ? discordFilePoints
+                : (typeof getEntriesTotal === 'function' ? getEntriesTotal(entries) : (entries || []).reduce(function(sum, e) { return sum + (parseInt(e.points, 10) || 0); }, 0));
             const isPromo = discordSubmitMode === 'promotion';
             const typeLabel = isPromo ? 'Рапорт на повышение' : 'Еженедельный рапорт';
             const list = Array.isArray(entries) && entries.length ? entries : [];
-            const rows = list.length ? list.map((entry, idx) => {
+            const esc = (typeof escapeDiscordPreviewHtml === 'function')
+                ? escapeDiscordPreviewHtml
+                : function(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+
+            const rows = list.length ? list.map(function(entry, idx) {
                 const pts = (typeof entryTotalPoints === 'function') ? entryTotalPoints(entry) : (parseInt(entry.points, 10) || 0);
-                const link = escapeDiscordPreviewHtml(entry.link || entry.proof || entry.description || '—');
-                const date = escapeDiscordPreviewHtml(entry.date || '—');
-                const cat = escapeDiscordPreviewHtml(entry.category || '—');
-                return `
-                    <tr>
-                        <td style="border:1px solid #c9a227;padding:8px;text-align:center;">${idx + 1}</td>
-                        <td style="border:1px solid #c9a227;padding:8px;">${date}</td>
-                        <td style="border:1px solid #c9a227;padding:8px;">${link}</td>
-                        <td style="border:1px solid #c9a227;padding:8px;">${cat}</td>
-                        <td style="border:1px solid #c9a227;padding:8px;text-align:center;font-weight:700;">${pts}</td>
-                    </tr>`;
-            }).join('') : '<tr><td colspan="5" style="border:1px solid #c9a227;padding:16px;text-align:center;">Нет записей</td></tr>';
+                const link = esc(entry.link || entry.proof || entry.description || '—');
+                const date = esc(entry.date || '—');
+                const cat = esc(entry.category || '—');
+                return '<tr>' +
+                    '<td class="c">' + (idx + 1) + '</td>' +
+                    '<td class="c">' + date + '</td>' +
+                    '<td>' + link + '</td>' +
+                    '<td class="c">' + cat + '</td>' +
+                    '<td class="c pts">' + pts + '</td>' +
+                    '</tr>';
+            }).join('') : '<tr><td colspan="5" class="empty">Нет записей в рапорте</td></tr>';
 
-            return `<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <style>
-    body {
-      margin: 0; background: #111; color: #f3efe8; font-family: Arial, sans-serif; padding: 24px;
-    }
-    .wrap {
-      max-width: 980px; margin: 0 auto; background: #171717; border: 1px solid rgba(212,175,55,0.4); border-radius: 16px; padding: 24px; box-shadow: 0 8px 25px rgba(0,0,0,0.35);
-    }
-    .title {
-      text-align: center; font-size: 24px; letter-spacing: 2px; font-weight: 700; color: #d4af37; margin-bottom: 6px;
-    }
-    .subtitle {
-      text-align: center; color: #d5cab0; font-size: 12px; letter-spacing: 2px; margin-bottom: 20px;
-    }
-    .meta {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px;
-    }
-    .meta-item {
-      background: rgba(255,255,255,0.02); border: 1px solid rgba(212,175,55,0.2); border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.5;
-    }
-    .meta-item b { color: #d4af37; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    th { background: rgba(212,175,55,0.12); color: #f0c756; border: 1px solid #c9a227; padding: 10px 8px; font-size: 12px; text-transform: uppercase; }
-    td { border: 1px solid #c9a227; padding: 10px 8px; font-size: 12px; color: #f3efe8; vertical-align: top; }
-    .total { margin-top: 18px; text-align: right; font-size: 18px; font-weight: 700; color: #d4af37; }
-    @media (max-width: 760px) {
-      body { padding: 12px; }
-      .wrap { padding: 14px; }
-      table { font-size: 11px; }
-      .title { font-size: 18px; }
-    }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="title">MMS · S.A.N.G.</div>
-    <div class="subtitle">${escapeDiscordPreviewHtml(typeLabel)}</div>
-
-    <div class="meta">
-      <div class="meta-item"><b>Сотрудник:</b><br>${escapeDiscordPreviewHtml(name)}</div>
-      <div class="meta-item"><b>Static ID:</b><br>${escapeDiscordPreviewHtml(id)}</div>
-      <div class="meta-item"><b>Дата:</b><br>${escapeDiscordPreviewHtml(dateStr)}</div>
-      <div class="meta-item"><b>Баллы:</b><br>${escapeDiscordPreviewHtml(total)}</div>
-    </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th>№</th>
-          <th>Дата</th>
-          <th>Доказательство</th>
-          <th>Категория</th>
-          <th>Баллы</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows}
-      </tbody>
-    </table>
-
-    <div class="total">Итого: ${escapeDiscordPreviewHtml(total)} баллов</div>
-  </div>
-</body>
-</html>`;
+            return '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8" />' +
+                '<meta name="viewport" content="width=device-width, initial-scale=1" />' +
+                '<style>' +
+                'html,body{margin:0;padding:0;height:100%;background:#f5e6c8;}' +
+                'body{font-family:"Times New Roman",Times,serif;color:#1a1a1a;padding:28px 32px 40px;box-sizing:border-box;}' +
+                '.sheet{max-width:920px;margin:0 auto;}' +
+                'h1{margin:0 0 4px;text-align:center;font-size:20px;letter-spacing:2px;color:#8b6914;}' +
+                'h2{margin:0 0 18px;text-align:center;font-size:15px;font-weight:600;color:#333;}' +
+                '.meta{margin:0 0 16px;padding:12px 14px;border:1px solid #c9a227;border-radius:6px;background:rgba(212,175,55,0.08);}' +
+                '.meta p{margin:4px 0;font-size:14px;}' +
+                'table{width:100%;border-collapse:collapse;margin-top:8px;background:#fffef8;}' +
+                'th,td{border:1px solid #b8960f;padding:8px 10px;font-size:13px;vertical-align:top;}' +
+                'th{background:#efe0b0;color:#3a2e0a;font-weight:700;}' +
+                'td.c{text-align:center;}' +
+                'td.pts{font-weight:700;}' +
+                'td.empty{text-align:center;padding:20px;color:#666;}' +
+                '.total{margin-top:16px;font-size:16px;font-weight:700;}' +
+                '.foot{margin-top:28px;font-size:11px;color:#666;}' +
+                '</style></head><body><div class="sheet">' +
+                '<h1>MMS · S.A.N.G.</h1>' +
+                '<h2>' + esc(typeLabel) + '</h2>' +
+                '<div class="meta">' +
+                '<p><b>Сотрудник:</b> ' + esc(name) + '</p>' +
+                '<p><b>Static ID:</b> ' + esc(id) + '</p>' +
+                '<p><b>Дата:</b> ' + esc(dateStr) + ' · <b>Баллы:</b> ' + esc(total) + ' · <b>Записей:</b> ' + list.length + '</p>' +
+                '</div>' +
+                '<table><thead><tr><th>№</th><th>Дата</th><th>Доказательство</th><th>Категория</th><th>Баллы</th></tr></thead>' +
+                '<tbody>' + rows + '</tbody></table>' +
+                '<p class="total">ИТОГО: ' + esc(total) + ' баллов</p>' +
+                '<p class="foot">Предпросмотр перед отправкой в Discord · содержимое совпадает с Word-отчётом</p>' +
+                '</div></body></html>';
         }
 
         function openDiscordPreviewModal() {
@@ -6897,13 +7010,10 @@
 
         function setDiscordPreviewSize(size) {
             discordPreviewSize = size === 'full' ? 'full' : 'compact';
-            const wrap = document.getElementById('discordPreviewFrameWrap');
+            const content = document.getElementById('discordPreviewContent');
             const compactBtn = document.getElementById('discordPreviewCompact');
             const fullBtn = document.getElementById('discordPreviewFull');
-            if (wrap) {
-                wrap.style.height = discordPreviewSize === 'full' ? '82vh' : '70vh';
-                wrap.style.minHeight = discordPreviewSize === 'full' ? '520px' : '420px';
-            }
+            if (content) content.classList.toggle('is-full', discordPreviewSize === 'full');
             if (compactBtn) compactBtn.classList.toggle('active', discordPreviewSize === 'compact');
             if (fullBtn) fullBtn.classList.toggle('active', discordPreviewSize === 'full');
         }
@@ -7572,17 +7682,9 @@
             if (!name || !id) { setStatus('Заполни карточку сотрудника (ФИО и ID)', false); showToast('Нет данных сотрудника', 'error'); return; }
             if (!fileList.length && (!entries || !entries.length)) { setStatus('Прикрепи файл(ы) отчёта или добавь записи в рапорт', false); showToast('Нужен файл или записи', 'error'); return; }
 
-            // Защита от случайной сдачи
-            const confirmMsg =
-                'Отправить рапорт в Discord?\n\n' +
-                name + ' (ID ' + id + ')\n' +
-                typeLabel + ' · ' + points + ' баллов\n\n' +
-                'Повторная сдача с этого ID — не раньше чем через 2 минуты.';
-            if (!window.confirm(confirmMsg)) {
-                setStatus('Отправка отменена', false);
-                showToast('Отправка отменена', 'info');
-                return;
-            }
+            // Подтверждение уже есть в предпросмотре; здесь не блокируем нативным confirm
+            // (нативный confirm часто даёт «Отправка отменена» и путает пользователя)
+
 
             const roleId = String(MMS_DISCORD_ROLE_ID || '').replace(/\D/g, '');
             const roleMention = roleId ? '<@&' + roleId + '>' : MMS_DISCORD_ROLE_LABEL;
@@ -7807,7 +7909,7 @@
                 if (mpPh) mpPh.style.display = 'none';
             } else {
                 if (prev) { prev.removeAttribute('src'); prev.style.display = 'none'; }
-                if (ph) ph.style.display = 'flex';
+                if (ph) ph.style.display = 'block';
                 if (mpImg) { mpImg.removeAttribute('src'); mpImg.style.display = 'none'; }
                 if (mpPh) mpPh.style.display = 'flex';
             }
