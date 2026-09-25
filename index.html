@@ -5011,7 +5011,7 @@
                     <div class="dc-submit-head">
                         <div class="dc-submit-badge">MMS · DISCORD</div>
                         <h2>Сдача рапорта</h2>
-                        <p>Данные из карточки. Прикрепи файл отчёта — баллы подтянутся из файла (JSON) или из текущего рапорта.</p>
+                        <p>Данные из карточки. Прикрепи .doc/.html — файл уйдёт как есть. JSON/ZIP — баллы и записи подтянутся из файла. Или заполните таблицу рапорта.</p>
                     </div>
 
                     <div class="dc-mode-row">
@@ -5067,7 +5067,7 @@
                             <button type="button" class="dc-file-btn" onclick="document.getElementById('dcFile').click()">Выбрать файлы</button>
                             <span class="dc-file-name" id="dcFileName">Файлы не выбраны</span>
                         </div>
-                        <p class="dc-hint">Файл <b>не обязателен</b> — отчёт собирается из текущего рапорта. Прикреплять можно только безопасные типы: Word, HTML, JSON, ZIP/MMS, картинки, PDF (до 12 МБ). Пустые и исполняемые файлы отклоняются.</p>
+                        <p class="dc-hint">Можно прикрепить готовый <b>.doc / .html</b> (уйдёт как есть) или JSON/ZIP с записями. Без файла — отчёт соберётся из таблицы рапорта. Разрешены: Word, HTML, JSON, ZIP/MMS, картинки, PDF (до 12 МБ).</p>
                     </div>
 
 
@@ -7773,13 +7773,17 @@
                 }
 
                 let entriesForDoc = (typeof entries !== 'undefined' && Array.isArray(entries) && entries.length)
-                    ? entries
+                    ? entries.slice()
                     : [];
 
-                // Если выбран пакет/JSON — берём из него записи для Word (сами файлы в Discord не шлём)
+                // Готовый .doc/.html — отправляем как есть; JSON/ZIP — читаем записи
+                let attachedReportFile = null;
+                let pointsFromFile = null;
+
                 for (let fi = 0; fi < fileList.length; fi++) {
                     const f = fileList[fi];
                     const n = String(f.name || '').toLowerCase();
+
                     if (n.endsWith('.mms.json') || n.endsWith('.mms.zip') || n.endsWith('.mms') ||
                         (n.endsWith('.zip') && n.indexOf('mms') >= 0) || n.endsWith('.json')) {
                         try {
@@ -7788,63 +7792,102 @@
                                 const parsed = JSON.parse(await f.text());
                                 const list = (parsed && parsed.entries) || (parsed && parsed.report && parsed.report.entries);
                                 if (Array.isArray(list) && list.length) entriesForDoc = list;
+                                if (parsed && (parsed.points != null || parsed.total_points != null)) {
+                                    pointsFromFile = Number(parsed.points != null ? parsed.points : parsed.total_points);
+                                }
                             } else {
                                 const pack = await mmsReadPackageFile(f);
                                 if (pack && pack.data && Array.isArray(pack.data.entries) && pack.data.entries.length) {
                                     entriesForDoc = pack.data.entries;
+                                }
+                                if (pack && pack.data && (pack.data.points != null || pack.data.total_points != null)) {
+                                    pointsFromFile = Number(pack.data.points != null ? pack.data.points : pack.data.total_points);
                                 }
                             }
                         } catch (packErr) {
                             console.warn('read for discord', packErr);
                         }
                     }
+
+                    if (n.endsWith('.doc') || n.endsWith('.docx') || n.endsWith('.html') || n.endsWith('.htm')) {
+                        attachedReportFile = f;
+                    }
                 }
 
-                if (!entriesForDoc.length) {
-                    throw new Error('Нет записей для отчёта. Добавьте доказательства или прикрепите пакет/JSON с записями.');
+                // Баллы: из файла → форма/таблица → сумма entries
+                let finalPoints = points;
+                if (pointsFromFile != null && Number.isFinite(pointsFromFile)) {
+                    finalPoints = pointsFromFile;
+                } else if (entriesForDoc.length) {
+                    finalPoints = entriesForDoc.reduce(function (s, e) { return s + (Number(e.points) || 0); }, 0);
                 }
 
-                setStatus('Собираю Word-отчёт…', null);
+                // Обновляем embed с финальными баллами
+                embed.fields = embed.fields.map(function (fld) {
+                    if (fld.name === '📊 Баллы') return { name: '📊 Баллы', value: '**' + String(finalPoints) + '**', inline: true };
+                    if (fld.name === '📝 Записей') return { name: '📝 Записей', value: String(entriesForDoc.length || '—'), inline: true };
+                    return fld;
+                });
+                payload.embeds = [embed];
+
+                // Можно слать, если есть записи ИЛИ готовый .doc/.html
+                if (!entriesForDoc.length && !attachedReportFile) {
+                    throw new Error('Нет записей для отчёта. Добавьте доказательства или прикрепите пакет/JSON/.doc с записями.');
+                }
+
                 const fullName = name + (id ? (' (ID: ' + id + ')') : '');
-                if (typeof generateWordBlob !== 'function') {
-                    throw new Error('Генератор Word недоступен');
-                }
-                const wordBlob = generateWordBlob(
-                    fullName,
-                    name,
-                    dateStr,
-                    points,
-                    entriesForDoc,
-                    !!(typeof hasArchiveStamp !== 'undefined' && hasArchiveStamp)
-                );
-                if (!wordBlob || !(wordBlob.size > 0)) {
-                    throw new Error('Word-файл пустой — отправка отменена');
-                }
-
-                // Понятное имя: MMS_Еженед_Имя_ID_дата.doc (Discord всё равно может обрезать — описание в embed)
                 const safeName = mmsSafeFilePart(name.replace(/\s+/g, '_'), 28) || 'Sotrudnik';
                 const modeTag = isPromo ? 'Povyshenie' : 'Ezhened';
                 const dateTag = (dateStr && dateStr !== '—') ? dateStr.replace(/\./g, '-') : new Date().toISOString().slice(0, 10);
-                const docFileName = 'MMS_' + modeTag + '_' + safeName + '_' + id + '_' + dateTag + '.doc';
+                let docFileName = 'MMS_' + modeTag + '_' + safeName + '_' + id + '_' + dateTag + '.doc';
 
-                // Без поля «Вложение» — в Discord достаточно файла + таблицы полей
-                // Проверка целостности: только наш HTML-Word (начинается с <!DOCTYPE / <html)
-                const headProbe = await wordBlob.slice(0, 64).text();
-                const head = String(headProbe || '').replace(/^\uFEFF/, '').trim().toLowerCase();
-                if (!(head.startsWith('<!doctype') || head.startsWith('<html'))) {
-                    throw new Error('Файл отклонён: Word-отчёт повреждён или подменён. Отправка запрещена.');
-                }
-                if (/<script|javascript:|onerror\s*=|eval\s*\(/i.test(headProbe) || wordBlob.size > 6 * 1024 * 1024) {
-                    throw new Error('Файл отклонён: подозрительное содержимое. Отправка запрещена.');
+                let wordBlob;
+
+                if (attachedReportFile) {
+                    // Отправляем прикреплённый .doc / .html КАК ЕСТЬ
+                    setStatus('Прикрепляю файл отчёта…', null);
+                    wordBlob = attachedReportFile;
+                    docFileName = attachedReportFile.name || docFileName;
+                } else {
+                    setStatus('Собираю Word-отчёт…', null);
+                    if (typeof generateWordBlob !== 'function') {
+                        throw new Error('Генератор Word недоступен');
+                    }
+                    wordBlob = generateWordBlob(
+                        fullName,
+                        name,
+                        dateStr,
+                        finalPoints,
+                        entriesForDoc,
+                        !!(typeof hasArchiveStamp !== 'undefined' && hasArchiveStamp)
+                    );
+                    if (!wordBlob || !(wordBlob.size > 0)) {
+                        throw new Error('Word-файл пустой — отправка отменена');
+                    }
+
+                    // Проверка только для сгенерированного HTML-Word
+                    const headProbe = await wordBlob.slice(0, 64).text();
+                    const head = String(headProbe || '').replace(/^\uFEFF/, '').trim().toLowerCase();
+                    if (!(head.startsWith('<!doctype') || head.startsWith('<html'))) {
+                        throw new Error('Файл отклонён: Word-отчёт повреждён или подменён. Отправка запрещена.');
+                    }
+                    if (/<script|javascript:|onerror\s*=|eval\s*\(/i.test(headProbe) || wordBlob.size > 6 * 1024 * 1024) {
+                        throw new Error('Файл отклонён: подозрительное содержимое. Отправка запрещена.');
+                    }
                 }
 
-                payload.embeds = [embed];
+                try {
+                    fd.set('meta_points', String(finalPoints != null ? finalPoints : ''));
+                } catch (_) {
+                    fd.append('meta_points', String(finalPoints != null ? finalPoints : ''));
+                }
+
                 fd.delete('payload_json');
                 fd.append('payload_json', JSON.stringify(payload));
-                // Discord webhook ждёт file (или files[n]) — шлём как file
+                // Discord webhook ждёт file — шлём готовый или сгенерированный
                 fd.append('file', wordBlob, docFileName);
 
-                // Маркер: отчёт сгенерирован клиентом MMS
+                // Маркер: отчёт готов
                 fd.append('meta_doc_ok', '1');
                 fd.append('meta_entries', String(entriesForDoc.length));
 
