@@ -48,6 +48,90 @@
 
     <style>
 
+
+        /* ========== MINI PROFILE (правый верх) ========== */
+        .mms-mini-profile {
+            position: fixed;
+            top: 14px;
+            right: 18px;
+            z-index: 90;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px 8px 8px;
+            background: rgba(13, 13, 13, 0.92);
+            border: 1px solid rgba(212, 175, 55, 0.35);
+            border-radius: 12px;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+            max-width: 260px;
+            pointer-events: none;
+        }
+        .mms-mini-profile img {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(212, 175, 55, 0.5);
+            background: #222;
+            flex-shrink: 0;
+        }
+        .mms-mini-profile .mp-placeholder {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+            border: 2px solid rgba(212, 175, 55, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .mms-mini-profile .mp-meta {
+            min-width: 0;
+            line-height: 1.25;
+        }
+        .mms-mini-profile .mp-name {
+            font-family: 'Oswald', sans-serif;
+            font-size: 13px;
+            color: var(--gold);
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 170px;
+        }
+        .mms-mini-profile .mp-id {
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+        @media (max-width: 860px) {
+            .mms-mini-profile { top: 8px; right: 8px; padding: 6px 10px 6px 6px; }
+            .mms-mini-profile img, .mms-mini-profile .mp-placeholder { width: 36px; height: 36px; }
+            .mms-mini-profile .mp-name { font-size: 12px; max-width: 120px; }
+        }
+        .profile-photo-wrap {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .profile-photo-wrap img#profilePhotoPreview {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--gold);
+            background: #111;
+        }
+        .profile-photo-wrap .ph-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.4;
+            max-width: 320px;
+        }
+
         /* ========== LICENSE GATE ========== */
         #licenseGate {
             position: fixed;
@@ -666,6 +750,7 @@
             color: var(--gold);
             font-weight: 600;
             border: 1px solid rgba(212, 175, 55, 0.08);
+            pointer-events: none;
         }
         .nav-btn .badge.draft {
             background: rgba(74, 93, 35, 0.2);
@@ -2590,6 +2675,11 @@
             position: relative;
             background: var(--paper-color);
             min-height: 0;
+            transition: background 0.25s ease;
+        }
+        #reportViewerModal.theme-dark .report-viewer-frame-wrap,
+        #reportViewerModal.theme-dark #reportViewerFrame {
+            background: #2a2a2e !important;
         }
         #reportViewerFrame {
             width: 100%;
@@ -4196,6 +4286,17 @@
 
     <div id="assistantHighlightRing" aria-hidden="true"></div>
 
+    <!-- Мини-профиль сотрудника (визуал) -->
+    <div class="mms-mini-profile" id="mmsMiniProfile" title="Карточка сотрудника">
+        <div class="mp-placeholder" id="mpPhotoPlaceholder">👤</div>
+        <img id="mpPhotoImg" alt="" style="display:none;" />
+        <div class="mp-meta">
+            <div class="mp-name" id="mpName">—</div>
+            <div class="mp-id" id="mpStatic">ID —</div>
+        </div>
+    </div>
+
+
 
     <!-- ========== SIDEBAR ========== -->
     <div class="sidebar" id="sidebar">
@@ -4360,21 +4461,21 @@
             </button>
         </div>
 
-        <!-- ДОКУМЕНТЫ (бывший Экспорт) -->
+        <!-- ДОКУМЕНТЫ -->
         <div class="nav-group">
             <div class="nav-group-title">Документы</div>
-            <button class="nav-btn" id="btnMmsPackage" onclick="downloadMmsPackage(event)" data-tooltip="Пакет для проверяющего: JSON + Word + HTML + PNG в одном .mms.zip">
-                <span class="icon">📦</span> Пакет для проверки
-            </button>
-            <button class="nav-btn" id="btnWord" onclick="downloadWord(event)" data-tooltip="📄 Официальный рапорт A4 в Word">
+            <button class="nav-btn" id="btnWord" onclick="downloadWord(event)" data-tooltip="📄 Официальный рапорт A4 в Word (.doc)">
                 <span class="icon">📄</span> Отчёт в Word
             </button>
-            <!-- Excel и «Сдать на проверку» скрыты: Excel не используется, проверка = пакет -->
-            <button class="nav-btn" id="btnExcel" onclick="downloadExcel(event)" style="display:none;" aria-hidden="true" data-tooltip="📊 Отчёт в Excel">
-                <span class="icon">📊</span> Отчёт в Excel
+            <button class="nav-btn" id="btnPdf" onclick="downloadPdf(event)" data-tooltip="📕 Тот же рапорт в PDF (печать браузера → Сохранить как PDF)">
+                <span class="icon">📕</span> Отчёт в PDF
             </button>
-            <button class="nav-btn" id="btnSubmitReview" onclick="exportForReview(event)" style="display:none;" aria-hidden="true" data-tooltip="Сдать на проверку">
-                <span class="icon">📤</span> Сдать на проверку
+            <!-- ZIP-пакет и Excel скрыты: Discord плохо принимает ZIP -->
+            <button class="nav-btn" id="btnMmsPackage" onclick="downloadWord(event)" style="display:none;" aria-hidden="true">
+                <span class="icon">📦</span> Пакет для проверки
+            </button>
+            <button class="nav-btn" id="btnExcel" onclick="downloadExcel(event)" style="display:none;" aria-hidden="true">
+                <span class="icon">📊</span> Отчёт в Excel
             </button>
         </div>
 
@@ -4457,6 +4558,16 @@
             <div class="tab-content" id="tabProfile">
                 <div class="profile-card">
                     <h2>👤 Карточка сотрудника</h2>
+                    <div class="profile-photo-wrap">
+                        <img id="profilePhotoPreview" src="" alt="Фото" style="display:none;" />
+                        <div id="profilePhotoPlaceholder" style="width:72px;height:72px;border-radius:50%;background:#1a1a1a;border:2px solid rgba(212,175,55,0.4);display:flex;align-items:center;justify-content:center;font-size:28px;">👤</div>
+                        <div>
+                            <label style="font-size:8px;color:var(--gold);letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:6px;">Фото персонажа</label>
+                            <input type="file" id="profilePhotoInput" accept="image/jpeg,image/png,image/webp,image/gif" style="font-size:12px;color:var(--text-secondary);max-width:220px;" />
+                            <div class="ph-hint">Желательно фото персонажа из игры. Допускается любое нейтральное изображение (без политики и оскорбительного контента). Только для визуала в интерфейсе.</div>
+                            <button type="button" onclick="clearProfilePhoto()" style="margin-top:6px;padding:4px 10px;font-size:11px;background:#333;border:1px solid #555;color:#ccc;border-radius:4px;cursor:pointer;">Убрать фото</button>
+                        </div>
+                    </div>
                     <div class="card-grid">
                         <div class="card-item">
                             <label>Имя и фамилия</label>
@@ -7679,6 +7790,101 @@
             }
         }
 
+
+        // ===== ФОТО ПРОФИЛЯ (только визуал) =====
+        const MMS_PHOTO_KEY = 'mmsProfilePhoto';
+        const MMS_PHOTO_MAX = 900 * 1024; // ~900KB в localStorage
+
+        function applyProfilePhoto(dataUrl) {
+            const prev = document.getElementById('profilePhotoPreview');
+            const ph = document.getElementById('profilePhotoPlaceholder');
+            const mpImg = document.getElementById('mpPhotoImg');
+            const mpPh = document.getElementById('mpPhotoPlaceholder');
+            if (dataUrl) {
+                if (prev) { prev.src = dataUrl; prev.style.display = 'block'; }
+                if (ph) ph.style.display = 'none';
+                if (mpImg) { mpImg.src = dataUrl; mpImg.style.display = 'block'; }
+                if (mpPh) mpPh.style.display = 'none';
+            } else {
+                if (prev) { prev.removeAttribute('src'); prev.style.display = 'none'; }
+                if (ph) ph.style.display = 'flex';
+                if (mpImg) { mpImg.removeAttribute('src'); mpImg.style.display = 'none'; }
+                if (mpPh) mpPh.style.display = 'flex';
+            }
+        }
+
+        function clearProfilePhoto() {
+            try { localStorage.removeItem(MMS_PHOTO_KEY); } catch (_) {}
+            applyProfilePhoto(null);
+            const inp = document.getElementById('profilePhotoInput');
+            if (inp) inp.value = '';
+            showToast('Фото убрано', 'success', 1800);
+        }
+
+        function loadProfilePhoto() {
+            try {
+                const d = localStorage.getItem(MMS_PHOTO_KEY);
+                if (d && d.indexOf('data:image') === 0) applyProfilePhoto(d);
+                else applyProfilePhoto(null);
+            } catch (_) { applyProfilePhoto(null); }
+        }
+
+        function initProfilePhotoInput() {
+            const inp = document.getElementById('profilePhotoInput');
+            if (!inp || inp._mmsBound) return;
+            inp._mmsBound = true;
+            inp.addEventListener('change', function() {
+                const f = inp.files && inp.files[0];
+                if (!f) return;
+                if (!/^image\/(jpeg|png|webp|gif)$/i.test(f.type)) {
+                    showToast('Нужен файл изображения (JPG/PNG/WebP)', 'error');
+                    inp.value = '';
+                    return;
+                }
+                if (f.size > 4 * 1024 * 1024) {
+                    showToast('Файл слишком большой (макс. ~4 МБ)', 'error');
+                    inp.value = '';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function() {
+                    let dataUrl = reader.result;
+                    // Сжимаем через canvas если нужно
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            const maxSide = 256;
+                            let w = img.width, h = img.height;
+                            if (w > maxSide || h > maxSide) {
+                                if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; }
+                                else { w = Math.round(w * maxSide / h); h = maxSide; }
+                            }
+                            const c = document.createElement('canvas');
+                            c.width = w; c.height = h;
+                            c.getContext('2d').drawImage(img, 0, 0, w, h);
+                            dataUrl = c.toDataURL('image/jpeg', 0.82);
+                            if (dataUrl.length > MMS_PHOTO_MAX) {
+                                dataUrl = c.toDataURL('image/jpeg', 0.65);
+                            }
+                            if (dataUrl.length > MMS_PHOTO_MAX) {
+                                showToast('Не удалось сжать фото — выберите другое', 'error');
+                                return;
+                            }
+                            localStorage.setItem(MMS_PHOTO_KEY, dataUrl);
+                            applyProfilePhoto(dataUrl);
+                            showToast('Фото сохранено (только визуал)', 'success', 2200);
+                        } catch (err) {
+                            showToast('Ошибка обработки фото', 'error');
+                        }
+                    };
+                    img.onerror = function() { showToast('Не удалось прочитать изображение', 'error'); };
+                    img.src = dataUrl;
+                };
+                reader.readAsDataURL(f);
+            });
+        }
+
+
         // ===== THEME (день/ночь) =====
         function toggleTheme() {
             const checked = document.getElementById('themeSwitch').checked;
@@ -7711,10 +7917,17 @@
             const first = document.getElementById('firstName').value.trim();
             const last = document.getElementById('lastName').value.trim();
             const id = document.getElementById('staticId').value.trim();
-            document.getElementById('fullNameDisplay').textContent = `${first} ${last} (ID: ${id})`;
-            document.getElementById('signatureName').textContent = `${first} ${last}`;
-            document.getElementById('profileFullName').textContent = `${first} ${last}`;
-            document.getElementById('profileStaticId').textContent = id;
+            const full = (first + ' ' + last).trim() || '—';
+            try { document.getElementById('fullNameDisplay').textContent = `${first} ${last} (ID: ${id})`; } catch(_){}
+            try { document.getElementById('signatureName').textContent = `${first} ${last}`; } catch(_){}
+            try { document.getElementById('profileFullName').textContent = full; } catch(_){}
+            try { document.getElementById('profileStaticId').textContent = id || '—'; } catch(_){}
+            try {
+                const mpN = document.getElementById('mpName');
+                const mpI = document.getElementById('mpStatic');
+                if (mpN) mpN.textContent = full;
+                if (mpI) mpI.textContent = id ? ('ID ' + id) : 'ID —';
+            } catch(_){}
             try {
                 localStorage.setItem('mmsProfile', JSON.stringify({ first, last, id }));
                 hasEnteredName = true;
@@ -8759,15 +8972,35 @@
 
         // ===== ARCHIVE =====
         function toggleArchive(e) {
-            if (e) { e.preventDefault();
-                animateClick(e.currentTarget); }
-            const section = document.getElementById('archiveSection');
-            section.classList.toggle('show');
-            if (section.classList.contains('show')) {
-                updateArchiveSelect();
-                if (currentTab !== 'achievements') {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                try { animateClick(e.currentTarget); } catch (_) {}
+            }
+            // Всегда переключаемся на вкладку достижений, где лежит архив
+            try {
+                if (typeof currentTab !== 'undefined' && currentTab !== 'achievements') {
                     switchTab('achievements', null);
                 }
+            } catch (_) {}
+            const section = document.getElementById('archiveSection');
+            if (!section) {
+                showToast('Секция архива не найдена', 'error');
+                return;
+            }
+            const willShow = !section.classList.contains('show');
+            section.classList.toggle('show', willShow);
+            section.style.display = willShow ? 'block' : 'none';
+            if (willShow) {
+                try { updateArchiveSelect(); } catch (err) { console.warn(err); }
+                const count = (typeof archiveReports !== 'undefined' && Array.isArray(archiveReports)) ? archiveReports.length : 0;
+                if (count === 0) {
+                    showToast('Архив пуст. Сохраните рапорт кнопкой «Сохранить в архив».', 'warning', 3500);
+                }
+                // Прокрутка к секции
+                setTimeout(function() {
+                    try { section.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) {}
+                }, 100);
             }
         }
 
@@ -9211,16 +9444,14 @@
         // ============================================================
         function downloadWord(e) {
             if (e) { e.preventDefault();
-                animateClick(e.currentTarget); }
-            if (entries.length === 0) {
+                try { animateClick(e.currentTarget); } catch (_) {} }
+            if (!entries || entries.length === 0) {
                 showToast('⚠️ Нет данных для экспорта. Добавьте записи!', 'error');
                 return;
             }
 
-            // Печати одобрения ставят только проверяющие — в Word уходит «На проверке»
             const btn = document.getElementById('btnWord');
-            btn.classList.add('loading');
-            btn.disabled = true;
+            if (btn) { btn.classList.add('loading'); btn.disabled = true; }
 
             setTimeout(() => {
                 try {
@@ -9251,14 +9482,102 @@
                     document.body.removeChild(link);
                     URL.revokeObjectURL(link.href);
                     showToast('✅ Word-документ скачан!', 'success');
+
+                    // После скачивания — предложить оставить / в архив / очистить
+                    setTimeout(function() {
+                        showConfirm(
+                            '📄 ОТЧЁТ WORD СКАЧАН',
+                            'Что сделать с текущим рапортом в программе?',
+                            function(choice) {
+                                if (choice === 'archive') {
+                                    try { saveToArchive(null); } catch (err) { console.warn(err); }
+                                } else if (choice === 'clear') {
+                                    try {
+                                        if (typeof clearDatabase === 'function') {
+                                            // clearDatabase сам спросит подтверждение — вызываем внутреннюю очистку если есть
+                                            if (typeof doClearAllEntries === 'function') doClearAllEntries();
+                                            else {
+                                                entries = [];
+                                                evidenceCounter = 0;
+                                                savedPoints = {};
+                                                hasArchiveStamp = false;
+                                                renderTable();
+                                                saveToLocalStorage();
+                                                showToast('Рапорт очищен', 'success');
+                                            }
+                                        }
+                                    } catch (err) { console.warn(err); }
+                                }
+                                // 'keep' / false — ничего не делаем
+                            },
+                            [
+                                { label: 'Оставить как есть', value: 'keep', className: 'btn btn-cancel' },
+                                { label: '💾 Убрать в архив', value: 'archive', className: 'btn btn-success' },
+                                { label: '🗑 Очистить рапорт', value: 'clear', className: 'btn btn-danger' }
+                            ]
+                        );
+                    }, 400);
                 } catch (err) {
                     showToast('❌ Ошибка при генерации Word: ' + err.message, 'error');
                     console.error(err);
                 } finally {
-                    btn.classList.remove('loading');
-                    btn.disabled = false;
+                    if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
                 }
             }, 300);
+        }
+
+        /** PDF: открываем HTML-рапорт в новом окне и вызываем print (Сохранить как PDF) */
+        function downloadPdf(e) {
+            if (e) { e.preventDefault(); try { animateClick(e.currentTarget); } catch (_) {} }
+            if (!entries || entries.length === 0) {
+                showToast('⚠️ Нет данных для экспорта. Добавьте записи!', 'error');
+                return;
+            }
+            try {
+                if (editingId !== null) toggleEdit(editingId);
+                const first = (document.getElementById('firstName') || {}).value.trim();
+                const last = (document.getElementById('lastName') || {}).value.trim();
+                const id = (document.getElementById('staticId') || {}).value.trim();
+                const fullName = first + ' ' + last + (id ? ' (ID: ' + id + ')' : '');
+                const fullNameShort = (first + ' ' + last).trim();
+                const dateInput = document.getElementById('reportDate');
+                let dateStr = dateInput && dateInput.value ? dateInput.value.split('-').reverse().join('.') : new Date().toLocaleDateString('ru-RU');
+                const total = typeof getEntriesTotal === 'function' ? getEntriesTotal(entries) : entries.reduce(function(s, en) { return s + (en.points || 0); }, 0);
+
+                // Берём HTML из генератора Word (это уже полноценный документ)
+                let html = '';
+                if (typeof generateWordBlob === 'function') {
+                    // generateWordBlob возвращает Blob; для PDF нужен HTML-строка
+                    // Используем buildDiscordPreviewHtml или внутренний HTML, если доступен
+                }
+                if (typeof buildDiscordPreviewHtml === 'function') {
+                    html = buildDiscordPreviewHtml();
+                } else if (typeof generatePreviewHtml === 'function') {
+                    html = generatePreviewHtml(fullNameShort, id, total, entries, 'РАПОРТ');
+                } else {
+                    // Минимальный fallback
+                    const rows = entries.map(function(en, i) {
+                        return '<tr><td>' + (i+1) + '</td><td>' + (en.date||'') + '</td><td>' + (en.proof||en.description||en.link||'') + '</td><td>' + (en.points||0) + '</td></tr>';
+                    }).join('');
+                    html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Рапорт</title><style>body{font-family:Times New Roman,serif;padding:24px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #333;padding:6px}</style></head><body><h1>MMS · Рапорт</h1><p><b>' + fullName + '</b></p><table><thead><tr><th>№</th><th>Дата</th><th>Доказательство</th><th>Баллы</th></tr></thead><tbody>' + rows + '</tbody></table><p><b>Итого: ' + total + '</b></p></body></html>';
+                }
+
+                const w = window.open('', '_blank');
+                if (!w) {
+                    showToast('Разрешите всплывающие окна для PDF', 'error');
+                    return;
+                }
+                w.document.open();
+                w.document.write(html);
+                w.document.close();
+                setTimeout(function() {
+                    try { w.focus(); w.print(); } catch (_) {}
+                }, 400);
+                showToast('📕 Откройте «Сохранить как PDF» в окне печати', 'success', 4500);
+            } catch (err) {
+                showToast('❌ Ошибка PDF: ' + (err.message || err), 'error');
+                console.error(err);
+            }
         }
 
         // ============================================================
@@ -9589,6 +9908,8 @@
             const darkBtn = document.getElementById('reportThemeDark');
             if (lightBtn) lightBtn.classList.toggle('active', theme === 'light');
             if (darkBtn) darkBtn.classList.toggle('active', theme === 'dark');
+            const modal = document.getElementById('reportViewerModal');
+            if (modal) modal.classList.toggle('theme-dark', theme === 'dark');
             applyReportViewerThemeToFrame(theme);
         }
 
@@ -9605,24 +9926,31 @@
                     (doc.head || doc.documentElement).appendChild(style);
                 }
                 if (theme === 'dark') {
+                    // Ночной режим: «тёмная бумага» (серо-графит) + светлые чернила — удобно глазам ночью
                     style.textContent = `
                             html, body {
-                                background: #1a1a1a !important;
-                                color: #e8e0d4 !important;
+                                background: #2a2a2e !important;
+                                color: #e6e6ea !important;
                             }
                             body {
                                 box-sizing: border-box !important;
-                                border: 2px solid #111 !important;
-                                outline: 1px solid #444 !important;
+                                border: 2px solid #1c1c1f !important;
+                                outline: 1px solid #4a4a50 !important;
                                 outline-offset: -10px !important;
                                 min-height: 100vh !important;
                                 padding: 18px !important;
+                                filter: none !important;
                             }
-                            table, th, td { border-color: #555 !important; color: #e8e0d4 !important; }
-                            th { background: #0d0d0d !important; color: #d4af37 !important; }
-                            td { background: #222 !important; }
-                            a { color: #6ab0ff !important; }
-                            h1, h2, h3, .total, .signature-name { color: #d4af37 !important; }
+                            * { color: inherit; }
+                            table { background: #323238 !important; }
+                            table, th, td { border-color: #5a5a62 !important; color: #e6e6ea !important; }
+                            th { background: #3a3a42 !important; color: #e8c84a !important; }
+                            td { background: #323238 !important; }
+                            tr:nth-child(even) td { background: #2e2e34 !important; }
+                            a { color: #8ec7ff !important; }
+                            h1, h2, h3, .total, .signature-name, .report-header { color: #e8c84a !important; }
+                            img { opacity: 0.92; }
+                            .stamp, .live-stamp { filter: brightness(1.15); }
                         `;
                 } else {
                     style.textContent = `
@@ -13189,6 +13517,7 @@
                 loadTheme();
                 loadFontSize();
                 loadPattern();
+                try { loadProfilePhoto(); initProfilePhotoInput(); updateName(); } catch (_) {}
 
                 const hasData = loadFromLocalStorage();
                 if (!hasData) {
