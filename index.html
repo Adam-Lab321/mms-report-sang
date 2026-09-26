@@ -6724,6 +6724,31 @@
         // ===== СДАЧА В DISCORD =====
         // Webhook'и спрятаны в Cloudflare Worker. На сайте их больше нет.
         const MMS_PROXY_URL = 'https://mms-report-proxy.asakulin874.workers.dev';
+        const MMS_VENUS_CHAT_URL = MMS_PROXY_URL + '/venus-chat';
+
+        async function askCloudflareVenus(message, history) {
+            try {
+                const res = await fetch(MMS_VENUS_CHAT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: String(message || '').slice(0, 2000),
+                        history: Array.isArray(history) ? history.slice(-6) : []
+                    })
+                });
+                const data = await res.json().catch(function () { return null; });
+                if (data && data.ok && data.reply) return String(data.reply).trim();
+            } catch (e) {
+                console.warn('Venus AI', e);
+            }
+            return null;
+        }
+
+        function mmsLooksLikeVenusConfused(answer) {
+            if (!answer || typeof answer !== 'string') return true;
+            return /не совсем понял|не совсем уверен|уточните тему|попробуйте.*формулиров|не могу обработать|уточните действие|уточните предмет/i.test(answer);
+        }
+
         const MMS_PROXY_TOKEN = '9fK2mP8xL4vN6qR1wZ3yT7bC5';
         const MMS_LICENSE_API = 'https://mms-report-proxy.asakulin874.workers.dev/license';
         const MMS_STATS_API = 'https://mms-report-proxy.asakulin874.workers.dev/stats';
@@ -11157,7 +11182,7 @@
 
             // ——— КОНСТРУКТОР ———
             constructor() {
-                this.version = '6.4';
+                this.version = '6.5';
                 this.confidenceThreshold = 0.18;
                 this.developerMode = (typeof mmsRestoreDeveloperAccess === 'function' && mmsRestoreDeveloperAccess());
                 this.context = {
@@ -13388,8 +13413,30 @@
                 return fallbacks[Math.floor(Math.random() * fallbacks.length)];
             }
 
+            _expandSynonyms(query) {
+                let q = String(query || '').toLowerCase().trim();
+                try {
+                    const pairs = [
+                        [/архив\s*где(\s*что)?/g, 'что такое архив где находится'],
+                        [/где\s*архив/g, 'где находится архив'],
+                        [/что\s*за\s*архив/g, 'что такое архив'],
+                        [/дискорд/g, 'discord'],
+                        [/сдать\s*рапорт/g, 'как сдать отчёт в discord'],
+                        [/отправ(ить|ка)\s*(рапорт|отчёт)/g, 'как сдать отчёт в discord'],
+                        [/готов(ый|ого)?\s*doc/g, 'прикрепить файл doc'],
+                        [/без\s*записей/g, 'прикрепить файл без записей'],
+                        [/пароль\s*лиценз/g, 'лицензия пароль активации']
+                    ];
+                    for (let i = 0; i < pairs.length; i++) {
+                        q = q.replace(pairs[i][0], pairs[i][1]);
+                    }
+                } catch (e) { /* ignore */ }
+                return q;
+            }
+
             /** Готовые человеческие вопросы по интенту */
             _questionForIntent(intent) {
+
                 if (!intent) return 'помощь';
                 const map = {
                     about_archive: 'Что такое архив и где он находится?',
@@ -13664,10 +13711,14 @@
                 }
             }
             try {
+                if (!venus || typeof venus.processQuery !== 'function') {
+                    return 'Коллега, помощник не готов. Обновите страницу (Ctrl+F5).';
+                }
                 return venus.processQuery(query);
             } catch (err) {
-                venus._log('Ошибка в getAssistantAnswer', err.message);
-                return 'Коллега, произошла ошибка при обработке запроса. Попробуйте переформулировать.';
+                console.error('Venus error:', err);
+                try { if (venus && venus._log) venus._log('Ошибка в getAssistantAnswer', err && err.message); } catch (_) {}
+                return 'Коллега, произошла ошибка при обработке запроса. Попробуйте переформулировать или обновить страницу (Ctrl+F5).';
             }
         }
 
@@ -13732,13 +13783,12 @@
             const q = (inp.value || '').trim();
             if (!q) return;
             venusConversationMemory.push({ role: 'user', text: q, timestamp: Date.now() });
-            if (venusConversationMemory.length > VENUS_MEMORY_LIMIT) venusConversationMemory = venusConversationMemory.slice(-
-            VENUS_MEMORY_LIMIT);
+            if (venusConversationMemory.length > VENUS_MEMORY_LIMIT) venusConversationMemory = venusConversationMemory.slice(-VENUS_MEMORY_LIMIT);
 
             appendAssistantMsg('user', q);
             inp.value = '';
 
-            setTimeout(function() {
+            setTimeout(async function() {
                 let answer = '';
                 try {
                     answer = getAssistantAnswer(q);
@@ -13746,9 +13796,22 @@
                     answer = 'Коллега, я обнаружила ошибку при обработке запроса. Попробуйте ещё раз.';
                     if (venus) venus._log('Ошибка в sendAssistant', e.message);
                 }
+
+                // Если локально не уверены — Cloudflare Workers AI
+                if (typeof mmsLooksLikeVenusConfused === 'function' && mmsLooksLikeVenusConfused(answer)) {
+                    try {
+                        const hist = venusConversationMemory.slice(-6).map(function (h) {
+                            return { role: h.role === 'assistant' || h.role === 'bot' ? 'assistant' : 'user', content: h.text };
+                        });
+                        const ai = await askCloudflareVenus(q, hist);
+                        if (ai) answer = ai;
+                    } catch (e2) {
+                        console.warn('Venus AI fallback', e2);
+                    }
+                }
+
                 venusConversationMemory.push({ role: 'assistant', text: answer, timestamp: Date.now() });
-                if (venusConversationMemory.length > VENUS_MEMORY_LIMIT) venusConversationMemory = venusConversationMemory.slice(
-                    -VENUS_MEMORY_LIMIT);
+                if (venusConversationMemory.length > VENUS_MEMORY_LIMIT) venusConversationMemory = venusConversationMemory.slice(-VENUS_MEMORY_LIMIT);
                 appendAssistantMsg('bot', answer);
             }, 140 + Math.random() * 100);
         }
@@ -13971,7 +14034,7 @@
 
             setTimeout(function() {
                 try {
-                    showToast('👋 Добро пожаловать в MMS! Венера v6.4 готова к работе.', 'success', 2200);
+                    showToast('👋 Добро пожаловать в MMS! Венера v6.5 готова к работе.', 'success', 2200);
                 } catch (e) {}
             }, 500);
         };
