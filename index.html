@@ -10914,7 +10914,7 @@
         /**
          * ============================================================
          *  VenusAI — Интеллектуальный офлайн-помощник для MMS
-         *  Версия 5.0
+         *  Версия 6.3 — освежено под .doc-сдачу, Discord, Cloudflare-учёт
          *  Архитектура: TF-IDF + Косинусное сходство + Нечёткое сравнение
          *  + Контекстная машина состояний + Самообучение через localStorage
          * ============================================================
@@ -10931,13 +10931,13 @@
             return typeof navigator !== 'undefined' && /firefox/i.test(navigator.userAgent);
         }
 
+        function getSpeechRecognitionCtor() {
+            return window.SpeechRecognition || window.webkitSpeechRecognition || window.mozSpeechRecognition || null;
+        }
+
         function initSpeechRecognition() {
-            // Firefox: Web Speech Recognition API практически не поддерживается
-            // (нет webkitSpeechRecognition, стандартный SpeechRecognition нестабилен/отключён).
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                return null;
-            }
+            const SpeechRecognition = getSpeechRecognitionCtor();
+            if (!SpeechRecognition) return null;
             let rec;
             try {
                 rec = new SpeechRecognition();
@@ -10947,109 +10947,218 @@
             rec.lang = 'ru-RU';
             rec.continuous = false;
             rec.interimResults = true;
-            rec.maxAlternatives = 1;
+            rec.maxAlternatives = 3;
 
             rec.onstart = function() {
                 isListening = true;
                 const btn = document.getElementById('btnMic');
-                if (btn) btn.classList.add('listening');
-                showToast('🎤 Слушаю... говорите', 'success', 1500);
+                if (btn) {
+                    btn.classList.add('listening');
+                    btn.title = 'Слушаю… нажмите чтобы остановить';
+                }
+                showToast('🎤 Слушаю… говорите по-русски', 'success', 2000);
             };
             rec.onresult = function(event) {
                 let interim = '';
                 let final = '';
+                let bestAlt = '';
                 for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const t = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) final += t;
-                    else interim += t;
+                    const res = event.results[i];
+                    const t = (res[0] && res[0].transcript) || '';
+                    if (res.isFinal) {
+                        final += t;
+                        // берём лучшую альтернативу, если есть
+                        if (res.length > 1 && res[0].confidence < 0.6) {
+                            for (let a = 0; a < res.length; a++) {
+                                if (res[a] && res[a].transcript) bestAlt = res[a].transcript;
+                            }
+                        }
+                    } else {
+                        interim += t;
+                    }
                 }
                 const inp = document.getElementById('assistantInput');
-                if (inp) {
-                    inp.value = (final || interim).trim();
-                }
-                if (final) {
+                const textVal = (final || bestAlt || interim).trim();
+                if (inp && textVal) inp.value = textVal;
+                if (final || bestAlt) {
                     setTimeout(function() {
                         const v = document.getElementById('assistantInput');
                         if (v && v.value.trim()) sendAssistant();
-                    }, 300);
+                    }, 280);
                 }
             };
             rec.onerror = function(event) {
                 isListening = false;
                 const btn = document.getElementById('btnMic');
-                if (btn) btn.classList.remove('listening');
-                if (event.error === 'not-allowed') {
-                    showToast('⚠️ Разрешите доступ к микрофону в настройках браузера', 'warning', 4000);
-                } else if (event.error === 'service-not-allowed' || event.error === 'network') {
-                    showToast('⚠️ Сервис распознавания недоступен. В Firefox голосовой ввод часто не работает — используйте Chrome/Edge или введите текст.', 'warning', 5000);
-                } else if (event.error !== 'aborted' && event.error !== 'no-speech') {
-                    showToast('⚠️ Ошибка распознавания: ' + event.error, 'error');
+                if (btn) {
+                    btn.classList.remove('listening');
+                    btn.title = 'Голосовой ввод (микрофон)';
+                }
+                const err = (event && event.error) || '';
+                if (err === 'not-allowed' || err === 'service-not-allowed') {
+                    showToast('⚠️ Разрешите микрофон в настройках сайта (замок в адресной строке)', 'warning', 5000);
+                } else if (err === 'network') {
+                    showToast('⚠️ Нет связи с сервисом распознавания. Проверьте интернет.', 'warning', 4000);
+                } else if (err === 'no-speech') {
+                    showToast('Не расслышала речь. Попробуйте ещё раз.', 'warning', 2500);
+                } else if (err !== 'aborted') {
+                    showToast('⚠️ Ошибка микрофона: ' + err, 'warning', 3500);
                 }
             };
             rec.onend = function() {
                 isListening = false;
                 const btn = document.getElementById('btnMic');
-                if (btn) btn.classList.remove('listening');
+                if (btn) {
+                    btn.classList.remove('listening');
+                    btn.title = 'Голосовой ввод (микрофон)';
+                }
             };
             return rec;
         }
 
-        function toggleVoiceInput() {
-            // Честное сообщение для Firefox
-            if (isFirefox()) {
-                const hasAPI = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-                if (!hasAPI) {
-                    showToast('⚠️ Firefox не поддерживает голосовой ввод (Web Speech API). Введите текст вручную или откройте страницу в Chrome / Edge.', 'warning', 5500);
-                    return;
-                }
-            }
+        // ——— Firefox fallback: MediaRecorder → краткая запись → подсказка / повтор ———
+        let mediaRecorder = null;
+        let mediaChunks = [];
+        let mediaStream = null;
 
-            if (!recognition) {
-                recognition = initSpeechRecognition();
-            }
-            if (!recognition) {
-                showToast('⚠️ Голосовой ввод недоступен в этом браузере. Лучше всего работает в Chrome и Edge. В Firefox введите вопрос текстом.', 'warning', 5500);
+        function stopMediaTracks() {
+            try {
+                if (mediaStream) mediaStream.getTracks().forEach(function(t) { t.stop(); });
+            } catch (_) {}
+            mediaStream = null;
+            mediaRecorder = null;
+            mediaChunks = [];
+        }
+
+        async function startFirefoxVoiceFallback() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showToast('⚠️ Нет доступа к микрофону в этом браузере', 'warning', 4000);
                 return;
             }
-            if (isListening) {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true }
+                });
+            } catch (err) {
+                showToast('⚠️ Разрешите микрофон (замок → Разрешения)', 'warning', 5000);
+                return;
+            }
+            mediaChunks = [];
+            const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                ? 'audio/webm;codecs=opus'
+                : (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus') ? 'audio/ogg;codecs=opus' : '');
+            try {
+                mediaRecorder = mime ? new MediaRecorder(mediaStream, { mimeType: mime }) : new MediaRecorder(mediaStream);
+            } catch (e) {
+                stopMediaTracks();
+                showToast('⚠️ MediaRecorder недоступен', 'error', 3000);
+                return;
+            }
+            mediaRecorder.ondataavailable = function(ev) {
+                if (ev.data && ev.data.size > 0) mediaChunks.push(ev.data);
+            };
+            mediaRecorder.onstop = function() {
+                const btn = document.getElementById('btnMic');
+                if (btn) btn.classList.remove('listening');
+                isListening = false;
+                const blob = new Blob(mediaChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                stopMediaTracks();
+                // Пытаемся ещё раз через Web Speech (вдруг флаг включили)
+                const Ctor = getSpeechRecognitionCtor();
+                if (Ctor) {
+                    showToast('Пробую распознать…', 'success', 1500);
+                    try {
+                        recognition = initSpeechRecognition();
+                        if (recognition) {
+                            recognition.start();
+                            return;
+                        }
+                    } catch (_) {}
+                }
+                // Без облачного STT: подсказка пользователю
+                showToast('В Firefox включите: about:config → media.webspeech.recognition.enable = true, затем перезапустите браузер. Или введите вопрос текстом.', 'warning', 8000);
+                const inp = document.getElementById('assistantInput');
+                if (inp && !inp.value) {
+                    inp.placeholder = 'Введите вопрос текстом (голос в Firefox — через about:config)…';
+                    inp.focus();
+                }
+            };
+            const btn = document.getElementById('btnMic');
+            if (btn) {
+                btn.classList.add('listening');
+                btn.title = 'Запись… нажмите чтобы остановить';
+            }
+            isListening = true;
+            mediaRecorder.start(200);
+            showToast('🎤 Запись 5 сек (Firefox). Говорите, затем нажмите 🎤 снова или подождите.', 'success', 4000);
+            setTimeout(function() {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    try { mediaRecorder.stop(); } catch (_) {}
+                }
+            }, 5000);
+        }
+
+        function toggleVoiceInput() {
+            // Уже идёт запись MediaRecorder
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                try { mediaRecorder.stop(); } catch (_) {}
+                return;
+            }
+            if (isListening && recognition) {
                 try { recognition.stop(); } catch (_) {}
                 return;
             }
-            // Запрашиваем микрофон заранее (помогает и в Chrome, и там где API есть)
-            const startRec = function() {
-                try {
-                    recognition.start();
-                } catch (e) {
-                    showToast('⚠️ Не удалось запустить микрофон. Проверьте разрешения сайта.', 'error');
-                }
-            };
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ audio: true })
-                    .then(function(stream) {
-                        // сразу останавливаем треки — нам нужен только permission + SpeechRecognition
-                        try { stream.getTracks().forEach(function(t) { t.stop(); }); } catch (_) {}
-                        startRec();
-                    })
-                    .catch(function(err) {
-                        if (err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
-                            showToast('⚠️ Доступ к микрофону запрещён. Разрешите его в настройках сайта (иконка замка в адресной строке).', 'warning', 5000);
-                        } else {
-                            // всё равно пробуем SpeechRecognition
-                            startRec();
-                        }
-                    });
-            } else {
-                startRec();
-            }
-        }
 
+            const Ctor = getSpeechRecognitionCtor();
+            if (Ctor) {
+                if (!recognition) recognition = initSpeechRecognition();
+                if (!recognition) {
+                    if (isFirefox()) {
+                        startFirefoxVoiceFallback();
+                        return;
+                    }
+                    showToast('⚠️ Голосовой ввод недоступен. Введите вопрос текстом.', 'warning', 4000);
+                    return;
+                }
+                const startRec = function() {
+                    try { recognition.start(); }
+                    catch (e) {
+                        if (isFirefox()) startFirefoxVoiceFallback();
+                        else showToast('⚠️ Не удалось запустить микрофон', 'error');
+                    }
+                };
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    navigator.mediaDevices.getUserMedia({ audio: true })
+                        .then(function(stream) {
+                            try { stream.getTracks().forEach(function(t) { t.stop(); }); } catch (_) {}
+                            startRec();
+                        })
+                        .catch(function(err) {
+                            if (err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
+                                showToast('⚠️ Доступ к микрофону запрещён (замок в адресной строке)', 'warning', 5000);
+                            } else startRec();
+                        });
+                } else {
+                    startRec();
+                }
+                return;
+            }
+
+            // Нет Web Speech API
+            if (isFirefox()) {
+                // Пробуем запись + инструкция about:config
+                startFirefoxVoiceFallback();
+                return;
+            }
+            showToast('⚠️ Голосовой ввод лучше работает в Chrome / Edge. Введите вопрос текстом.', 'warning', 5000);
+        }
 
         class VenusAI {
 
             // ——— КОНСТРУКТОР ———
             constructor() {
-                this.version = '6.2';
-                this.confidenceThreshold = 0.22;
+                this.version = '6.4';
+                this.confidenceThreshold = 0.18;
                 this.developerMode = (typeof mmsRestoreDeveloperAccess === 'function' && mmsRestoreDeveloperAccess());
                 this.context = {
                     state: 'idle', // idle | assisting | clarifying | executing
@@ -11325,7 +11434,7 @@
                     category: 'archive',
                     priority: 8,
                     patterns: [
-                        'открыть архив', 'посмотреть архив', 'показать архив',
+                        'открыть архив', 'посмотреть архив', 'архив где', 'где архив', 'кнопка архив', 'показать архив',
                         'архивные копии', 'где архив', 'архив отчётов'
                     ],
                     action: () => {
@@ -11660,24 +11769,32 @@
                 }, {
                     id: 'about_archive',
                     category: 'help',
-                    priority: 6,
+                    priority: 8,
                     patterns: [
                         'архив как работает', 'зачем архив', 'что такое архив',
                         'как устроен архив', 'почему нужен архив', 'для чего архив',
                         'как сохранить в архив', 'как восстановить из архива',
                         'где хранится архив', 'сколько копий в архиве',
-                        'что будет если восстановить архив'
+                        'что будет если восстановить архив',
+                        'архив где', 'архив что', 'архив где что', 'где архив',
+                        'кнопка архив', 'открой архив', 'архив отчётов', 'снимки отчётов',
+                        'бэкап', 'backup', 'копия отчёта', 'сохранить копию'
                     ],
                     action: () => {
-                        return '📁 Архив MMS:\n\n' +
-                            '• Хранит снимки отчётов локально в браузере.\n' +
-                            '• При сохранении создаётся копия всех записей и баллов.\n' +
-                            '• Восстановление заменяет текущий отчёт архивной копией.\n' +
-                            '• Можно скачать архивный отчёт отдельно.\n' +
-                            '• Архив привязан к этому браузеру и устройству.\n\n' +
-                            'Рекомендуется сохранять отчёт в архив перед важными изменениями.';
+                        let count = 0;
+                        try {
+                            if (typeof archiveReports !== 'undefined' && Array.isArray(archiveReports)) count = archiveReports.length;
+                        } catch (_) {}
+                        return '📁 Архив MMS — локальные снимки вашего отчёта.\n\n' +
+                            'Где найти:\n' +
+                            '• Слева в меню «Документы» / «Архив» (кнопка с папкой).\n' +
+                            '• «Сохранить в архив» — снимок текущих записей и баллов.\n' +
+                            '• «Открыть архив» — список копий, можно восстановить.\n\n' +
+                            'Сейчас копий в архиве: ' + count + '.\n' +
+                            'Хранится только в этом браузере (localStorage), не на сервере.\n' +
+                            'Перед крупными правками лучше сохранить снимок.';
                     },
-                    help: 'Объясняет работу архива отчётов.'
+                    help: 'Что такое архив, где кнопка, как сохранить и восстановить.'
                 }, {
                     id: 'about_export',
                     category: 'help',
@@ -12089,18 +12206,54 @@
                         'как отправить в discord', 'сдача в discord', 'куда отправить рапорт'
                     ],
                     action: () => {
-                        return '📋 Как сдать отчёт (актуально):\n\n' +
-                            '1. Карточка сотрудника — ФИО и Static ID.\n' +
-                            '2. Добавьте доказательства (ссылки, даты, баллы; фото — только рабочие).\n' +
-                            '3. Проверьте итог и дубликаты ссылок.\n' +
-                            '4. (По желанию) сохраните архив; Word и пакет для проверки — не обязательны для сдачи.\n' +
-                            '5. Откройте вкладку «Сдача в Discord».\n' +
-                            '6. Выберите тип: «Еженедельный» или «На повышение» — это разные каналы.\n' +
-                            '7. При необходимости прикрепите файл → «Отправить в Discord».\n' +
-                            '8. Уйдёт ping @High MMS в нужный канал.\n\n' +
-                            '⚠️ Не путайте кнопки типа: после выбора «На повышение» режим не должен сбрасываться при выборе файла.';
+                        return '📋 Как сдать отчёт (v5.1):\n\n' +
+                            '1. Карточка — ФИО и Static ID (обязательно).\n' +
+                            '2. Два рабочих варианта:\n' +
+                            '   • заполните таблицу доказательств (ссылки, даты, баллы), или\n' +
+                            '   • прикрепите готовый .doc / .html — файл уйдёт как есть.\n' +
+                            '3. JSON / .mms.zip — из них подтянутся записи и баллы.\n' +
+                            '4. Вкладка «Сдача в Discord» → тип: Еженедельный или На повышение.\n' +
+                            '5. «Отправить в Discord» — Word/файл + ping @High MMS.\n' +
+                            '6. Учёт: сдача пишется в Cloudflare (баллы, ID, время) для штабной статистики.\n\n' +
+                            '💡 Пустая таблица + прикреплённый .doc — нормально, отправка пройдёт.\n' +
+                            '⚠️ PNG и «простыня» JSON в Discord больше не шлются — только один файл отчёта.';
                     },
-                    help: 'Актуальная сдача рапорта через Discord (два канала).'
+                    help: 'Сдача: таблица или готовый .doc; два канала Discord; учёт в Cloudflare.'
+                }, {
+                    id: 'attach_file_report',
+                    category: 'help',
+                    priority: 12,
+                    patterns: [
+                        'прикрепить файл', 'прикрепить doc', 'отправить doc', 'готовый word',
+                        'файл отчёта', 'без записей', 'пустая таблица', 'только файл',
+                        'как прикрепить рапорт', 'mms doc', 'загрузить doc в discord'
+                    ],
+                    action: () => {
+                        return '📎 Сдача файлом:\n\n' +
+                            '1. Карточка: ФИО + Static ID.\n' +
+                            '2. «Сдача в Discord» → выберите тип (неделя / повышение).\n' +
+                            '3. «Выбрать файлы» → ваш .doc или .html.\n' +
+                            '4. «Отправить в Discord» — файл уйдёт как есть, таблицу заполнять не обязательно.\n\n' +
+                            'JSON / .mms.zip — из них читаются записи и баллы.\n' +
+                            'Картинки и PDF можно прикладывать, но основным отчётом для канала лучше .doc.';
+                    },
+                    help: 'Отправка готового .doc без заполнения таблицы.'
+                }, {
+                    id: 'about_stats_server',
+                    category: 'help',
+                    priority: 8,
+                    patterns: [
+                        'штабная статистика', 'статистика командования', 'учёт сдач',
+                        'куда пишутся баллы', 'cloudflare', 'сервер учёта', 'рейтинг сотрудников'
+                    ],
+                    action: () => {
+                        return '📊 Учёт сдач:\n\n' +
+                            'После «Отправить в Discord» Worker сохраняет сдачу (ID, имя, баллы, тип, время).\n' +
+                            'Командование смотрит штабную статистику по защищённой ссылке с токеном.\n' +
+                            'Имена подтягиваются из отчётов автоматически.\n' +
+                            'Обычным сотрудникам эта панель не нужна — только сдача рапорта.';
+                    },
+                    help: 'Cloudflare-учёт и штабная статистика.'
                 }, {
                     id: 'switch_discord',
                     category: 'navigation',
@@ -12397,14 +12550,14 @@
                     ],
                     action: () => {
                         return '📨 Discord в MMS:\n\n' +
-                            '• Сдача рапорта — вкладка «Сдача в Discord».\n' +
-                            '• Еженедельный рапорт → один канал (webhook).\n' +
-                            '• Рапорт на повышение → другой канал (отдельный webhook).\n' +
-                            '• В обоих случаях пингуется роль @High MMS.\n' +
-                            '• Проверяющие смотрят embed/файл и оформляют решение в mms_reviewer (PNG бланк).\n\n' +
-                            'Связь с разработчиком — в сайдбаре (by Grechkaaa). Вопросы службы — через командование.';
+                            '• Вкладка «Сдача в Discord» — единственный рабочий путь сдачи.\n' +
+                            '• Еженедельный → один канал; На повышение → другой.\n' +
+                            '• В сообщение уходит один файл (.doc) + карточка (ФИО, ID, баллы) + ping @High MMS.\n' +
+                            '• Можно прикрепить готовый .doc/.html или собрать Word из таблицы.\n' +
+                            '• Проверка рапортов: mms-report (Inspector Desk) — отдельная страница с лицензией.\n\n' +
+                            'Связь с разработчиком — в сайдбаре (by Grechkaaa).';
                     },
-                    help: 'Discord: два канала сдачи и High MMS.'
+                    help: 'Discord: два канала, один файл, High MMS.'
                 }, {
                     id: 'about_license',
                     category: 'help',
@@ -12427,9 +12580,16 @@
                         'всё сломалось', 'глючит интерфейс'
                     ],
                     action: () => {
-                        return '🛠️ Если что-то пошло не так:\n\n1. Обновите страницу.\n2. Проверьте, не включён ли тестовый режим.\n3. Убедитесь, что браузер не блокирует localStorage.\n4. Попробуйте другой браузер (Chrome / Edge удобнее для части функций).\n5. Восстановите снимок из архива, если делали копию.\n\nОпишите проблему точнее — подскажу по шагам.';
+                        return '🛠️ Если что-то пошло не так:\n\n' +
+                            '1. Обновите страницу (Ctrl+F5).\n' +
+                            '2. Проверьте тестовый режим и localStorage.\n' +
+                            '3. «Нет записей для отчёта» — добавьте строки в таблицу ИЛИ прикрепите .doc/.html/JSON.\n' +
+                            '4. Discord не принял — проверьте интернет и повторите; метаданные всё равно могут сохраниться на сервере учёта.\n' +
+                            '5. Лицензия — только по HTTPS (GitHub Pages), не file://.\n' +
+                            '6. Chrome / Edge стабильнее для голоса и скачиваний.\n\n' +
+                            'Опишите ошибку точнее — разберём по шагам.';
                     },
-                    help: 'Типовые сбои и что делать.'
+                    help: 'Сбои: записи, Discord, лицензия, localStorage.'
                 }, {
                     id: 'about_privacy',
                     category: 'help',
@@ -12439,9 +12599,13 @@
                         'сервер', 'облако', 'приватность'
                     ],
                     action: () => {
-                        return '🔐 Данные отчёта не уходят на внешний сервер приложения: всё в вашем браузере. Экспорт создаёт файл у вас на устройстве. Не публикуйте отчёты с личными данными в открытый доступ без необходимости.';
+                        return '🔐 Что где хранится:\n\n' +
+                            '• Черновик и архив — в вашем браузере (localStorage).\n' +
+                            '• При «Отправить в Discord» — файл и метаданные (ФИО, Static ID, баллы, тип, время) уходят на Cloudflare Worker для учёта командования и в Discord-канал.\n' +
+                            '• Webhook-секреты на сайте не хранятся.\n' +
+                            '• Не выкладывайте отчёты с личными данными в открытый доступ.';
                     },
-                    help: 'Приватность данных.'
+                    help: 'Браузер + Discord + учёт Cloudflare.'
                 }, {
                     id: 'about_duplicates_why',
                     category: 'help',
@@ -13025,6 +13189,8 @@
 
                 const raw = query.trim();
                 this.context.lastQuery = raw;
+                // Расширение синонимов / «битых» фраз («архив где что» → про архив)
+                const expanded = this._expandSynonyms(raw);
 
                 // === DEV UNLOCK (фразу не показывать пользователю нигде в UI) ===
                 const _qSilent = raw.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -13072,6 +13238,8 @@
                     { id: 'about_undo', re: /отмен|undo|откат/, priority: 16 },
                     { id: 'about_feedback', re: /жалоб|предложен|обращен/, priority: 15 },
                     { id: 'how_to_report', re: /сдать|отправ.*рапорт|куда\s*(сдать|отправить|девать)|discord|дискорд/, priority: 22 },
+                    { id: 'attach_file_report', re: /прикреп.*файл|прикреп.*doc|готов(ый|ого)\s*word|без\s*записей|пуст(ая|ую)\s*таблиц/, priority: 22 },
+                    { id: 'about_stats_server', re: /штабн|статистик.*команд|cloudflare|учёт\s*сдач|рейтинг\s*сотруд/, priority: 18 },
                     { id: 'switch_discord', re: /открой\s*discord|вкладк\w*\s*discord|сдача\s*в\s*discord/, priority: 21 },
                     { id: 'about_photo_rules', re: /правил\w*\s*фото|нерабоч\w*\s*фото|вложен\w*\s*фото/, priority: 18 },
                     { id: 'about_chart_mode', re: /график\s*балл|только\s*график|динамик\w*\s*балл/, priority: 15 },
@@ -13176,8 +13344,12 @@
                     return combined;
                 }
 
-                // 3. Одиночное намерение
-                const match = this.matchIntent(raw);
+                // 3. Одиночное намерение (с учётом синонимов)
+                let match = this.matchIntent(raw);
+                if ((!match.best || match.confidence < this.confidenceThreshold) && expanded !== raw) {
+                    const match2 = this.matchIntent(expanded);
+                    if (match2.best && match2.confidence > (match.confidence || 0)) match = match2;
+                }
 
                 if (match.best && match.confidence >= this.confidenceThreshold) {
                     const result = this._executeIntent(match.best, raw);
@@ -13192,41 +13364,111 @@
                     }
                 }
 
-                // 4. Низкая уверенность — предлагаем уточнение
+                // 4. Низкая уверенность — уточнение + готовые вопросы
                 const suggestions = this._getSuggestions(raw);
                 if (suggestions.length > 0) {
-                    const suggestionText = suggestions.map(s =>
-                        `• ${s.id} — ${s.help || 'подробнее'}`
-                    ).join('\n');
-                    return `Я не совсем уверена, что правильно поняла. Возможно, вы имели в виду:\n\n${suggestionText}\n\nУточните, что именно вас интересует.`;
+                    const lines = suggestions.map((s, i) => {
+                        const q = s.question || s.help || s.id;
+                        return (i + 1) + ') «' + q + '»';
+                    }).join('\n');
+                    return 'Не совсем уверена, что правильно поняла.\n\n' +
+                        'Похожие вопросы — нажмите или скопируйте:\n' + lines + '\n\n' +
+                        'Можно переформулировать своими словами.';
                 }
 
-                // 5. Если совсем ничего не найдено
+                // 5. Ничего не найдено — умный fallback по ключевым словам
+                const soft = this._softTopicHints(raw);
+                if (soft) return soft;
+
                 const fallbacks = [
-                    'Не совсем поняла. Можно проще: «как сдать отчёт», «discord», «повышение», «баллы», «график».',
-                    'Уточните тему — например сдача в Discord, фото, архив или рапорт на повышение.',
-                    'Попробуйте другую формулировку. Подсказки: /help, «что умеет приложение», «как сдать отчёт в Discord».'
+                    'Не совсем поняла. Попробуйте, например:\n1) «как сдать отчёт»\n2) «что такое архив»\n3) «discord»\n4) «сколько баллов»\n5) «помощь»',
+                    'Уточните тему одной фразой: сдача, архив, повышение, баллы, лицензия или фото.',
+                    'Напишите проще: «где архив», «как сдать в discord», «что умеет приложение».'
                 ];
                 return fallbacks[Math.floor(Math.random() * fallbacks.length)];
             }
 
+            /** Готовые человеческие вопросы по интенту */
+            _questionForIntent(intent) {
+                if (!intent) return 'помощь';
+                const map = {
+                    about_archive: 'Что такое архив и где он находится?',
+                    open_archive: 'Как открыть архив?',
+                    save_archive: 'Как сохранить отчёт в архив?',
+                    how_to_report: 'Как сдать отчёт в Discord?',
+                    attach_file_report: 'Как отправить готовый .doc без таблицы?',
+                    about_discord: 'Как работает сдача в Discord?',
+                    switch_discord: 'Открой вкладку сдачи в Discord',
+                    add_entry: 'Как добавить запись в рапорт?',
+                    get_total: 'Сколько у меня баллов?',
+                    about_license: 'Как активировать лицензию?',
+                    about_errors: 'Что делать, если ошибка?',
+                    help: 'Что ты умеешь?',
+                    about_stats_server: 'Куда пишется учёт сдач?',
+                    switch_promotion: 'Открой рапорт на повышение',
+                    download_word: 'Как скачать Word-отчёт?',
+                    about_photo_rules: 'Какие правила для фото?'
+                };
+                if (map[intent.id]) return map[intent.id];
+                if (intent.help && intent.help.length < 80) return intent.help.replace(/\.$/, '') + '?';
+                return intent.patterns && intent.patterns[0] ? intent.patterns[0] : intent.id;
+            }
+
+            /** Мягкие подсказки по отдельным словам (архив где что → архив) */
+            _softTopicHints(query) {
+                const q = (query || '').toLowerCase();
+                const rules = [
+                    { re: /архив/, id: 'about_archive' },
+                    { re: /discord|дискорд|сдать|сдач/, id: 'how_to_report' },
+                    { re: /повышен/, id: 'switch_promotion' },
+                    { re: /балл/, id: 'get_total' },
+                    { re: /лиценз|license/, id: 'about_license' },
+                    { re: /фото|снимок|картинк/, id: 'about_photo_rules' },
+                    { re: /word|ворд|excel|экспорт/, id: 'download_word' },
+                    { re: /график|динамик/, id: 'toggle_chart' },
+                    { re: /помощ|help|что умеешь/, id: 'help' }
+                ];
+                for (const r of rules) {
+                    if (r.re.test(q)) {
+                        const intent = this.intents.find(i => i.id === r.id);
+                        if (intent) {
+                            const ans = this._executeIntent(intent, query);
+                            if (ans) {
+                                this._highlightTarget(intent);
+                                return ans;
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
+
             // ——— ПОЛУЧЕНИЕ ПОДСКАЗОК ———
             _getSuggestions(query) {
+                const q = this._expandSynonyms(query);
                 const matches = this.intents
                     .map(intent => {
                         let score = 0;
                         for (const pattern of intent.patterns) {
-                            const sim = this._fuzzyMatch(query, pattern);
+                            const sim = this._fuzzyMatch(q, pattern);
                             if (sim > score) score = sim;
                         }
+                        // бонус за совпадение отдельных токенов
+                        const qTokens = this._tokenize(q);
+                        const pTokens = new Set();
+                        intent.patterns.forEach(p => this._tokenize(p).forEach(t => pTokens.add(t)));
+                        let hit = 0;
+                        qTokens.forEach(t => { if (pTokens.has(t) && t.length > 2) hit++; });
+                        if (hit) score = Math.max(score, 0.15 + hit * 0.12);
                         return { intent, score };
                     })
-                    .filter(item => item.score > 0.2)
+                    .filter(item => item.score > 0.18)
                     .sort((a, b) => b.score - a.score)
                     .slice(0, 5)
                     .map(item => ({
                         id: item.intent.id,
                         help: item.intent.help || item.intent.id,
+                        question: this._questionForIntent(item.intent),
                         score: item.score
                     }));
 
@@ -13250,6 +13492,8 @@
                     'switch_feedback': 'navFeedback',
                     'switch_discord': 'navDiscordSubmit',
                     'how_to_report': 'navDiscordSubmit',
+                    'attach_file_report': 'navDiscordSubmit',
+                    'about_stats_server': 'navDiscordSubmit',
                     'about_discord': 'navDiscordSubmit',
                     'toggle_chart': 'btnChart',
                     'about_chart_mode': 'btnChart',
@@ -13727,7 +13971,7 @@
 
             setTimeout(function() {
                 try {
-                    showToast('👋 Добро пожаловать в MMS! Венера v5.0 готова к работе.', 'success', 2200);
+                    showToast('👋 Добро пожаловать в MMS! Венера v6.4 готова к работе.', 'success', 2200);
                 } catch (e) {}
             }, 500);
         };
