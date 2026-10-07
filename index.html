@@ -4399,6 +4399,506 @@
         .calc-btn.span-two {
             grid-column: span 2;
         }
+
+        /* ============================================================
+           MMS DESIGN SYSTEM v2 — премиум-слой (тёмный + золото)
+           Вставлено в конец основного блока стилей. Работает поверх старых стилей.
+           :not(#mmsx) — повышает специфичность, чтобы перекрыть легаси-классы.
+           ============================================================ */
+
+        /* ---- 1. ТОКЕНЫ (следуют текущему style-*, т.к. объявлены на body) ---- */
+        body {
+            --radius-lg: 14px;
+            --accent-rgb: 212, 175, 55;
+            --btn-primary-text: #10100a;
+            --btn-secondary-text: var(--gold);
+            --btn-primary-bg: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 48%, var(--gold-dark) 100%);
+            --btn-danger-bg: linear-gradient(135deg, #a02727, #5e1010);
+            --btn-success-bg: linear-gradient(135deg, #6d8a3f, #43592a);
+            --ok-fg: #8fb35a;
+            --err-fg: #e5645c;
+            --card-border: rgba(var(--accent-rgb), 0.22);
+            --btn-fs: 13px;
+            transition: background-color .4s ease, color .4s ease;
+        }
+        body.style-dark    { --accent-rgb: 212, 175, 55; }
+        body.style-light   { --accent-rgb: 184, 150, 15; --btn-secondary-text: #7a5f00; --ok-fg: #4d6b25; --err-fg: #a82f2f; }
+        body.style-medical { --accent-rgb: 74, 138, 181; }
+        body.style-military{ --accent-rgb: 106, 138, 58; }
+        body.style-urban   { --accent-rgb: 138, 138, 138; }
+        body.style-desert  { --accent-rgb: 196, 160, 96; }
+        body.style-crimson { --accent-rgb: 192, 64, 64; --btn-primary-text: #ffffff; }
+        body.style-ocean   { --accent-rgb: 58, 154, 186; }
+        body.day-mode                { --btn-secondary-text: var(--gold-dark); --ok-fg: #4d6b25; --err-fg: #a82f2f; }
+        body.day-mode.style-dark     { --btn-secondary-text: #7a5f00; }
+        body.font-small  { --btn-fs: 12px; }
+        body.font-medium { --btn-fs: 13px; }
+        body.font-large  { --btn-fs: 15px; }
+
+        /* ---- 2. ФОН: мягкое свечение, не трогает pattern-* ---- */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            background:
+                radial-gradient(1100px 560px at 88% -8%, rgba(var(--accent-rgb), 0.10), transparent 60%),
+                radial-gradient(900px 520px at -8% 108%, rgba(var(--accent-rgb), 0.06), transparent 55%);
+        }
+        body.style-light::before, body.day-mode::before { opacity: .55; }
+
+        /* ---- 3. КАРТОЧКИ И ОВЕРЛЕИ ---- */
+        body :is(.form-panel, .profile-card, .profile-photo-card, .dc-card, .dc-help-card, .pending-attach-box, .chart-section, .card-item) {
+            background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.05), transparent 45%), var(--bg-card);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            transition: border-color .3s ease, box-shadow .3s ease;
+        }
+        body :is(.form-panel, .profile-card, .profile-photo-card, .dc-card, .chart-section):hover {
+            border-color: rgba(var(--accent-rgb), 0.5);
+            box-shadow: var(--shadow), 0 0 26px rgba(var(--accent-rgb), 0.10);
+        }
+        body :is(.confirm-modal-content, .assistant-panel, .calculator, .discord-preview-content, .report-viewer-content) {
+            border-radius: var(--radius-lg);
+            border: 1px solid rgba(var(--accent-rgb), 0.45);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(var(--accent-rgb), 0.08);
+        }
+        body :is(.confirm-modal, .calculator-modal, .report-viewer-modal) {
+            -webkit-backdrop-filter: blur(6px);
+            backdrop-filter: blur(6px);
+        }
+        body .sidebar { border-right-color: rgba(var(--accent-rgb), 0.35); }
+        body .nav-group-title, body .panel-title { font-family: 'Cinzel', serif; letter-spacing: 1.6px; }
+        body .nav-group-title { color: rgba(var(--accent-rgb), 0.75); }
+
+        /* ---- 4. КНОПКИ: единая система ---- */
+        body :is(.btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .btn-success, .btn-cancel):not(#mmsx) {
+            display: inline-flex;
+            background-origin: border-box;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 40px;
+            padding: 0 18px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            font-family: 'Oswald', sans-serif;
+            font-size: var(--btn-fs);
+            font-weight: 600;
+            letter-spacing: .05em;
+            line-height: 1.1;
+            text-transform: uppercase;
+            text-decoration: none;
+            cursor: pointer;
+            position: relative;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+            transition: transform .18s ease, box-shadow .2s ease, filter .2s ease, background .25s ease, border-color .25s ease, color .25s ease;
+        }
+        body :is(button, a, label, input):is(.btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .btn-success, .btn-cancel)[hidden] { display: none !important; }
+        body :is(button, a, label, input):is(.btn-xs, .btn-sm):is(.btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .btn-success):not(#mmsx) {
+            min-height: 30px;
+            padding: 0 12px;
+            border-radius: 8px;
+            font-size: calc(var(--btn-fs) - 1px);
+            letter-spacing: .04em;
+        }
+
+        body .btn-primary:not(#mmsx) {
+            background: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
+            box-shadow: 0 4px 14px rgba(var(--accent-rgb), .28), inset 0 1px 0 rgba(255, 255, 255, .35);
+        }
+        body .btn-primary:hover:not(#mmsx) {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(var(--accent-rgb), .45), inset 0 1px 0 rgba(255, 255, 255, .4);
+        }
+        body .btn-secondary:not(#mmsx) {
+            background: rgba(var(--accent-rgb), .07);
+            color: var(--btn-secondary-text);
+            border-color: rgba(var(--accent-rgb), .55);
+        }
+        body .btn-secondary:hover:not(#mmsx) {
+            background: rgba(var(--accent-rgb), .16);
+            border-color: rgba(var(--accent-rgb), .85);
+            transform: translateY(-1px);
+            box-shadow: 0 0 18px rgba(var(--accent-rgb), .30);
+        }
+        body .btn-ghost:not(#mmsx), body .btn-cancel:not(#mmsx) {
+            background: transparent;
+            color: var(--text-secondary);
+            border-color: transparent;
+        }
+        body .btn-cancel:not(#mmsx) { border-color: rgba(var(--accent-rgb), .40); }
+        body .btn-ghost:hover:not(#mmsx), body .btn-cancel:hover:not(#mmsx) {
+            color: var(--text-main);
+            background: rgba(var(--accent-rgb), .06);
+            border-color: rgba(var(--accent-rgb), .45);
+        }
+        body .btn-danger:not(#mmsx) {
+            background: var(--btn-danger-bg);
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(160, 39, 39, .30);
+        }
+        body .btn-danger:hover:not(#mmsx) {
+            filter: brightness(1.15);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 22px rgba(160, 39, 39, .50);
+        }
+        body .btn-success:not(#mmsx) {
+            background: var(--btn-success-bg);
+            color: #f4f8e8;
+            box-shadow: 0 4px 14px rgba(109, 138, 63, .30);
+        }
+        body .btn-success:hover:not(#mmsx) {
+            filter: brightness(1.12);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 22px rgba(109, 138, 63, .50);
+        }
+        body :is(.btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .btn-success, .btn-cancel):active:not(#mmsx) {
+            transform: translateY(1px) scale(.985);
+            filter: brightness(.92);
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, .35);
+        }
+        /* shorthand background в вариантах сбрасывает origin → возвращаем, иначе светлая линия по краю градиента */
+        body :is(.btn-primary, .btn-danger, .btn-success, .btn-edit.active):not(#mmsx) { background-origin: border-box; }
+        /* активная кнопка «Изм.» в таблице */
+        body .btn-edit.active:not(#mmsx) {
+            background: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
+            border-color: transparent;
+        }
+        /* disabled / loading — всегда последним */
+        body :is(button, a, label, input):is(.btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .btn-success, .btn-cancel):is(:disabled, [aria-disabled="true"], .is-loading):not(#mmsx) {
+            opacity: .5;
+            cursor: not-allowed;
+            transform: none !important;
+            filter: grayscale(.35);
+            box-shadow: none;
+        }
+        body .is-loading::after {
+            content: "";
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            animation: mmsSpin .7s linear infinite;
+        }
+        @keyframes mmsSpin { to { transform: rotate(360deg); } }
+
+        /* focus-visible: золотое кольцо везде */
+        body :is(button, a, label, input, select, textarea, .nav-btn, .calc-btn):focus-visible {
+            outline: 2px solid var(--gold);
+            outline-offset: 3px;
+        }
+
+        /* pulse после клика / успешного действия */
+        .btn-pulse, body :is(.btn-primary, .btn-secondary, .btn-danger, .btn-success).clicked:not(#mmsx) {
+            animation: mmsPulse .65s ease-out;
+        }
+        @keyframes mmsPulse {
+            0%   { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), .65); }
+            100% { box-shadow: 0 0 0 16px rgba(var(--accent-rgb), 0); }
+        }
+
+        /* мелкие контролы одной семьи (чипы, режимы, размер шрифта, подсказки Венеры) */
+        body :is(.quick-type-btn, .dc-mode-btn, .font-size-btn, .rv-theme-btn, .assistant-hint):not(#mmsx) {
+            cursor: pointer;
+            transition: transform .18s ease, box-shadow .2s ease, background .25s ease, border-color .25s ease, color .25s ease;
+        }
+        body :is(.quick-type-btn, .dc-mode-btn, .font-size-btn, .rv-theme-btn, .assistant-hint):hover:not(#mmsx) {
+            transform: translateY(-1px);
+            border-color: rgba(var(--accent-rgb), .6);
+            box-shadow: 0 0 14px rgba(var(--accent-rgb), .22);
+        }
+        body :is(.quick-type-btn, .dc-mode-btn, .font-size-btn, .rv-theme-btn, .assistant-hint):active:not(#mmsx) {
+            transform: translateY(1px) scale(.97);
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, .35);
+        }
+        body :is(.dc-mode-btn, .font-size-btn, .rv-theme-btn).active:not(#mmsx) {
+            border-color: var(--gold);
+            background: rgba(var(--accent-rgb), .20);
+            color: var(--gold);
+            box-shadow: 0 0 14px rgba(var(--accent-rgb), .25);
+        }
+        /* Венера: кнопка отправки */
+        body .assistant-input-row button:not(.assistant-mic):not(#mmsx) {
+            background: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
+            border: 0;
+            border-radius: 10px;
+            min-width: 44px;
+            min-height: 40px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform .18s ease, box-shadow .2s ease, filter .2s ease;
+        }
+        body .assistant-input-row button:not(.assistant-mic):hover:not(#mmsx) { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 6px 18px rgba(var(--accent-rgb), .4); }
+        body .assistant-input-row button:not(.assistant-mic):active:not(#mmsx) { transform: translateY(1px) scale(.97); }
+
+        /* модалки: ряд кнопок одного размера */
+        body .confirm-modal-content .btn-group { gap: 10px; }
+        body .confirm-modal-content .btn-group .btn:not(#mmsx) { flex: 1 1 150px; min-width: 130px; min-height: 42px; padding: 0 20px; }
+        body .confirm-modal-content .btn-group:has(.btn:nth-child(3)) { flex-direction: column; align-items: stretch; }
+        body .confirm-modal-content .btn-group:has(.btn:nth-child(3)) .btn:not(#mmsx) { flex: 0 0 auto; width: 100%; }
+
+        /* ---- 5. САЙДБАР: навигация ---- */
+        body .nav-btn:not(#mmsx) {
+            min-height: 44px;
+            border-radius: 10px;
+            transition: background .25s ease, border-color .25s ease, color .25s ease, box-shadow .25s ease, transform .25s ease;
+        }
+        body .nav-btn:hover:not(#mmsx):not(:disabled) {
+            background: rgba(var(--accent-rgb), .09);
+            border-color: rgba(var(--accent-rgb), .30);
+            color: var(--text-main);
+            box-shadow: inset 3px 0 0 rgba(var(--accent-rgb), .60);
+        }
+        body .nav-btn.active:not(#mmsx) {
+            background: rgba(var(--accent-rgb), .16);
+            border-color: rgba(var(--accent-rgb), .55);
+            color: var(--btn-secondary-text);
+            box-shadow: inset 3px 0 0 var(--gold);
+        }
+        /* кнопки-действия в сайдбаре (Word, PDF, архив, очистка) — тот же язык */
+        body .nav-btn.nav-act-primary:not(#mmsx)   { background: rgba(var(--accent-rgb), .14); border-color: rgba(var(--accent-rgb), .50); color: var(--btn-secondary-text); font-weight: 600; }
+        body .nav-btn.nav-act-secondary:not(#mmsx) { border-color: rgba(var(--accent-rgb), .28); }
+        body .nav-btn.nav-act-success:not(#mmsx)   { border-color: rgba(109, 138, 63, .50); color: var(--ok-fg); }
+        body .nav-btn.nav-act-danger:not(#mmsx)    { border-color: rgba(192, 57, 43, .45); color: var(--err-fg); }
+        body .nav-btn.nav-act-primary:hover:not(#mmsx):not(:disabled)   { background: rgba(var(--accent-rgb), .24); box-shadow: inset 3px 0 0 var(--gold), 0 0 18px rgba(var(--accent-rgb), .22); }
+        body .nav-btn.nav-act-success:hover:not(#mmsx):not(:disabled)   { background: rgba(109, 138, 63, .16); border-color: rgba(109, 138, 63, .8); box-shadow: inset 3px 0 0 #6d8a3f; }
+        body .nav-btn.nav-act-danger:hover:not(#mmsx):not(:disabled)    { background: rgba(192, 57, 43, .16); border-color: rgba(192, 57, 43, .8); box-shadow: inset 3px 0 0 #c0392b; }
+
+        /* ---- 6. ПАНЕЛЬ «СТИЛЬ ИНТЕРФЕЙСА»: чипы-превью ---- */
+        body .style-option:not(#mmsx) {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+            padding: 7px 6px;
+            font-size: 11.5px;
+            border-radius: 10px;
+            border: 1px solid rgba(var(--accent-rgb), .14);
+            transition: all .3s ease;
+        }
+        body .style-option > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        body .style-option:hover:not(#mmsx) {
+            background: rgba(var(--accent-rgb), .10);
+            border-color: rgba(var(--accent-rgb), .40);
+            transform: translateY(-1px);
+        }
+        body .style-option.active:not(#mmsx) {
+            border-color: var(--gold);
+            background: rgba(var(--accent-rgb), .18);
+            color: var(--btn-secondary-text);
+            box-shadow: 0 0 16px rgba(var(--accent-rgb), .28);
+        }
+
+        /* ---- 7. ФОРМЫ ---- */
+        body :is(.form-panel, .profile-card, .dc-card, .dc-submit-wrap, .feedback-section, .confirm-modal-content) :is(input:not([type=checkbox], [type=radio], [type=file], [type=range], [type=color], [type=hidden]), select, textarea) {
+            background: var(--input-bg);
+            color: var(--input-text);
+            border: 1px solid var(--input-border);
+            border-radius: 10px;
+            transition: border-color .2s ease, box-shadow .2s ease;
+        }
+        body :is(.form-panel, .profile-card, .dc-card, .dc-submit-wrap, .feedback-section, .confirm-modal-content) :is(input, select, textarea):focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .18);
+        }
+        body input[type=file]::file-selector-button {
+            margin-right: 12px;
+            min-height: 34px;
+            padding: 0 16px;
+            cursor: pointer;
+            background: rgba(var(--accent-rgb), .07);
+            color: var(--btn-secondary-text);
+            border: 1px solid rgba(var(--accent-rgb), .55);
+            border-radius: 10px;
+            font-family: 'Oswald', sans-serif;
+            font-weight: 600;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+        body input[type=file]::file-selector-button:hover { background: rgba(var(--accent-rgb), .16); }
+        body :is(input[type=checkbox], input[type=radio], input[type=range]) { accent-color: var(--gold); }
+
+        /* ---- 8. TOAST: иконка + цветная полоска ---- */
+        body .toast {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid rgba(var(--accent-rgb), .35);
+            border-left: 4px solid var(--gold);
+            border-radius: 12px;
+            padding: 12px 22px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+        }
+        body .toast.success { border-color: rgba(92, 184, 92, .45);  border-left-color: #5cb85c; }
+        body .toast.error   { border-color: rgba(229, 83, 75, .45);  border-left-color: #e5534b; }
+        body .toast.warning { border-color: rgba(224, 160, 48, .45); border-left-color: #e0a030; }
+        body .toast.info    { border-color: rgba(var(--accent-rgb), .35); border-left-color: var(--gold); }
+
+        /* ---- 9. МОБИЛА ≤860px ---- */
+        @media (max-width: 860px) {
+            body :is(button, a, label, input):is(.btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .btn-success, .btn-cancel):not(#mmsx) { min-height: 44px; }
+            body .confirm-modal-content .btn-group .btn:not(#mmsx) { flex: 1 1 100%; }
+        }
+
+        /* ============================================================
+           MMS v3 — воронка сдачи, статус готовности, пустая таблица,
+           карточки строк на мобильном, мобильные модалки, touch
+           ============================================================ */
+
+        /* ---- Воронка ---- */
+        .mms-funnel {
+            margin: 0 0 14px;
+            padding: 10px 12px 12px;
+            border: 1px solid var(--card-border, rgba(212,175,55,.22));
+            border-radius: var(--radius-lg, 14px);
+            background: var(--bg-card);
+            box-shadow: var(--shadow);
+        }
+        .mms-funnel[hidden] { display: none !important; }
+        .mms-funnel__steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .mms-fstep {
+            display: flex; align-items: center; gap: 8px;
+            min-height: 44px; padding: 6px 10px;
+            border-radius: 10px; border: 1px solid rgba(var(--accent-rgb), .18);
+            background: transparent; color: var(--text-muted);
+            cursor: pointer; text-align: left;
+            font: 500 12px 'Oswald', sans-serif; letter-spacing: .04em;
+            transition: background .3s ease, border-color .3s ease, color .3s ease, box-shadow .3s ease, transform .18s ease;
+        }
+        .mms-fstep:hover { transform: translateY(-1px); border-color: rgba(var(--accent-rgb), .5); }
+        .mms-fstep__num {
+            flex: none; width: 22px; height: 22px; border-radius: 50%;
+            display: grid; place-items: center; font-size: 11px; line-height: 1;
+            border: 1px solid currentColor;
+        }
+        .mms-fstep__txt { min-width: 0; line-height: 1.15; overflow: hidden; }
+        .mms-fstep__txt small {
+            display: block; font-size: 10px; color: var(--text-muted);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .mms-fstep.optional:not(.done) { border-style: dashed; }
+        .mms-fstep.next {
+            color: var(--btn-secondary-text);
+            border-color: rgba(var(--accent-rgb), .7);
+            background: rgba(var(--accent-rgb), .12);
+            box-shadow: 0 0 14px rgba(var(--accent-rgb), .22);
+        }
+        .mms-fstep.done { color: var(--ok-fg); border-color: rgba(109,138,63,.5); background: rgba(109,138,63,.08); }
+        .mms-fstep.done .mms-fstep__num { background: #6d8a3f; border-color: #6d8a3f; color: #fff; }
+        .mms-funnel__bar { height: 3px; border-radius: 3px; background: rgba(var(--accent-rgb), .15); margin-top: 10px; overflow: hidden; }
+        .mms-funnel__bar > i { display: block; height: 100%; width: 0; background: var(--btn-primary-bg); transition: width .4s ease; }
+        .mms-funnel__hint { margin-top: 8px; font-size: 12px; line-height: 1.4; color: var(--text-secondary); }
+        .mms-funnel__start {
+            margin-top: 8px; padding: 8px 10px; border-radius: 10px;
+            display: flex; gap: 10px; align-items: center; justify-content: space-between;
+            font-size: 12px; line-height: 1.4; color: var(--text-secondary);
+            background: rgba(var(--accent-rgb), .08); border: 1px dashed rgba(var(--accent-rgb), .35);
+        }
+        .mms-funnel__start b { color: var(--btn-secondary-text); }
+
+        /* ---- Статус «готово к отправке» ---- */
+        .dc-ready {
+            margin: 14px auto 0; max-width: 640px; padding: 10px 14px;
+            border-radius: 10px; text-align: center;
+            font: 500 13px/1.35 'Oswald', sans-serif; letter-spacing: .03em;
+            border: 1px solid transparent; transition: background .3s ease, color .3s ease, border-color .3s ease;
+        }
+        .dc-ready.ok  { color: var(--ok-fg);  background: rgba(109,138,63,.12); border-color: rgba(109,138,63,.45); }
+        .dc-ready.bad { color: var(--err-fg); background: rgba(192,57,43,.10);  border-color: rgba(192,57,43,.40); }
+        .dc-ready .warn { display: block; margin-top: 3px; font-size: 11px; color: var(--text-muted); letter-spacing: 0; }
+        body .dc-send-btn.is-not-ready:not(#mmsx) {
+            opacity: .5; cursor: not-allowed; filter: grayscale(.35);
+            box-shadow: none; transform: none !important;
+        }
+        .dc-next {
+            max-width: 640px; margin: 12px auto 0; padding: 12px 14px;
+            border-radius: 12px; font-size: 13px; line-height: 1.5; color: var(--text-secondary);
+            background: rgba(109,138,63,.10); border: 1px solid rgba(109,138,63,.45);
+        }
+        .dc-next[hidden] { display: none !important; }
+        .dc-next b { color: var(--ok-fg); }
+
+        /* ---- Пустая таблица ---- */
+        #reportTable tr.mms-empty-row td { padding: 26px 14px !important; text-align: center; border: 0 !important; background: transparent !important; }
+        .mms-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .mms-empty__icon { font-size: 30px; line-height: 1; opacity: .9; }
+        .mms-empty__title { font-family: 'Cinzel', serif; color: var(--gold); font-size: 16px; letter-spacing: .06em; }
+        .mms-empty__text { font-size: 12.5px; line-height: 1.5; color: var(--text-secondary); max-width: 380px; }
+        body .btn-attention:not(:disabled):not(#mmsx) { animation: mmsAttention 1.9s ease-in-out infinite; }
+        @keyframes mmsAttention {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), .55); }
+            50%      { box-shadow: 0 0 0 10px rgba(var(--accent-rgb), 0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            body .btn-attention:not(:disabled):not(#mmsx), .btn-pulse { animation: none !important; }
+        }
+
+        /* ---- Мобильная версия ≤860px ---- */
+        @media (max-width: 860px) {
+            .mms-funnel__steps { grid-template-columns: 1fr 1fr; }
+
+            /* таблица доказательств → карточки без горизонтального скролла */
+            #reportTable { display: block; width: 100% !important; min-width: 0 !important; border: 0 !important; }
+            #reportTable thead { display: none; }
+            #reportTable tbody { display: block; }
+            #reportTable tbody tr:not(.mms-empty-row) {
+                display: grid;
+                grid-template-columns: auto 1fr auto;
+                grid-template-areas: "sel date pts" "link link link" "cat edit del";
+                gap: 8px 10px; align-items: center;
+                margin: 0 0 10px; padding: 10px 12px;
+                border: 1px solid var(--card-border, rgba(212,175,55,.22)) !important;
+                border-radius: 12px; background: var(--bg-card);
+            }
+            #reportTable tbody tr:not(.mms-empty-row) td {
+                display: block; border: 0 !important; padding: 0 !important;
+                width: auto !important; min-width: 0; background: transparent !important; text-align: left;
+            }
+            #reportTable tbody tr:not(.mms-empty-row) td:nth-child(1) { grid-area: sel; }
+            #reportTable tbody tr:not(.mms-empty-row) td:nth-child(2) { grid-area: date; font-size: 12px; color: var(--text-secondary); text-align: left !important; }
+            #reportTable tbody tr:not(.mms-empty-row) td:nth-child(3) { grid-area: link; overflow-wrap: anywhere; word-break: break-word; }
+            #reportTable tbody tr:not(.mms-empty-row) td:nth-child(4) { grid-area: cat; }
+            #reportTable tbody tr:not(.mms-empty-row) td:nth-child(5) { grid-area: pts; text-align: right; font-size: 16px; }
+            #reportTable tbody tr:not(.mms-empty-row) td:nth-child(6) { grid-area: edit; justify-self: end; }
+            #reportTable tbody tr:not(.mms-empty-row) td:nth-child(7) { grid-area: del; justify-self: end; }
+            #reportTable tbody tr:not(.mms-empty-row) .editable-input { width: 100% !important; box-sizing: border-box; }
+            #reportTable tr.mms-empty-row, #reportTable tr.mms-empty-row td { display: block; width: 100%; }
+            .entry-select-cb { width: 22px; height: 22px; }
+
+            /* предпросмотр Discord и просмотр отчёта — на весь экран */
+            .report-viewer-modal { padding: 0 !important; }
+            .discord-preview-content, .discord-preview-content.is-full, .report-viewer-content {
+                width: 100vw !important; max-width: 100vw !important;
+                height: 100vh !important; height: 100dvh !important; max-height: none !important;
+                border-radius: 0 !important; border-width: 0 !important;
+            }
+            #discordPreviewContent .report-viewer-theme { display: none; }
+            .discord-preview-actions {
+                gap: 10px; flex-wrap: nowrap;
+                padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+            }
+            .discord-preview-actions .dp-btn { flex: 1 1 0; min-width: 0 !important; min-height: 46px; padding: 0 10px; font-size: 13px; }
+            .report-viewer-close { min-width: 44px; min-height: 44px; }
+        }
+
+        /* ---- Touch: hit-area ≥ 40px ---- */
+        @media (max-width: 860px), (pointer: coarse) {
+            body :is(button, a, label, input):is(.btn-xs, .btn-sm):is(.btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .btn-success):not(#mmsx) { min-height: 40px; padding: 0 14px; }
+            body :is(.dp-btn, .rv-theme-btn, .font-size-btn, .dc-mode-btn, .quick-type-btn, .close-helper):not(#mmsx) { min-height: 40px; }
+            .mms-fstep { min-height: 44px; }
+        }
     </style>
 </head>
 <body>
@@ -4409,15 +4909,15 @@
             <p class="sub">Для работы нужна именная лицензия подразделения.<br>
             Загрузите <strong>license.key</strong> и введите <strong>пароль активации</strong> из генератора.<br>
             Копирование и перепродажа ПО запрещены.</p>
-            <button type="button" class="license-btn" id="licenseLoadBtn" onclick="(function(){var i=document.getElementById('licenseFileInput'); if(i){i.value=''; i.click();}})()">📁 Загрузить license.key</button>
+            <button type="button" class="license-btn btn-secondary" id="licenseLoadBtn" onclick="(function(){var i=document.getElementById('licenseFileInput'); if(i){i.value=''; i.click();}})()">📁 Загрузить license.key</button>
             <input type="file" id="licenseFileInput" accept=".key,.json,application/json,text/plain" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0;" onchange="(function(inp){if(!inp.files||!inp.files[0])return;var f=inp.files[0];inp.value='';var st=document.getElementById('licenseStatus');if(typeof mmsActivateFromFile!=='function'){if(st)st.textContent='Ошибка: скрипт лицензии не загружен. Обновите страницу (Ctrl+F5).';return;}if(st){st.textContent='Читаю ключ…';st.classList.remove('ok');}Promise.resolve(mmsActivateFromFile(f)).catch(function(e){console.error(e);if(st){st.textContent='Ошибка: '+(e&&e.message?e.message:e);st.classList.remove('ok');}});})(this)" />
             <div id="licensePasswordWrap" style="display:none;margin-top:12px;text-align:left;">
                 <label style="display:block;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:4px;">Пароль активации (2FA)</label>
                 <input type="password" id="licensePasswordInput" autocomplete="off" placeholder="Пароль из генератора лицензий"
                     style="width:100%;padding:10px 12px;background:#111;border:1px solid #333;border-radius:8px;color:#fff;font-family:Oswald,sans-serif;font-size:14px;box-sizing:border-box;" />
-                <button type="button" class="license-btn" id="licenseActivateBtn" style="margin-top:10px;" onclick="(function(){var p=document.getElementById('licensePasswordInput');var st=document.getElementById('licenseStatus');if(typeof mmsFinalizeActivation!=='function'){if(st)st.textContent='Скрипт не загружен';return;}if(st){st.textContent='Проверяю пароль…';st.classList.remove('ok');}Promise.resolve(mmsFinalizeActivation(null,p?p.value:'').catch(function(e){if(st)st.textContent='Ошибка: '+(e&&e.message?e.message:e);});})()">🔓 Активировать</button>
+                <button type="button" class="license-btn btn-primary" id="licenseActivateBtn" style="margin-top:10px;" onclick="(function(){var p=document.getElementById('licensePasswordInput');var st=document.getElementById('licenseStatus');if(typeof mmsFinalizeActivation!=='function'){if(st)st.textContent='Скрипт не загружен';return;}if(st){st.textContent='Проверяю пароль…';st.classList.remove('ok');}Promise.resolve(mmsFinalizeActivation(null,p?p.value:'')).catch(function(e){if(st)st.textContent='Ошибка: '+(e&&e.message?e.message:e);});})()">🔓 Активировать</button>
             </div>
-            <button type="button" class="license-btn ghost" id="licenseRetryBtn" style="display:none;">Проверить снова</button>
+            <button type="button" class="license-btn ghost btn-ghost" id="licenseRetryBtn" style="display:none;">Проверить снова</button>
             <div class="license-status" id="licenseStatus"></div>
         </div>
     </div>
@@ -4467,11 +4967,11 @@
 
         <!-- СТИЛИ ТЕМ (выпадающий список) -->
         <div class="theme-styles-row" style="position:relative;padding:6px 8px;">
-            <button id="styleMenuBtn" onclick="toggleStyleMenu(event)" title="Выбрать стиль" style="width:100%;padding:8px 12px;border-radius:6px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.35);color:var(--gold);font-family:'Oswald',sans-serif;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:0.5px;">
+            <button id="styleMenuBtn" onclick="toggleStyleMenu(event)" title="Выбрать стиль" class="btn-secondary" style="width:100%;">
                 Выбрать стиль
             </button>
             <div id="styleDropdown" style="display:none;position:absolute;top:48px;left:8px;right:8px;background:var(--bg-card);border:1px solid var(--gold);border-radius:8px;padding:12px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,0.5);">
-                <div style="font-size:10px;color:var(--gold);letter-spacing:1px;margin-bottom:10px;text-transform:uppercase;">Стиль оформления</div>
+                <div style="font-size:10px;color:var(--gold);letter-spacing:1px;margin-bottom:10px;text-transform:uppercase;">Стиль интерфейса</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
                     <div class="style-option active" onclick="setStyle('dark')" data-style="dark" title="Тёмный">
                         <span class="style-shape circle" style="background:#0a0a0a;border-color:#d4af37;"></span>
@@ -4603,10 +5103,10 @@
         <!-- ДОКУМЕНТЫ -->
         <div class="nav-group">
             <div class="nav-group-title">Документы</div>
-            <button class="nav-btn" id="btnWord" onclick="downloadWord(event)" data-tooltip="📄 Официальный рапорт A4 в Word (.doc)">
+            <button class="nav-btn nav-act nav-act-primary" id="btnWord" onclick="downloadWord(event)" data-tooltip="📄 Официальный рапорт A4 в Word (.doc)">
                 <span class="icon">📄</span> Отчёт в Word
             </button>
-            <button class="nav-btn" id="btnPdf" onclick="downloadPdf(event)" data-tooltip="📕 Тот же рапорт в PDF (печать браузера → Сохранить как PDF)">
+            <button class="nav-btn nav-act nav-act-secondary" id="btnPdf" onclick="downloadPdf(event)" data-tooltip="📕 Тот же рапорт в PDF (печать браузера → Сохранить как PDF)">
                 <span class="icon">📕</span> Отчёт в PDF
             </button>
             <!-- ZIP-пакет и Excel скрыты: Discord плохо принимает ZIP -->
@@ -4628,7 +5128,7 @@
                 <span class="icon">📁</span> Архив
                 <span class="badge" id="archiveCount">0</span>
             </button>
-            <button class="nav-btn" id="btnSaveArchive" onclick="saveToArchive(event)" data-tooltip="💾 Сохранить текущий отчёт в архив">
+            <button class="nav-btn nav-act nav-act-success" id="btnSaveArchive" onclick="saveToArchive(event)" data-tooltip="💾 Сохранить текущий отчёт в архив">
                 <span class="icon">💾</span> Сохранить в архив
             </button>
         </div>
@@ -4651,7 +5151,7 @@
                 <span class="icon">🧪</span> Тестовый режим
                 <span class="badge draft" id="draftBadge" style="display:none;">ВКЛ</span>
             </button>
-            <button class="nav-btn" id="btnClearDb" onclick="clearDatabase(event)" data-tooltip="🗑 Очистить все записи (с возможностью сохранить в архив)">
+            <button class="nav-btn nav-act nav-act-danger" id="btnClearDb" onclick="clearDatabase(event)" data-tooltip="🗑 Очистить все записи (с возможностью сохранить в архив)">
                 <span class="icon">🗑</span> Очистить базу
             </button>
         </div>
@@ -4684,6 +5184,9 @@
                 <h2>SAN ANDREAS NATIONAL GUARD<br /><span>MILITARY MEDICAL SERVICE</span></h2>
             </div>
 
+            <!-- ===== ВОРОНКА СДАЧИ (чеклист шагов) ===== -->
+            <div class="mms-funnel" id="mmsFunnel" hidden role="navigation" aria-label="Порядок сдачи рапорта"></div>
+
             <!-- ===== ВКЛАДКА: ПРИВЕТСТВИЕ ===== -->
             <div class="tab-content active" id="tabWelcome">
                 <div class="welcome-screen">
@@ -4706,9 +5209,9 @@
                             <div class="ph-label">Фото персонажа</div>
                             <div class="ph-hint">Желательно фото персонажа из игры. Допускается любое нейтральное изображение (без политики и оскорбительного контента). Только для визуала в интерфейсе.</div>
                             <div class="ph-actions">
-                                <label class="ph-file-btn" for="profilePhotoInput">📷 Выбрать фото</label>
+                                <label class="ph-file-btn btn-secondary" for="profilePhotoInput">📷 Выбрать фото</label>
                                 <input type="file" id="profilePhotoInput" accept="image/jpeg,image/png,image/webp,image/gif" />
-                                <button type="button" class="ph-clear" onclick="clearProfilePhoto()">Убрать</button>
+                                <button type="button" class="ph-clear btn-ghost" onclick="clearProfilePhoto()">Убрать</button>
                             </div>
                         </div>
                     </div>
@@ -4742,7 +5245,7 @@
                                 <label style="font-size:8px;color:var(--gold);letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:2px;">Static ID</label>
                                 <input type="text" id="staticId" value="774912" oninput="updateName()" style="width:100%;padding:6px 10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text);border-radius:6px;font-family:'Oswald',sans-serif;font-size:13px;">
                             </div>
-                            <button onclick="saveProfile()" style="padding:8px 22px;background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#000;border:none;border-radius:6px;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:1px;cursor:pointer;font-size:12px;transition:var(--transition);min-height:36px;">СОХРАНИТЬ</button>
+                            <button class="btn-primary" onclick="saveProfile()">СОХРАНИТЬ</button>
                         </div>
                     </div>
                 </div>
@@ -4755,8 +5258,7 @@
                         📋 Регистрация достижений
                         <span class="save-status" id="saveStatus">✅ Сохранено</span>
                         <span class="badge" id="modeBadge" style="display:none;margin-left:8px;font-size:10px;letter-spacing:1px;">ЕЖЕДНЕВНЫЙ</span>
-                        <button type="button" id="btnSaveReport" onclick="manualSaveReport(event)" title="Сохранить рапорт в браузере"
-                            style="margin-left:10px;padding:4px 12px;font-size:11px;letter-spacing:1px;border-radius:6px;border:1px solid rgba(212,175,55,0.45);background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#000;font-family:'Oswald',sans-serif;font-weight:600;cursor:pointer;vertical-align:middle;">💾 СОХРАНИТЬ</button>
+                        <button type="button" id="btnSaveReport" onclick="manualSaveReport(event)" title="Сохранить рапорт в браузере" class="btn-primary btn-xs" style="margin-left:10px;">💾 СОХРАНИТЬ</button>
                     </h3>
 
                     <div class="form-panel">
@@ -4791,7 +5293,7 @@
                                 <label>БАЛЛЫ</label>
                                 <input type="number" id="points" class="points-input-clean" value="0" min="0" step="1" oninput="lastUsedPoints=parseInt(this.value)||0; syncPointsDisplay();" />
                             </div>
-                            <button class="btn-add" id="addBtn" onclick="requestAddEntry()" disabled>ДОБАВИТЬ</button>
+                            <button class="btn-add btn-primary" id="addBtn" onclick="requestAddEntry()" disabled>ДОБАВИТЬ</button>
                         </div>
                         <div class="quick-types" id="quickTypes" title="Рекомендуемые ориентиры — выберите тип, баллы подставятся">
                             <button type="button" class="quick-type-btn" onclick="applyQuickType('кадры',5)">Заявки пов./увол.<span class="qt-pts">5</span></button>
@@ -4806,7 +5308,7 @@
                                 <label>Снимки / файлы к записи</label>
                                 <div class="file-btn-wrap">
                                     <input type="file" id="attachFiles" accept="image/*" multiple onchange="handleAttachFiles(event)" />
-                                    <button type="button" class="file-pick-btn" id="filePickBtn" onclick="requestAttachFiles()">Выбрать фото</button>
+                                    <button type="button" class="file-pick-btn btn-secondary" id="filePickBtn" onclick="requestAttachFiles()">Выбрать фото</button>
                                     <span class="file-pick-hint" id="filePickHint">Файлы не выбраны</span>
                                 </div>
                             </div>
@@ -4852,10 +5354,10 @@
                                 <option value="">— Выберите рапорт —</option>
                             </select>
                             <div class="btn-group">
-                                <button class="btn-sm primary" onclick="downloadArchiveReport(event)" data-tooltip="⬇ Скачать выбранный рапорт">⬇ Скачать</button>
-                                <button class="btn-sm success" onclick="restoreArchiveReport(event)" data-tooltip="↩ Восстановить рапорт в основной отчёт">↩ Восстановить</button>
-                                <button class="btn-sm danger" onclick="deleteArchiveReport(event)" data-tooltip="🗑 Удалить рапорт навсегда">🗑 Удалить</button>
-                                <button class="btn-sm gold" onclick="closeArchive(event)" data-tooltip="✕ Закрыть архив">✕ Закрыть</button>
+                                <button class="btn-sm primary btn-primary" onclick="downloadArchiveReport(event)" data-tooltip="⬇ Скачать выбранный рапорт">⬇ Скачать</button>
+                                <button class="btn-sm success btn-success" onclick="restoreArchiveReport(event)" data-tooltip="↩ Восстановить рапорт в основной отчёт">↩ Восстановить</button>
+                                <button class="btn-sm danger btn-danger" onclick="deleteArchiveReport(event)" data-tooltip="🗑 Удалить рапорт навсегда">🗑 Удалить</button>
+                                <button class="btn-sm gold btn-secondary" onclick="closeArchive(event)" data-tooltip="✕ Закрыть архив">✕ Закрыть</button>
                             </div>
                             <span class="archive-empty" id="archiveEmpty">Архив пуст</span>
                         </div>
@@ -4908,7 +5410,7 @@
                                 <option value="помощь">Помощь</option>
                                 <option value="прочее">Прочее</option>
                             </select>
-                            <button type="button" class="btn-tool-reset" onclick="clearTableFilters()">Сброс</button>
+                            <button type="button" class="btn-tool-reset btn-secondary btn-xs" onclick="clearTableFilters()">Сброс</button>
                         </div>
                         <div class="category-totals" id="categoryTotals"></div>
 
@@ -5000,7 +5502,7 @@
                             <input type="checkbox" id="feedbackAnonymous" />
                             <label for="feedbackAnonymous">Скрыть мои данные от рассматривающего сотрудника</label>
                         </div>
-                        <button class="btn-generate" onclick="generateFeedbackWord()">📄 Сгенерировать форму</button>
+                        <button class="btn-generate btn-primary" onclick="generateFeedbackWord()">📄 Сгенерировать форму</button>
                     </div>
                 </div>
             </div>
@@ -5011,7 +5513,7 @@
                     <div class="dc-submit-head">
                         <div class="dc-submit-badge">MMS · DISCORD</div>
                         <h2>Сдача рапорта</h2>
-                        <p>Данные из карточки. Прикрепи .doc/.html — файл уйдёт как есть. JSON/ZIP — баллы и записи подтянутся из файла. Или заполните таблицу рапорта.</p>
+                        <p>Данные берутся из карточки и таблицы рапорта. Можно прикрепить готовый .doc/.html — он уйдёт как есть. Без файла отчёт соберётся автоматически.</p>
                     </div>
 
                     <div class="dc-mode-row">
@@ -5063,11 +5565,11 @@
                     <div class="dc-card">
                         <label class="dc-label">Файл отчёта</label>
                         <div class="dc-file-row">
-                            <input type="file" id="dcFile" class="dc-file-hidden" multiple accept=".html,.htm,.doc,.json,.zip,.mms,application/zip,image/*,.png,.jpg,.jpeg" onchange="onDiscordFileChosen(event)" />
-                            <button type="button" class="dc-file-btn" onclick="document.getElementById('dcFile').click()">Выбрать файлы</button>
+                            <input type="file" id="dcFile" class="dc-file-hidden" multiple accept=".html,.htm,.doc,.docx,.json,.pdf,.png,.jpg,.jpeg,.webp,.gif" onchange="onDiscordFileChosen(event)" />
+                            <button type="button" class="dc-file-btn btn-secondary" onclick="document.getElementById('dcFile').click()">Выбрать файлы</button>
                             <span class="dc-file-name" id="dcFileName">Файлы не выбраны</span>
                         </div>
-                        <p class="dc-hint">Можно прикрепить готовый <b>.doc / .html</b> (уйдёт как есть) или JSON/ZIP с записями. Без файла — отчёт соберётся из таблицы рапорта. Разрешены: Word, HTML, JSON, ZIP/MMS, картинки, PDF (до 12 МБ).</p>
+                        <p class="dc-hint">Можно прикрепить готовый <b>.doc / .html</b> (уйдёт как есть). Без файла — отчёт соберётся из таблицы рапорта. Разрешены: Word, HTML, JSON, картинки, PDF (до 8 МБ). Исполняемые файлы и архивы не принимаются.</p>
                     </div>
 
 
@@ -5077,9 +5579,8 @@
                             <li><b>Заполни карточку</b> — ФИО и Static ID.</li>
                             <li><b>Добавь записи</b> в рапорт (доказательства и баллы).</li>
                             <li>Вкладка <b>«Сдача в Discord»</b>: выбери тип (еженедельный / повышение).</li>
+                            <li>Нажми <b>«Предпросмотр»</b> (рекомендуется) и проверь рапорт.</li>
                             <li>Нажми <b>«Отправить в Discord»</b> — уйдёт <b>один Word-файл</b> (.doc) и краткое описание (кто, дата, баллы).</li>
-                            <li>PNG «для администрации» и JSON <b>больше не отправляются</b>.</li>
-                            <li>Полный пакет (JSON+Word+HTML) — кнопка <b>«Пакет для проверки»</b> в меню «Документы», не через Discord.</li>
                         </ol>
                         <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">Проверяющие открывают вложение в Word. В сообщении Discord всегда видно: сотрудник, ID, дата и баллы — даже если имя файла обрезано.</div>
                         <div style="margin-top:12px;padding:10px 12px;border-radius:8px;border:1px solid rgba(212,175,55,0.2);background:rgba(0,0,0,0.25);font-size:11px;line-height:1.5;color:var(--text-secondary);">
@@ -5090,12 +5591,14 @@
                     </div>
 
                     <div class="dc-webhook-ok" id="dcWebhookStatus">Канал: еженедельный рапорт · ping @High MMS</div>
+                    <div class="dc-ready" id="dcReady" role="status" aria-live="polite"></div>
 
                     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:center;margin-top:18px;">
-                        <button type="button" class="dc-send-btn" id="dcPreviewBtn" onclick="openDiscordPreviewModal()">Предпросмотр</button>
-                        <button type="button" class="dc-send-btn" id="dcSendBtn" onclick="sendReportToDiscord()">Отправить в Discord</button>
+                        <button type="button" class="dc-send-btn btn-secondary" id="dcPreviewBtn" onclick="openDiscordPreviewModal()">Предпросмотр</button>
+                        <button type="button" class="dc-send-btn btn-primary" id="dcSendBtn" onclick="sendReportToDiscord()">Отправить в Discord</button>
                     </div>
                     <p class="dc-status" id="dcStatus"></p>
+                    <div class="dc-next" id="dcNextStep" hidden role="status"></div>
                 </div>
             </div>
 
@@ -5247,8 +5750,8 @@
                 <iframe id="discordPreviewFrame" title="Предпросмотр рапорта" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals" referrerpolicy="no-referrer"></iframe>
             </div>
             <div class="discord-preview-actions">
-                <button type="button" class="dp-btn dp-cancel" onclick="closeDiscordPreviewModal()">Отмена</button>
-                <button type="button" class="dp-btn dp-send" onclick="sendDiscordPreviewConfirmed()">Отправить в Discord</button>
+                <button type="button" class="dp-btn dp-cancel btn-ghost" onclick="closeDiscordPreviewModal()">Отмена</button>
+                <button type="button" class="dp-btn dp-send btn-primary" onclick="sendDiscordPreviewConfirmed()">Отправить в Discord</button>
             </div>
         </div>
     </div>
@@ -6308,7 +6811,7 @@
                     ' <span class="save-status" id="saveStatus">✅ Сохранено</span>' +
                     ' <span class="badge" id="modeBadge" style="display:none;margin-left:8px;font-size:10px;letter-spacing:1px;"></span>' +
                     ' <button type="button" id="btnSaveReport" onclick="manualSaveReport(event)" title="Сохранить рапорт в браузере"' +
-                    ' style="margin-left:10px;padding:4px 12px;font-size:11px;letter-spacing:1px;border-radius:6px;border:1px solid rgba(212,175,55,0.45);background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#000;font-family:\'Oswald\',sans-serif;font-weight:600;cursor:pointer;vertical-align:middle;">💾 СОХРАНИТЬ</button>';
+                    ' class="btn-primary btn-xs" style="margin-left:10px;">💾 СОХРАНИТЬ</button>';
             }
             const navDaily = document.getElementById('navDailyReport');
             const navPromo = document.getElementById('navPromotionReport');
@@ -6533,6 +7036,7 @@
             t.innerHTML = `<span style="margin-right:8px;">${icon}</span> ${msg}`;
             c.appendChild(t);
             requestAnimationFrame(() => t.classList.add('show'));
+            if (type === 'success') { try { mmsPulse(document.activeElement); } catch (e) {} }
             setTimeout(() => {
                 t.classList.remove('show');
                 setTimeout(() => t.remove(), 400);
@@ -6547,7 +7051,7 @@
             group.innerHTML = '';
             if (buttons.length === 0) {
                 const b = document.createElement('button');
-                b.className = 'btn btn-cancel';
+                b.className = 'btn btn-primary';
                 b.textContent = '✅ ОК';
                 b.onclick = () => { modal.classList.remove('show');
                     if (callback) callback(true); };
@@ -6589,6 +7093,7 @@
             if (target) target.classList.add('active');
 
             try { localStorage.setItem('mmsStyle', styleName); } catch (e) {}
+            try { localStorage.setItem('mmsThemePreset', mmsStyleToPreset(styleName)); } catch (e) {}
             if (chartVisible) buildChart();
         }
 
@@ -6649,12 +7154,351 @@
 
         function loadStyle() {
             try {
-                const style = localStorage.getItem('mmsStyle');
+                const style = mmsPresetToStyle(localStorage.getItem('mmsThemePreset')) || localStorage.getItem('mmsStyle');
                 if (style && ['dark', 'light', 'medical', 'military', 'urban', 'desert', 'crimson', 'ocean'].includes(style)) {
                     setStyle(style);
                 }
             } catch (e) {}
         }
+
+
+        // ===== MMS DESIGN SYSTEM v2: пресеты стиля + pulse =====
+        // Пресеты = существующие style-* (setStyle/loadStyle не заменены, а расширены).
+        function mmsPresetMap() {
+            return {
+                'night-gold': 'dark', 'day-paper': 'light', 'medical': 'medical',
+                'military': 'military', 'urban': 'urban', 'desert': 'desert',
+                'crimson': 'crimson', 'ocean': 'ocean'
+            };
+        }
+        function mmsPresetToStyle(id) {
+            const m = mmsPresetMap();
+            return (id && m[id]) ? m[id] : null;
+        }
+        function mmsStyleToPreset(style) {
+            const m = mmsPresetMap();
+            for (const k in m) { if (m[k] === style) return k; }
+            return 'night-gold';
+        }
+        function applyThemePreset(id) { setStyle(mmsPresetToStyle(id) || 'dark'); }
+        function loadThemePreset() { loadStyle(); }
+
+        function mmsPulse(el) {
+            if (!el || !el.matches || !el.matches('button, .btn-primary, .btn-secondary, .btn-success, .btn-danger')) return;
+            el.classList.remove('btn-pulse');
+            void el.offsetWidth;
+            el.classList.add('btn-pulse');
+            setTimeout(function () { el.classList.remove('btn-pulse'); }, 700);
+        }
+
+
+        // ============================================================
+        // MMS v3: воронка сдачи · готовность · защита файлов · тексты ошибок
+        // ============================================================
+        const MMS_DEMO_CARD = { first: 'Алекс', last: 'Иванов', id: '774912' }; // значения-образец из карточки
+        const MMS_ONBOARD_VISITS_KEY = 'mmsOnboardVisits';
+        const MMS_ONBOARD_OFF_KEY = 'mmsOnboardDismissed';
+        const MMS_MAX_WORD_BYTES = 8 * 1024 * 1024;     // сгенерированный/прикреплённый отчёт
+        const MMS_MAX_ATTACH_BYTES = 8 * 1024 * 1024;   // любое вложение в Discord / фото к записи
+        const MMS_MAX_VIEW_BYTES = 20 * 1024 * 1024;    // локальный просмотр отчёта (никуда не отправляется)
+        const MMS_ALLOW_ARCHIVE_IN_DISCORD = false;     // ZIP/.mms в Discord не отправляем
+        const mmsFunnelState = { previewedAtCount: null, sentAtCount: null };
+
+        // ---------- Состояние карточки и готовность к сдаче ----------
+        function mmsReadCard() {
+            const v = function (id) { return ((document.getElementById(id) || {}).value || '').trim(); };
+            const first = v('firstName'), last = v('lastName'), id = v('staticId');
+            return {
+                first: first, last: last, id: id,
+                name: (first + ' ' + last).trim(),
+                demo: first === MMS_DEMO_CARD.first && last === MMS_DEMO_CARD.last && id === MMS_DEMO_CARD.id
+            };
+        }
+        function mmsEntriesCount() {
+            return (typeof entries !== 'undefined' && Array.isArray(entries)) ? entries.length : 0;
+        }
+        function mmsAttachedCount() {
+            const f = document.getElementById('dcFile');
+            return (f && f.files) ? f.files.length : 0;
+        }
+        function mmsGetReadiness() {
+            const c = mmsReadCard();
+            const reasons = [];
+            if (!c.name) reasons.push('нет ФИО');
+            if (!c.id) reasons.push('нет Static ID');
+            if (!mmsEntriesCount() && !mmsAttachedCount()) reasons.push('нет записей в рапорте (или прикрепите готовый файл)');
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) reasons.push('нет сети');
+            return {
+                ok: reasons.length === 0,
+                reasons: reasons,
+                warn: c.demo ? 'в карточке стоят данные-образец — проверьте ФИО и ID' : ''
+            };
+        }
+        function mmsReadinessRender() {
+            const el = document.getElementById('dcReady');
+            const btn = document.getElementById('dcSendBtn');
+            const rd = mmsGetReadiness();
+            if (btn) {
+                btn.classList.toggle('is-not-ready', !rd.ok);
+                btn.setAttribute('aria-disabled', rd.ok ? 'false' : 'true');
+                btn.title = rd.ok ? '' : ('Не готово: ' + rd.reasons.join(', '));
+            }
+            if (!el) return;
+            el.className = 'dc-ready ' + (rd.ok ? 'ok' : 'bad');
+            el.textContent = rd.ok ? '✅ Готово к отправке' : ('⛔ Не готово: ' + rd.reasons.join(' · '));
+            if (rd.ok && rd.warn) {
+                const w = document.createElement('span');
+                w.className = 'warn';
+                w.textContent = '⚠️ ' + rd.warn;
+                el.appendChild(w);
+            }
+        }
+        function mmsShowNextStep(destLabel) {
+            const el = document.getElementById('dcNextStep');
+            if (!el) return;
+            el.hidden = false;
+            el.innerHTML = '<b>✅ Рапорт ушёл в ' + destLabel + '.</b> В сообщении отмечена роль ' + MMS_DISCORD_ROLE_LABEL +
+                ' — проверяющие откроют вложение. Дальше: уберите рапорт в архив (меню «Отчёт»), когда он больше не нужен в таблице.';
+        }
+        function mmsHideNextStep() {
+            const el = document.getElementById('dcNextStep');
+            if (el) { el.hidden = true; el.textContent = ''; }
+        }
+
+        // ---------- Воронка (чеклист) ----------
+        function mmsFunnelSteps() {
+            const c = mmsReadCard();
+            const n = mmsEntriesCount();
+            return [
+                { key: 'card',    tab: 'profile',      label: 'Карточка',     hint: 'ФИО и Static ID',      done: !!(c.name && c.id && !c.demo) },
+                { key: 'entries', tab: 'achievements', label: 'Записи',       hint: 'минимум одна запись',  done: n > 0 },
+                { key: 'preview', tab: 'discord',      label: 'Предпросмотр', hint: 'рекомендуется',        done: mmsFunnelState.previewedAtCount !== null && mmsFunnelState.previewedAtCount === n, optional: true },
+                { key: 'send',    tab: 'discord',      label: 'Отправка',     hint: 'сдача в Discord',      done: mmsFunnelState.sentAtCount !== null && mmsFunnelState.sentAtCount === n }
+            ];
+        }
+        function mmsFunnelGo(key) {
+            const s = mmsFunnelSteps().filter(function (x) { return x.key === key; })[0];
+            if (s && typeof switchTab === 'function') switchTab(s.tab, null);
+        }
+        function mmsOnboardTouch() {
+            try {
+                if (sessionStorage.getItem('mmsOnboardCounted')) return;
+                sessionStorage.setItem('mmsOnboardCounted', '1');
+                const n = (parseInt(localStorage.getItem(MMS_ONBOARD_VISITS_KEY), 10) || 0) + 1;
+                localStorage.setItem(MMS_ONBOARD_VISITS_KEY, String(n));
+            } catch (_) {}
+        }
+        function mmsOnboardVisible() {
+            try {
+                const n = parseInt(localStorage.getItem(MMS_ONBOARD_VISITS_KEY), 10) || 0;
+                return n <= 2 && localStorage.getItem(MMS_ONBOARD_OFF_KEY) !== '1';
+            } catch (_) { return false; }
+        }
+        function mmsOnboardDismiss() {
+            try { localStorage.setItem(MMS_ONBOARD_OFF_KEY, '1'); } catch (_) {}
+            mmsFunnelRender();
+        }
+        function mmsFunnelRender() {
+            try { mmsReadinessRender(); } catch (_) {}
+            const box = document.getElementById('mmsFunnel');
+            if (!box) return;
+            const tab = (typeof currentTab !== 'undefined') ? currentTab : '';
+            const visible = tab === 'profile' || tab === 'achievements' || tab === 'discord';
+            box.hidden = !visible;
+            if (!visible) return;
+
+            const steps = mmsFunnelSteps();
+            const required = steps.filter(function (s) { return !s.optional; });
+            const doneReq = required.filter(function (s) { return s.done; }).length;
+            const next = required.filter(function (s) { return !s.done; })[0] || null;
+            const pct = Math.round(doneReq / required.length * 100);
+
+            const nextText = {
+                card: 'заполните ФИО и Static ID во вкладке «Карточка сотрудника».',
+                entries: 'добавьте хотя бы одну запись в рапорт (ссылка + категория).',
+                send: 'проверьте «Предпросмотр» и отправьте рапорт во вкладке «Сдача в Discord».'
+            };
+            let hint;
+            if (!next) hint = 'Рапорт отправлен ✅ Для нового рапорта добавьте записи — шаги отметятся заново.';
+            else hint = 'Дальше: ' + nextText[next.key];
+
+            let html = '<div class="mms-funnel__steps">' + steps.map(function (s, i) {
+                const cls = 'mms-fstep' + (s.done ? ' done' : '') + (next && s.key === next.key ? ' next' : '') + (s.optional ? ' optional' : '');
+                return '<button type="button" class="' + cls + '" onclick="mmsFunnelGo(\'' + s.key + '\')" title="' + s.label + ': ' + s.hint + '">' +
+                    '<span class="mms-fstep__num">' + (s.done ? '✓' : (i + 1)) + '</span>' +
+                    '<span class="mms-fstep__txt">' + s.label + '<small>' + s.hint + '</small></span></button>';
+            }).join('') + '</div>' +
+                '<div class="mms-funnel__bar"><i style="width:' + pct + '%"></i></div>' +
+                '<div class="mms-funnel__hint">' + hint + '</div>';
+            if (next && mmsOnboardVisible()) {
+                html += '<div class="mms-funnel__start"><span><b>С чего начать:</b> карточка → запись → предпросмотр → отправка. Порядок не обязателен — можно идти как удобно.</span>' +
+                    '<button type="button" class="btn-ghost btn-xs" onclick="mmsOnboardDismiss()">Понятно</button></div>';
+            }
+            box.innerHTML = html;
+            try { applyButtonSystem(box); } catch (_) {}
+        }
+
+        // ---------- Пустое состояние таблицы ----------
+        function mmsFocusAddForm() {
+            const l = document.getElementById('link');
+            if (!l) return;
+            try { l.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+            setTimeout(function () { try { l.focus({ preventScroll: true }); } catch (_) {} }, 350);
+        }
+        function mmsRenderEmptyRow(tbody, noEntries) {
+            const tr = document.createElement('tr');
+            tr.className = 'mms-empty-row';
+            const td = document.createElement('td');
+            td.colSpan = 7;
+            td.innerHTML = noEntries
+                ? '<div class="mms-empty"><div class="mms-empty__icon">📋</div>' +
+                  '<div class="mms-empty__title">Добавьте первое доказательство</div>' +
+                  '<div class="mms-empty__text">Вставьте ссылку на отчёт в форму выше, выберите категорию и нажмите «Добавить».</div>' +
+                  '<button type="button" class="btn-primary btn-attention" onclick="mmsFocusAddForm()">К форме добавления</button></div>'
+                : '<div class="mms-empty"><div class="mms-empty__icon">🔎</div>' +
+                  '<div class="mms-empty__title">Ничего не найдено</div>' +
+                  '<div class="mms-empty__text">По текущему поиску и фильтру записей нет.</div>' +
+                  '<button type="button" class="btn-secondary btn-xs" onclick="clearTableFilters()">Сбросить фильтры</button></div>';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+        }
+
+        // ---------- Клиентская проверка файлов (это НЕ антивирус) ----------
+        // Проверяем только: имя, расширение, двойное расширение, размер, «магические» байты и опасную разметку.
+        const MMS_BLOCKED_EXT = ['exe', 'bat', 'cmd', 'com', 'scr', 'pif', 'js', 'jse', 'mjs', 'vbs', 'vbe', 'wsf', 'wsh', 'ps1', 'psm1',
+            'msi', 'msp', 'jar', 'dll', 'sys', 'cpl', 'hta', 'reg', 'lnk', 'inf', 'sh', 'apk', 'app', 'dmg', 'iso', 'chm', 'swf', 'scf', 'gadget'];
+        const MMS_ALLOWED_EXT = {
+            discord: ['doc', 'docx', 'html', 'htm', 'json', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'pdf'],
+            image: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
+            viewer: ['html', 'htm', 'doc', 'docx', 'json', 'zip', 'mms']
+        };
+        function mmsMb(bytes) { return Math.round(bytes / 1024 / 1024) + ' МБ'; }
+
+        function mmsCheckFile(file, purpose) {
+            purpose = purpose || 'discord';
+            if (!file) return { ok: false, reason: 'файл не выбран' };
+            const rawName = String(file.name || '');
+            const name = rawName.trim();
+            if (!name) return { ok: false, reason: 'у файла нет имени' };
+            if (/[\u0000-\u001f\u202a-\u202e\u2066-\u2069]/.test(rawName)) return { ok: false, reason: 'в имени файла скрытые управляющие символы' };
+            if (/[. ]$/.test(rawName)) return { ok: false, reason: 'имя файла заканчивается точкой или пробелом' };
+            const exts = name.toLowerCase().split('.').slice(1).map(function (p) { return p.trim(); });
+            const last = exts.length ? exts[exts.length - 1] : '';
+            const bad = exts.filter(function (e) { return MMS_BLOCKED_EXT.indexOf(e) !== -1; })[0];
+            if (bad) {
+                return {
+                    ok: false,
+                    reason: exts.length > 1
+                        ? 'двойное расширение «.' + exts.join('.') + '» — так исполняемые файлы маскируют под документы'
+                        : 'тип «.' + bad + '» запрещён (исполняемые и скриптовые файлы не принимаются)'
+                };
+            }
+            let allowed = (MMS_ALLOWED_EXT[purpose] || []).slice();
+            if (purpose === 'discord' && MMS_ALLOW_ARCHIVE_IN_DISCORD) allowed = allowed.concat(['zip', 'mms']);
+            if (!last || allowed.indexOf(last) === -1) {
+                if (purpose === 'discord' && (last === 'zip' || last === 'mms' || last === '7z' || last === 'rar')) {
+                    return { ok: false, reason: 'архивы в Discord не отправляются — прикрепите Word (.doc) или оставьте поле пустым' };
+                }
+                return { ok: false, reason: 'тип «' + (last ? '.' + last : 'без расширения') + '» не поддерживается. Разрешены: ' + allowed.join(', ') };
+            }
+            if (!(file.size > 0)) return { ok: false, reason: 'файл пустой' };
+            const max = purpose === 'viewer' ? MMS_MAX_VIEW_BYTES : MMS_MAX_ATTACH_BYTES;
+            if (file.size > max) return { ok: false, reason: 'размер больше ' + mmsMb(max) };
+            if (purpose === 'image' && file.type && !/^image\//i.test(file.type)) return { ok: false, reason: 'это не изображение' };
+            return { ok: true };
+        }
+
+        function mmsScanHtmlText(text) {
+            // base64-вставки (картинки) не сканируем — иначе случайные совпадения в данных
+            const t = String(text || '').replace(/data:[a-z0-9.+\/-]+;base64,[A-Za-z0-9+\/=\s]+/gi, 'data:');
+            // для проверки обработчиков событий убираем содержимое кавычек: экранированная ссылка вида &quot; onerror=… безопасна,
+            // а вырвавшийся из атрибута onerror= остаётся снаружи и будет найден
+            const outside = t.replace(/="[^"]*"/g, '=""').replace(/='[^']*'/g, "=''");
+            const rules = [
+                [/<\s*script\b/i, 'тег «script»'],
+                [/javascript\s*:/i, 'ссылка javascript:'],
+                [/vbscript\s*:/i, 'ссылка vbscript:'],
+                [/[\s"'\/]on(?:error|load|click|mouse\w*|focus|blur|submit|toggle|pointer\w*|key\w*|animation\w*|begin|end)\s*=/i, 'обработчик события (onerror=, onload= …)', true],
+                [/<\s*(?:iframe|object|embed|applet|base|form)\b/i, 'встроенный объект (<iframe>, <object>, <embed>…)'],
+                [/<\s*meta[^>]+http-equiv\s*=\s*["']?\s*refresh/i, 'автоперенаправление страницы'],
+                [/data\s*:\s*text\/html/i, 'вложенный HTML (data:text/html)'],
+                [/\beval\s*\(/i, 'вызов eval()']
+            ];
+            for (let i = 0; i < rules.length; i++) { if (rules[i][0].test(rules[i][2] ? outside : t)) return rules[i][1]; }
+            return null;
+        }
+        function mmsVerifyHtmlText(text, label) {
+            const head = String(text || '').replace(/^\uFEFF/, '').trimStart().slice(0, 64).toLowerCase();
+            if (!(head.indexOf('<!doctype') === 0 || head.indexOf('<html') === 0 || head.indexOf('<?xml') === 0)) {
+                return { ok: false, reason: (label || 'файл') + ' не является текстовым HTML-документом (повреждён или подменён)' };
+            }
+            const hit = mmsScanHtmlText(text);
+            if (hit) return { ok: false, reason: 'в документе найдено: ' + hit };
+            return { ok: true };
+        }
+        async function mmsVerifyGeneratedWord(blob) {
+            if (!blob || !(blob.size > 0)) return { ok: false, reason: 'Word-файл пустой' };
+            if (blob.size > MMS_MAX_WORD_BYTES) return { ok: false, reason: 'Word-отчёт больше ' + mmsMb(MMS_MAX_WORD_BYTES) };
+            return mmsVerifyHtmlText(await blob.text(), 'Word-отчёт');
+        }
+        async function mmsCheckFileContent(file, purpose) {
+            try {
+                const name = String(file.name || '').toLowerCase();
+                const ext = name.split('.').pop();
+                const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+                const is = function (sig) { return sig.every(function (b, i) { return head[i] === b; }); };
+                const fail = function (r) { return { ok: false, reason: r }; };
+                if (is([0x4D, 0x5A])) return fail('внутри исполняемый файл Windows под видом документа');
+                if (is([0x7F, 0x45, 0x4C, 0x46])) return fail('внутри исполняемый файл под видом документа');
+                if (ext === 'png' && !is([0x89, 0x50, 0x4E, 0x47])) return fail('содержимое не похоже на PNG — расширение подменено');
+                if ((ext === 'jpg' || ext === 'jpeg') && !is([0xFF, 0xD8, 0xFF])) return fail('содержимое не похоже на JPEG — расширение подменено');
+                if (ext === 'gif' && !is([0x47, 0x49, 0x46, 0x38])) return fail('содержимое не похоже на GIF — расширение подменено');
+                if (ext === 'webp' && !(is([0x52, 0x49, 0x46, 0x46]) && head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50)) return fail('содержимое не похоже на WebP — расширение подменено');
+                if (ext === 'pdf' && !is([0x25, 0x50, 0x44, 0x46])) return fail('содержимое не похоже на PDF — расширение подменено');
+                if (ext === 'docx' && !is([0x50, 0x4B, 0x03, 0x04])) return fail('содержимое не похоже на документ Word (.docx)');
+                if (ext === 'doc' || ext === 'html' || ext === 'htm') {
+                    // настоящий бинарный .doc (OLE) пропускаем; остальное обязано быть чистым HTML-документом
+                    if (ext === 'doc' && is([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1])) return { ok: true };
+                    if (file.size > MMS_MAX_WORD_BYTES) return fail('размер больше ' + mmsMb(MMS_MAX_WORD_BYTES));
+                    return mmsVerifyHtmlText(await file.text(), 'файл');
+                }
+                return { ok: true };
+            } catch (e) {
+                return { ok: false, reason: 'не удалось прочитать файл для проверки' };
+            }
+        }
+        function mmsVetImageFile(f) {
+            const c = mmsCheckFile(f, 'image');
+            if (!c.ok) {
+                showToast('Файл отклонён: ' + (f.name || 'без имени') + ' — ' + c.reason, 'error', 5000);
+                return Promise.resolve(false);
+            }
+            return mmsCheckFileContent(f, 'image').then(function (cc) {
+                if (!cc.ok) showToast('Файл отклонён: ' + (f.name || 'без имени') + ' — ' + cc.reason, 'error', 5000);
+                return cc.ok;
+            });
+        }
+
+        // ---------- Единый тон ошибок сдачи ----------
+        function mmsHumanError(raw, status) {
+            const t = String(raw == null ? '' : raw).trim();
+            const st = Number(status) || 0;
+            if (t && /[А-Яа-яЁё]/.test(t) && t.length < 400) return t;               // уже по-русски — не трогаем
+            if (st === 401 || st === 403 || /unauthori[sz]ed|forbidden|invalid token|bad token/i.test(t)) return 'Нет доступа к серверу сдачи. Проверьте связь или токен.';
+            if (st === 429 || /rate.?limit|too many/i.test(t)) return 'Слишком много отправок за час. Подождите немного и повторите.';
+            if (st === 413 || /too large|payload too large/i.test(t)) return 'Файл слишком большой для отправки.';
+            if (st >= 500 || /internal server|bad gateway|service unavailable|worker threw/i.test(t)) return 'Сервер сдачи временно недоступен. Повторите позже.';
+            if (/failed to fetch|networkerror|load failed|network request failed|err_internet|abort/i.test(t)) return 'Нет связи с сервером сдачи. Проверьте интернет и повторите.';
+            if (t) { try { console.warn('[mms] raw submit error:', t); } catch (_) {} }
+            return 'Не удалось отправить рапорт. Повторите попытку.';
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            try { mmsOnboardTouch(); } catch (_) {}
+            try { mmsFunnelRender(); } catch (_) {}
+            window.addEventListener('online', function () { try { mmsReadinessRender(); } catch (_) {} });
+            window.addEventListener('offline', function () { try { mmsReadinessRender(); } catch (_) {} });
+        });
 
         // ===== SIDEBAR =====
         function toggleSidebar() {
@@ -6690,6 +7534,7 @@
             }
 
             currentTab = tab;
+            try { mmsFunnelRender(); } catch (_) {}
 
             const badgeEl = document.getElementById('achievementsBadge');
             if (badgeEl) {
@@ -6832,6 +7677,7 @@
                 ? 'Настроен настоящий ping роли Discord (оба канала).'
                 : 'Бета-режим: пока показывается тег @High MMS без настоящего ping. ID роли добавится позже в код.';
             updateDiscordChannelStatus();
+            try { mmsFunnelRender(); } catch (_) {}
         }
 
         async function onDiscordFileChosen(ev) {
@@ -6848,29 +7694,18 @@
                 refreshDiscordSubmitForm();
                 return;
             }
-            // Минимальная защита: пустые / исполняемые / слишком большие
+            // Единая клиентская проверка (это не антивирус): расширение, двойное расширение, размер, содержимое
             for (let i = 0; i < allFiles.length; i++) {
                 const f = allFiles[i];
                 const nm = String(f.name || '');
-                if (!(f.size > 0)) {
-                    if (st) { st.textContent = '❌ Пустой файл отклонён: ' + nm; st.style.color = '#ff6b6b'; }
+                let chk = mmsCheckFile(f, 'discord');
+                if (chk.ok) chk = await mmsCheckFileContent(f, 'discord');
+                if (!chk.ok) {
+                    if (st) { st.textContent = '❌ Файл отклонён: ' + nm + ' — ' + chk.reason; st.style.color = '#ff6b6b'; }
                     if (input) input.value = '';
                     if (nameEl) nameEl.textContent = 'Файлы не выбраны';
-                    showToast('Пустой файл нельзя прикрепить', 'error');
-                    return;
-                }
-                if (f.size > 12 * 1024 * 1024) {
-                    if (st) { st.textContent = '❌ Файл больше 12 МБ: ' + nm; st.style.color = '#ff6b6b'; }
-                    if (input) input.value = '';
-                    if (nameEl) nameEl.textContent = 'Файлы не выбраны';
-                    showToast('Файл слишком большой (макс. 12 МБ)', 'error');
-                    return;
-                }
-                if (/\.(exe|bat|cmd|msi|scr|js|vbs|ps1|jar|dll|com|pif)(\.|$)/i.test(nm)) {
-                    if (st) { st.textContent = '❌ Запрещённый тип файла: ' + nm; st.style.color = '#ff6b6b'; }
-                    if (input) input.value = '';
-                    if (nameEl) nameEl.textContent = 'Файлы не выбраны';
-                    showToast('Этот тип файла нельзя прикреплять', 'error');
+                    showToast('Файл отклонён: ' + chk.reason, 'error', 5000);
+                    refreshDiscordSubmitForm();
                     return;
                 }
             }
@@ -6989,6 +7824,8 @@
                 'th,td{border:1px solid #b8960f;padding:8px 10px;font-size:13px;vertical-align:top;}' +
                 'th{background:#efe0b0;color:#3a2e0a;font-weight:700;}' +
                 'td.c{text-align:center;}' +
+                'td{overflow-wrap:anywhere;word-break:break-word;}' +
+                '@media(max-width:600px){body{padding:16px 12px 28px;}th,td{padding:6px 7px;font-size:12px;}}' +
                 'td.pts{font-weight:700;}' +
                 'td.empty{text-align:center;padding:20px;color:#666;}' +
                 '.total{margin-top:16px;font-size:16px;font-weight:700;}' +
@@ -7014,6 +7851,7 @@
             if (!modal || !frame) return;
             const html = buildDiscordPreviewHtml();
             frame.srcdoc = html;
+            try { mmsFunnelState.previewedAtCount = mmsEntriesCount(); mmsFunnelRender(); } catch (_) {}
             modal.classList.add('show');
             modal.setAttribute('aria-hidden', 'false');
             document.body.style.overflow = 'hidden';
@@ -7704,6 +8542,15 @@
             const fileList = (fileInput && fileInput.files && fileInput.files.length) ? Array.prototype.slice.call(fileInput.files) : [];
             const file = fileList.length ? fileList[0] : null;
 
+            // Единая проверка готовности (та же, что показывает статус на вкладке)
+            const mmsRd = mmsGetReadiness();
+            if (!mmsRd.ok) {
+                const why = mmsRd.reasons.join(', ');
+                setStatus('Не готово к отправке: ' + why, false);
+                showToast('Не готово к отправке: ' + why, 'warning', 5000);
+                mmsReadinessRender();
+                return;
+            }
             if (!name || !id) { setStatus('Заполни карточку сотрудника (ФИО и ID)', false); showToast('Нет данных сотрудника', 'error'); return; }
             if (!fileList.length && (!entries || !entries.length)) { setStatus('Прикрепи файл(ы) отчёта или добавь записи в рапорт', false); showToast('Нужен файл или записи', 'error'); return; }
 
@@ -7744,6 +8591,7 @@
                 allowed_mentions: allowedMentions
             };
 
+            try { mmsHideNextStep(); } catch (_) {}
             if (btn) { btn.disabled = true; btn.textContent = 'Отправка...'; }
             setStatus(isPromo ? 'Отправка в канал повышения...' : 'Отправка в канал еженедельных...', null);
             const started = performance.now();
@@ -7766,27 +8614,8 @@
                 // --- Одно вложение в Discord: только Word (.doc) ---
                 // Без PNG «для администрации», без report.json, без пустых файлов
                 function mmsIsSafeUploadFile(f) {
-                    if (!f || !(f.size > 0)) return { ok: false, reason: 'пустой файл' };
-                    const maxBytes = 8 * 1024 * 1024; // 8 МБ
-                    if (f.size > maxBytes) return { ok: false, reason: 'больше 8 МБ' };
-                    const name = String(f.name || '');
-                    // Двойные расширения и опасные типы
-                    if (/\.(exe|bat|cmd|msi|scr|js|vbs|ps1|jar|dll|com|pif|wsf|cpl|hta|msh|reg)(\.|$)/i.test(name)) {
-                        return { ok: false, reason: 'запрещённый тип файла (' + name + '). Вирусные/исполняемые файлы отклоняются.' };
-                    }
-                    if (/[\x00-\x1f]/.test(name)) {
-                        return { ok: false, reason: 'недопустимые символы в имени файла' };
-                    }
-                    const lower = name.toLowerCase();
-                    // Только документы отчёта / картинки доказательств
-                    const allowed = [
-                        '.doc', '.docx', '.html', '.htm', '.json',
-                        '.zip', '.mms', '.mms.zip', '.mms.json',
-                        '.png', '.jpg', '.jpeg', '.webp', '.gif', '.pdf'
-                    ];
-                    const okExt = allowed.some(function (ext) { return lower.endsWith(ext); });
-                    if (!okExt) return { ok: false, reason: 'неподдерживаемое расширение. Разрешены только отчёты и изображения.' };
-                    return { ok: true };
+                    // единая клиентская политика (расширения, двойные расширения, размер)
+                    return mmsCheckFile(f, 'discord');
                 }
 
                 // Проверка пользовательских файлов (если прикрепили)
@@ -7794,6 +8623,11 @@
                     const chk = mmsIsSafeUploadFile(fileList[fi]);
                     if (!chk.ok) {
                         throw new Error('Файл отклонён: ' + (fileList[fi].name || 'без имени') + ' — ' + chk.reason);
+                    }
+                    // содержимое: подмена расширения, исполняемые заголовки, <script> и т.п. (повторно, прямо перед отправкой)
+                    const cchk = await mmsCheckFileContent(fileList[fi], 'discord');
+                    if (!cchk.ok) {
+                        throw new Error('Файл отклонён: ' + (fileList[fi].name || 'без имени') + ' — ' + cchk.reason);
                     }
                 }
 
@@ -7890,14 +8724,10 @@
                         throw new Error('Word-файл пустой — отправка отменена');
                     }
 
-                    // Проверка только для сгенерированного HTML-Word
-                    const headProbe = await wordBlob.slice(0, 64).text();
-                    const head = String(headProbe || '').replace(/^\uFEFF/, '').trim().toLowerCase();
-                    if (!(head.startsWith('<!doctype') || head.startsWith('<html'))) {
-                        throw new Error('Файл отклонён: Word-отчёт повреждён или подменён. Отправка запрещена.');
-                    }
-                    if (/<script|javascript:|onerror\s*=|eval\s*\(/i.test(headProbe) || wordBlob.size > 6 * 1024 * 1024) {
-                        throw new Error('Файл отклонён: подозрительное содержимое. Отправка запрещена.');
+                    // Проверка сгенерированного Word: текстовый HTML-документ, без скриптов, размер ≤ 8 МБ
+                    const wchk = await mmsVerifyGeneratedWord(wordBlob);
+                    if (!wchk.ok) {
+                        throw new Error('Файл отклонён: ' + wchk.reason + '. Отправка остановлена.');
                     }
                 }
 
@@ -7910,6 +8740,9 @@
                 fd.delete('payload_json');
                 fd.append('payload_json', JSON.stringify(payload));
                 // Discord webhook ждёт file — шлём готовый или сгенерированный
+                if (/\.(zip|mms|7z|rar)$/i.test(String(docFileName))) {
+                    throw new Error('Файл отклонён: архивы в Discord не отправляются.');
+                }
                 fd.append('file', wordBlob, docFileName);
 
                 // Маркер: отчёт готов
@@ -7940,7 +8773,7 @@
 
                 if (!res.ok || (responseData && responseData.ok === false)) {
                     const errMessage = (responseData && (responseData.error || responseData.message)) || responseText || `Ошибка ${res.status}`;
-                    throw new Error(String(errMessage).slice(0, 220));
+                    throw new Error(mmsHumanError(errMessage, res.status));
                 }
 
                 const success = !!(responseData && responseData.discord_ok === true) || res.ok;
@@ -7957,13 +8790,18 @@
 
                 if (fileInput) { fileInput.value = ''; discordFilePoints = null; discordFileMeta = null; }
                 const fn = document.getElementById('dcFileName'); if (fn) fn.textContent = 'Файл не выбран';
+                if (!(responseData && responseData.discord_ok === false)) {
+                    mmsFunnelState.sentAtCount = mmsEntriesCount();
+                    mmsShowNextStep(dest);
+                }
                 refreshDiscordSubmitForm();
             } catch (err) {
-                const text = err && err.message ? err.message : String(err || 'Не удалось отправить');
+                const text = mmsHumanError(err && err.message ? err.message : String(err || ''), 0);
                 setStatus('Ошибка: ' + text, false);
                 showToast(text, 'error', 5000);
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = 'Отправить в Discord'; }
+                try { mmsFunnelRender(); } catch (_) {}
             }
         }
 
@@ -8013,6 +8851,12 @@
             inp.addEventListener('change', function() {
                 const f = inp.files && inp.files[0];
                 if (!f) return;
+                const pchk = mmsCheckFile(f, 'image');
+                if (!pchk.ok) {
+                    showToast('Файл отклонён: ' + pchk.reason, 'error', 5000);
+                    inp.value = '';
+                    return;
+                }
                 if (!/^image\/(jpeg|png|webp|gif)$/i.test(f.type)) {
                     showToast('Нужен файл изображения (JPG/PNG/WebP)', 'error');
                     inp.value = '';
@@ -8111,6 +8955,7 @@
                 localStorage.setItem('hasEnteredName', 'true');
             } catch (e) {}
             saveToLocalStorage();
+            try { mmsFunnelRender(); } catch (_) {}
         }
 
         function loadProfile() {
@@ -9803,7 +10648,7 @@
                                 <tr>
                                     <td style="text-align:center;border:1px solid #000;padding:6px 10px;">${entry.date}</td>
                                     <td style="text-align:center;border:1px solid #000;padding:6px 10px;">
-                                        <a href="${entry.link}" target="_blank" style="color:#1a3a8a;text-decoration:underline;font-weight:600;">${linkText}</a>
+                                        <a href="${mmsEscHtml(entry.link)}" target="_blank" style="color:#1a3a8a;text-decoration:underline;font-weight:600;">${linkText}</a>
                                     </td>
                                     <td style="text-align:center;border:1px solid #000;padding:6px 10px;font-weight:700;">${entry.points}</td>
                                 </tr>
@@ -9931,6 +10776,12 @@
             if (!file) return;
             const inputEl = event.target;
             const fileName = String(file.name || '').toLowerCase();
+            const vchk = mmsCheckFile(file, 'viewer');
+            if (!vchk.ok) {
+                showToast('Файл отклонён: ' + vchk.reason, 'error', 5000);
+                try { inputEl.value = ''; } catch (_) {}
+                return;
+            }
 
             const modal = document.getElementById('reportViewerModal');
             const loading = document.getElementById('reportViewerLoading');
@@ -10401,8 +11252,11 @@
                 ev.target.value = '';
                 return;
             }
-            const slice = files.slice(0, room);
-            Promise.all(slice.map(f => resizeImageFile(f).then(dataUrl => ({
+            const picked = files.slice(0, room);
+            Promise.all(picked.map(mmsVetImageFile)).then(okList => {
+            const slice = picked.filter((_, i) => okList[i]);
+            if (!slice.length) return;
+            return Promise.all(slice.map(f => resizeImageFile(f).then(dataUrl => ({
                 id: Date.now() + Math.random(),
                 name: (f.name || 'снимок').replace(/\.[^.]+$/, '').slice(0, 40) || 'снимок',
                 points: 0,
@@ -10413,6 +11267,7 @@
                 const hint = document.getElementById('filePickHint');
                 if (hint) hint.textContent = 'Выбрано: ' + pendingAttachments.length;
                 showToast('Добавлено вложений: ' + items.length, 'success');
+            });
             }).catch(() => showToast('Не удалось обработать изображение', 'error'));
             ev.target.value = '';
         }
@@ -10432,7 +11287,7 @@
                     <img src="${a.dataUrl}" alt="" />
                     <input type="text" value="${(a.name || '').replace(/"/g, '&quot;')}" onchange="pendingAttachments[${i}].name=this.value" placeholder="Название" style="flex:1;min-width:100px;padding:4px 8px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text);border-radius:4px;font-size:12px;" />
                     <input type="number" value="${a.points || 0}" min="0" onchange="pendingAttachments[${i}].points=parseInt(this.value)||0" title="Баллы за снимок" style="width:70px;padding:4px 6px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text);border-radius:4px;font-size:12px;" />
-                    <button type="button" class="btn-sm danger" onclick="removePendingAttach(${i})" style="padding:3px 8px;">✕</button>
+                    <button type="button" class="btn-sm danger btn-danger" onclick="removePendingAttach(${i})" style="padding:3px 8px;">✕</button>
                 </div>
             `).join('');
         }
@@ -10823,7 +11678,7 @@
                     const dateValue = `${dateParts[2] || '2026'}-${dateParts[1] || '07'}-${dateParts[0] || '29'}`;
                     dateHtml = `<input type="date" class="editable-input date-input" value="${dateValue}">`;
                     linkHtml =
-                        `<input type="text" class="editable-input link-input" value="${entry.link || ''}" placeholder="https://...">`;
+                        `<input type="text" class="editable-input link-input" value="${mmsEscHtml(entry.link || '')}" placeholder="https://...">`;
                     pointsHtml = `<input type="number" class="editable-input points-input" value="${entry.points || 0}" min="0">`;
                     catHtml = `<select class="editable-input cat-input">${ENTRY_CATEGORIES.map(c =>
                         `<option value="${c}" ${c === cat ? 'selected' : ''}>${c}</option>`).join('')}</select>`;
@@ -10843,7 +11698,7 @@
                         ).join('') + '</div>';
                     }
                     linkHtml = `<span class="evidence-number">${entry.evidenceNumber}</span>
-                                    <a href="${entry.link}" target="_blank" rel="noopener noreferrer" style="margin-left:6px;">Доказательство</a>
+                                    <a href="${/^https?:\/\//i.test(String(entry.link || '')) ? mmsEscHtml(entry.link) : '#'}" target="_blank" rel="noopener noreferrer" style="margin-left:6px;">Доказательство</a>
                                     ${duplicateHtml}${attachHtml}`;
                     pointsHtml = `<span style="font-weight:700;">${rowPoints}</span>` +
                         (entry.attachments && entry.attachments.length
@@ -10860,21 +11715,27 @@
                         <td>${catHtml}</td>
                         <td>${pointsHtml}</td>
                         <td class="edit-btn-cell">
-                            <button class="btn-edit ${isEditing ? 'active' : ''}" onclick="toggleEdit('${eid}')" title="Изменить">
+                            <button class="btn-edit btn-secondary btn-xs ${isEditing ? 'active' : ''}" onclick="toggleEdit('${eid}')" title="Изменить">
                                 ${isEditing ? 'OK' : 'Изм.'}
                             </button>
                         </td>
                         <td class="delete-btn-cell">
-                            <button class="btn-delete" onclick="deleteEntry('${eid}')" title="Удалить">Удал.</button>
+                            <button class="btn-delete btn-danger btn-xs" onclick="deleteEntry('${eid}')" title="Удалить">Удал.</button>
                         </td>
                     `;
                 tbody.appendChild(tr);
             });
+            if (!filtered.length) mmsRenderEmptyRow(tbody, entries.length === 0);
+            try {
+                const ab = document.getElementById('addBtn');
+                if (ab) ab.classList.toggle('btn-attention', entries.length === 0);
+            } catch (_) {}
             const tp = document.getElementById('totalPoints');
             if (tp) tp.textContent = fullTotal;
             updateNormInfo(fullTotal);
             updateCategoryTotals();
             refreshFeedbackAttachBox();
+            try { mmsFunnelRender(); } catch (_) {}
             // счётчик в бейдже достижений
             try {
                 const b = document.getElementById('achievementsBadge');
