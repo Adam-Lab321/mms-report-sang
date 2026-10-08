@@ -7363,12 +7363,14 @@
             tbody.appendChild(tr);
         }
 
-        // ---------- Клиентская проверка файлов (это НЕ антивирус) ----------
-        // Проверяем только: имя, расширение, двойное расширение, размер, «магические» байты и опасную разметку.
+        // ---------- Клиентская проверка файлов (фильтр, не полноценный антивирус) ----------
+        // Слой 1 (браузер): имя, расширение, размер, magic bytes, опасная разметка.
+        // Слой 2 (Cloudflare Worker): повторная проверка перед проксированием в Discord.
         const MMS_BLOCKED_EXT = ['exe', 'bat', 'cmd', 'com', 'scr', 'pif', 'js', 'jse', 'mjs', 'vbs', 'vbe', 'wsf', 'wsh', 'ps1', 'psm1',
-            'msi', 'msp', 'jar', 'dll', 'sys', 'cpl', 'hta', 'reg', 'lnk', 'inf', 'sh', 'apk', 'app', 'dmg', 'iso', 'chm', 'swf', 'scf', 'gadget'];
+            'msi', 'msp', 'jar', 'dll', 'sys', 'cpl', 'hta', 'reg', 'lnk', 'inf', 'sh', 'apk', 'app', 'dmg', 'iso', 'chm', 'swf', 'scf', 'gadget',
+            'php', 'asp', 'aspx', 'cgi', 'py', 'rb', 'pl', 'wasm'];
         const MMS_ALLOWED_EXT = {
-            discord: ['doc', 'docx', 'html', 'htm', 'json', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'pdf'],
+            discord: ['doc', 'html', 'htm', 'json', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'pdf'],
             image: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
             viewer: ['html', 'htm', 'doc', 'docx', 'json', 'zip', 'mms']
         };
@@ -7382,7 +7384,8 @@
             if (!name) return { ok: false, reason: 'у файла нет имени' };
             if (/[\u0000-\u001f\u202a-\u202e\u2066-\u2069]/.test(rawName)) return { ok: false, reason: 'в имени файла скрытые управляющие символы' };
             if (/[. ]$/.test(rawName)) return { ok: false, reason: 'имя файла заканчивается точкой или пробелом' };
-            const exts = name.toLowerCase().split('.').slice(1).map(function (p) { return p.trim(); });
+            if (name.length > 180) return { ok: false, reason: 'имя файла слишком длинное' };
+            const exts = name.toLowerCase().split('.').slice(1).map(function (p) { return p.trim(); }).filter(Boolean);
             const last = exts.length ? exts[exts.length - 1] : '';
             const bad = exts.filter(function (e) { return MMS_BLOCKED_EXT.indexOf(e) !== -1; })[0];
             if (bad) {
@@ -7393,46 +7396,57 @@
                         : 'тип «.' + bad + '» запрещён (исполняемые и скриптовые файлы не принимаются)'
                 };
             }
+            // docx в Discord не шлём (бинарный zip); локальный просмотр — да
             let allowed = (MMS_ALLOWED_EXT[purpose] || []).slice();
             if (purpose === 'discord' && MMS_ALLOW_ARCHIVE_IN_DISCORD) allowed = allowed.concat(['zip', 'mms']);
             if (!last || allowed.indexOf(last) === -1) {
-                if (purpose === 'discord' && (last === 'zip' || last === 'mms' || last === '7z' || last === 'rar')) {
-                    return { ok: false, reason: 'архивы в Discord не отправляются — прикрепите Word (.doc) или оставьте поле пустым' };
+                if (purpose === 'discord' && (last === 'zip' || last === 'mms' || last === '7z' || last === 'rar' || last === 'docx')) {
+                    return { ok: false, reason: 'архивы и бинарный .docx в Discord не принимаются — нужен Word (.doc HTML) из программы, HTML или JSON' };
                 }
-                return { ok: false, reason: 'тип «' + (last ? '.' + last : 'без расширения') + '» не поддерживается. Разрешены: ' + allowed.join(', ') };
+                return { ok: false, reason: 'тип «.' + (last || '?') + '» не разрешён для этой операции' };
             }
-            if (!(file.size > 0)) return { ok: false, reason: 'файл пустой' };
-            const max = purpose === 'viewer' ? MMS_MAX_VIEW_BYTES : MMS_MAX_ATTACH_BYTES;
+            const max = purpose === 'viewer' ? MMS_MAX_VIEW_BYTES
+                : (purpose === 'image' ? MMS_MAX_ATTACH_BYTES : MMS_MAX_WORD_BYTES);
+            if (!(file.size > 0)) return { ok: false, reason: 'пустой файл' };
             if (file.size > max) return { ok: false, reason: 'размер больше ' + mmsMb(max) };
-            if (purpose === 'image' && file.type && !/^image\//i.test(file.type)) return { ok: false, reason: 'это не изображение' };
             return { ok: true };
         }
 
         function mmsScanHtmlText(text) {
-            // base64-вставки (картинки) не сканируем — иначе случайные совпадения в данных
-            const t = String(text || '').replace(/data:[a-z0-9.+\/-]+;base64,[A-Za-z0-9+\/=\s]+/gi, 'data:');
-            // для проверки обработчиков событий убираем содержимое кавычек: экранированная ссылка вида &quot; onerror=… безопасна,
-            // а вырвавшийся из атрибута onerror= остаётся снаружи и будет найден
+            const t = String(text || '');
             const outside = t.replace(/="[^"]*"/g, '=""').replace(/='[^']*'/g, "=''");
             const rules = [
                 [/<\s*script\b/i, 'тег «script»'],
                 [/javascript\s*:/i, 'ссылка javascript:'],
                 [/vbscript\s*:/i, 'ссылка vbscript:'],
                 [/[\s"'\/]on(?:error|load|click|mouse\w*|focus|blur|submit|toggle|pointer\w*|key\w*|animation\w*|begin|end)\s*=/i, 'обработчик события (onerror=, onload= …)', true],
-                [/<\s*(?:iframe|object|embed|applet|base|form)\b/i, 'встроенный объект (<iframe>, <object>, <embed>…)'],
+                [/<\s*(?:iframe|object|embed|applet|base|form|link|meta)\b/i, 'встроенный объект или meta/link'],
                 [/<\s*meta[^>]+http-equiv\s*=\s*["']?\s*refresh/i, 'автоперенаправление страницы'],
                 [/data\s*:\s*text\/html/i, 'вложенный HTML (data:text/html)'],
-                [/\beval\s*\(/i, 'вызов eval()']
+                [/\beval\s*\(/i, 'вызов eval()'],
+                [/<\s*svg\b[^>]*>[\s\S]*?<\s*script\b/i, 'script внутри SVG'],
+                [/expression\s*\(/i, 'CSS expression()'],
+                [/\bdocument\.cookie\b/i, 'обращение к document.cookie'],
+                [/\bnew\s+Function\s*\(/i, 'new Function()']
             ];
-            for (let i = 0; i < rules.length; i++) { if (rules[i][0].test(rules[i][2] ? outside : t)) return rules[i][1]; }
+            for (let i = 0; i < rules.length; i++) {
+                if (rules[i][0].test(rules[i][2] ? outside : t)) return rules[i][1];
+            }
             return null;
         }
         function mmsVerifyHtmlText(text, label) {
-            const head = String(text || '').replace(/^\uFEFF/, '').trimStart().slice(0, 64).toLowerCase();
+            const raw = String(text || '').replace(/^\uFEFF/, '');
+            const head = raw.trimStart().slice(0, 80).toLowerCase();
             if (!(head.indexOf('<!doctype') === 0 || head.indexOf('<html') === 0 || head.indexOf('<?xml') === 0)) {
                 return { ok: false, reason: (label || 'файл') + ' не является текстовым HTML-документом (повреждён или подменён)' };
             }
-            const hit = mmsScanHtmlText(text);
+            if (raw.slice(0, 4096).indexOf('\x00') !== -1) {
+                return { ok: false, reason: (label || 'файл') + ' содержит подозрительные бинарные данные' };
+            }
+            if (/\bMZ\b/.test(raw.slice(0, 512))) {
+                return { ok: false, reason: (label || 'файл') + ' содержит сигнатуру исполняемого файла' };
+            }
+            const hit = mmsScanHtmlText(raw);
             if (hit) return { ok: false, reason: 'в документе найдено: ' + hit };
             return { ok: true };
         }
@@ -7448,17 +7462,33 @@
                 const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
                 const is = function (sig) { return sig.every(function (b, i) { return head[i] === b; }); };
                 const fail = function (r) { return { ok: false, reason: r }; };
-                if (is([0x4D, 0x5A])) return fail('внутри исполняемый файл Windows под видом документа');
-                if (is([0x7F, 0x45, 0x4C, 0x46])) return fail('внутри исполняемый файл под видом документа');
+                // Исполняемые / скрипты под маской
+                if (is([0x4D, 0x5A])) return fail('внутри исполняемый файл Windows (MZ) под видом документа');
+                if (is([0x7F, 0x45, 0x4C, 0x46])) return fail('внутри ELF-исполняемый файл');
+                if (is([0xCA, 0xFE, 0xBA, 0xBE]) || is([0xCE, 0xFA, 0xED, 0xFE]) || is([0xCF, 0xFA, 0xED, 0xFE])) return fail('внутри Mach-O исполняемый файл');
+                // Изображения / PDF / docx — строгое соответствие расширению
                 if (ext === 'png' && !is([0x89, 0x50, 0x4E, 0x47])) return fail('содержимое не похоже на PNG — расширение подменено');
                 if ((ext === 'jpg' || ext === 'jpeg') && !is([0xFF, 0xD8, 0xFF])) return fail('содержимое не похоже на JPEG — расширение подменено');
                 if (ext === 'gif' && !is([0x47, 0x49, 0x46, 0x38])) return fail('содержимое не похоже на GIF — расширение подменено');
                 if (ext === 'webp' && !(is([0x52, 0x49, 0x46, 0x46]) && head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50)) return fail('содержимое не похоже на WebP — расширение подменено');
                 if (ext === 'pdf' && !is([0x25, 0x50, 0x44, 0x46])) return fail('содержимое не похоже на PDF — расширение подменено');
-                if (ext === 'docx' && !is([0x50, 0x4B, 0x03, 0x04])) return fail('содержимое не похоже на документ Word (.docx)');
+                if (ext === 'docx' && !is([0x50, 0x4B, 0x03, 0x04])) return fail('содержимое не похоже на .docx');
+                // ZIP под видом картинки / pdf
+                if ((ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'gif' || ext === 'pdf') && is([0x50, 0x4B, 0x03, 0x04])) {
+                    return fail('внутри ZIP-архив под видом «.' + ext + '»');
+                }
+                if (ext === 'json') {
+                    if (file.size > MMS_MAX_WORD_BYTES) return fail('JSON больше ' + mmsMb(MMS_MAX_WORD_BYTES));
+                    const raw = await file.text();
+                    try { JSON.parse(raw); } catch (_) { return fail('JSON повреждён или невалиден'); }
+                    if (/<\\s*script\\b/i.test(raw) || /javascript\\s*:/i.test(raw)) return fail('в JSON найдена подозрительная разметка');
+                    return { ok: true };
+                }
                 if (ext === 'doc' || ext === 'html' || ext === 'htm') {
-                    // настоящий бинарный .doc (OLE) пропускаем; остальное обязано быть чистым HTML-документом
-                    if (ext === 'doc' && is([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1])) return { ok: true };
+                    // Классический OLE .doc (бинарный) — в Discord не используем как бланк MMS
+                    if (ext === 'doc' && is([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1])) {
+                        return fail('бинарный Word (OLE) не принимается — нужен бланк .doc из этой программы (HTML)');
+                    }
                     if (file.size > MMS_MAX_WORD_BYTES) return fail('размер больше ' + mmsMb(MMS_MAX_WORD_BYTES));
                     return mmsVerifyHtmlText(await file.text(), 'файл');
                 }
@@ -8718,7 +8748,8 @@
                         dateStr,
                         finalPoints,
                         entriesForDoc,
-                        !!(typeof hasArchiveStamp !== 'undefined' && hasArchiveStamp)
+                        !!(typeof hasArchiveStamp !== 'undefined' && hasArchiveStamp),
+                        isPromo ? 'promotion' : 'week'
                     );
                     if (!wordBlob || !(wordBlob.size > 0)) {
                         throw new Error('Word-файл пустой — отправка отменена');
@@ -10212,7 +10243,9 @@
         // ============================================================
         // GENERATE WORD BLOB
         // ============================================================
-        function generateWordBlob(fullName, fullNameShort, dateStr, total, entriesData, isArchive) {
+        function generateWordBlob(fullName, fullNameShort, dateStr, total, entriesData, isArchive, reportTypeOpt) {
+            // reportTypeOpt: 'promotion' | 'week' | null — для бланка в Discord, независимо от reportMode
+
             const data = entriesData || entries;
             let tableRows = '';
             const duplicates = findDuplicates(data);
@@ -10332,7 +10365,9 @@
                                 <div class="military-badge">✦ OFFICIAL REPORT — S.A.N.G. MMS ✦</div>
                                 <div class="lic-foot">${_licExport} · © MMS · не для свободного распространения</div>
                                 <div class="employee-info">СОТРУДНИК: <span>${fullName}</span></div>
-                                <div class="report-title">${typeof getReportTitle === 'function' ? getReportTitle() : 'РАПОРТ О ПРОДЕЛАННОЙ РАБОТЕ'}</div>
+                                <div class="employee-info" style="font-size:13px;margin-top:4px;">ДАТА ДОКУМЕНТА: <span>${dateStr}</span> · ЗАПИСЕЙ: <span>${(entriesData||data||[]).length}</span></div>
+                                <div class="report-type-ribbon" style="text-align:center;margin:10px 0 6px;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#1a3a8a;font-weight:700;">${(String(reportTypeOpt||'')==='promotion'||(typeof reportMode!=='undefined'&&reportMode==='promotion'&&!reportTypeOpt))?'РАПОРТ НА ПОВЫШЕНИЕ':'ЕЖЕНЕДЕЛЬНАЯ ОТЧЁТНОСТЬ'} · MILITARY MEDICAL SERVICE · S.A.N.G.</div>
+                                <div class="report-title">${(String(reportTypeOpt||'')==='promotion'||(typeof reportMode!=='undefined'&&reportMode==='promotion'&&!reportTypeOpt))?'РАПОРТ НА ПОВЫШЕНИЕ':'РАПОРТ О ПРОДЕЛАННОЙ РАБОТЕ'}</div>
                                 <table>
                                     <thead>
                                         <tr>
