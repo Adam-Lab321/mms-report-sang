@@ -4909,13 +4909,13 @@
             <p class="sub">Для работы нужна именная лицензия подразделения.<br>
             Загрузите <strong>license.key</strong> и введите <strong>пароль активации</strong> из генератора.<br>
             Копирование и перепродажа ПО запрещены.</p>
-            <button type="button" class="license-btn btn-secondary" id="licenseLoadBtn" onclick="(function(){var i=document.getElementById('licenseFileInput'); if(i){i.value=''; i.click();}})()">📁 Загрузить license.key</button>
-            <input type="file" id="licenseFileInput" accept=".key,.json,application/json,text/plain" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0;" onchange="(function(inp){if(!inp.files||!inp.files[0])return;var f=inp.files[0];inp.value='';var st=document.getElementById('licenseStatus');if(typeof mmsActivateFromFile!=='function'){if(st)st.textContent='Ошибка: скрипт лицензии не загружен. Обновите страницу (Ctrl+F5).';return;}if(st){st.textContent='Читаю ключ…';st.classList.remove('ok');}Promise.resolve(mmsActivateFromFile(f)).catch(function(e){console.error(e);if(st){st.textContent='Ошибка: '+(e&&e.message?e.message:e);st.classList.remove('ok');}});})(this)" />
+            <button type="button" class="license-btn btn-secondary" id="licenseLoadBtn" >📁 Загрузить license.key</button>
+            <input type="file" id="licenseFileInput" accept=".key,.json,application/json,text/plain" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0;" />
             <div id="licensePasswordWrap" style="display:none;margin-top:12px;text-align:left;">
                 <label style="display:block;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:4px;">Пароль активации (2FA)</label>
                 <input type="password" id="licensePasswordInput" autocomplete="off" placeholder="Пароль из генератора лицензий"
                     style="width:100%;padding:10px 12px;background:#111;border:1px solid #333;border-radius:8px;color:#fff;font-family:Oswald,sans-serif;font-size:14px;box-sizing:border-box;" />
-                <button type="button" class="license-btn btn-primary" id="licenseActivateBtn" style="margin-top:10px;" onclick="(function(){var p=document.getElementById('licensePasswordInput');var st=document.getElementById('licenseStatus');if(typeof mmsFinalizeActivation!=='function'){if(st)st.textContent='Скрипт не загружен';return;}if(st){st.textContent='Проверяю пароль…';st.classList.remove('ok');}Promise.resolve(mmsFinalizeActivation(null,p?p.value:'')).catch(function(e){if(st)st.textContent='Ошибка: '+(e&&e.message?e.message:e);});})()">🔓 Активировать</button>
+                <button type="button" class="license-btn btn-primary" id="licenseActivateBtn" style="margin-top:10px;">🔓 Активировать</button>
             </div>
             <button type="button" class="license-btn ghost btn-ghost" id="licenseRetryBtn" style="display:none;">Проверить снова</button>
             <div class="license-status" id="licenseStatus"></div>
@@ -5552,7 +5552,7 @@
                         <div class="dc-notify-box" style="margin-top:12px;">
                             <div>
                                 <label class="dc-label">Уведомление старшего состава</label>
-                                <div class="dc-role-pill" id="dcRoleView">🔔 @High MMS</div>
+                                <div class="dc-role-pill" id="dcRoleView">🔔 @Руководство MMS</div>
                             </div>
                             <div class="dc-role-note" id="dcRoleHint">При появлении основной Discord-роли программа автоматически сможет отправлять настоящий ping этой роли.</div>
                         </div>
@@ -5590,7 +5590,7 @@
                         </div>
                     </div>
 
-                    <div class="dc-webhook-ok" id="dcWebhookStatus">Канал: еженедельный рапорт · ping @High MMS</div>
+                    <div class="dc-webhook-ok" id="dcWebhookStatus">Канал: еженедельный рапорт · ping @Руководство MMS</div>
                     <div class="dc-ready" id="dcReady" role="status" aria-live="polite"></div>
 
                     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:center;margin-top:18px;">
@@ -6044,18 +6044,27 @@
             return obj;
         }
 
+        // Анти-дубль: один activated-ключ за активацию (двойные обработчики / двойной клик)
+        window.__mmsActivatedKeyDownloaded = window.__mmsActivatedKeyDownloaded || {};
         function mmsDownloadActivatedKey(obj) {
             try {
+                if (!obj) return;
+                const sig = String(obj.signature || obj.userId || '') + '|' + String(obj.lastActivated || '');
+                if (sig && window.__mmsActivatedKeyDownloaded[sig]) return;
+                if (sig) window.__mmsActivatedKeyDownloaded[sig] = true;
                 const jsonStr = JSON.stringify(obj, null, 2);
                 const blob = new Blob([jsonStr], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = 'license_activated_' + (obj.userId || 'user') + '.key';
+                a.style.display = 'none';
                 document.body.appendChild(a);
                 a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+                setTimeout(function () {
+                    try { document.body.removeChild(a); } catch (_) {}
+                    try { URL.revokeObjectURL(url); } catch (_) {}
+                }, 1500);
             } catch (e) {}
         }
 
@@ -6289,6 +6298,10 @@
 
         async function mmsFinalizeActivation(result, password) {
             const st = document.getElementById('licenseStatus');
+            if (window.__mmsFinalizeBusy) {
+                return false;
+            }
+            window.__mmsFinalizeBusy = true;
             try {
             if (!result) result = mmsPendingLicense;
             if (!result) {
@@ -6381,6 +6394,8 @@
                     st.classList.remove('ok');
                 }
                 return false;
+            } finally {
+                window.__mmsFinalizeBusy = false;
             }
         }
 
@@ -7628,9 +7643,9 @@
         const MMS_LICENSE_API = 'https://mms-report-proxy.asakulin874.workers.dev/license';
         const MMS_STATS_API = 'https://mms-report-proxy.asakulin874.workers.dev/stats';
 
-        // Роль High MMS — рабочий ping <@&1551254597354655866> (оба канала)
-        const MMS_DISCORD_ROLE_ID = '1551254597354655866';
-        const MMS_DISCORD_ROLE_LABEL = '@High MMS';
+        // Роль Руководство MMS — рабочий ping <@&1483137012939882646> (оба канала)
+        const MMS_DISCORD_ROLE_ID = '1483137012939882646';
+        const MMS_DISCORD_ROLE_LABEL = '@Руководство MMS';
         let discordSubmitMode = 'week'; // week | promotion
         let discordFilePoints = null; // баллы из прикреплённого файла
         let discordFileMeta = null;
@@ -7639,9 +7654,9 @@
             const el = document.getElementById('dcWebhookStatus');
             if (!el) return;
             if (discordSubmitMode === 'promotion') {
-                el.textContent = 'Канал: рапорт на повышение · ping @High MMS';
+                el.textContent = 'Канал: рапорт на повышение · ping @Руководство MMS';
             } else {
-                el.textContent = 'Канал: еженедельный рапорт · ping @High MMS';
+                el.textContent = 'Канал: еженедельный рапорт · ping @Руководство MMS';
             }
         }
 
@@ -7705,7 +7720,7 @@
             if (roleView) roleView.textContent = '🔔 ' + MMS_DISCORD_ROLE_LABEL;
             if (roleHint) roleHint.textContent = MMS_DISCORD_ROLE_ID
                 ? 'Настроен настоящий ping роли Discord (оба канала).'
-                : 'Бета-режим: пока показывается тег @High MMS без настоящего ping. ID роли добавится позже в код.';
+                : 'Бета-режим: пока показывается тег @Руководство MMS без настоящего ping. ID роли добавится позже в код.';
             updateDiscordChannelStatus();
             try { mmsFunnelRender(); } catch (_) {}
         }
@@ -8596,8 +8611,8 @@
             const embed = {
                 title: isPromo ? '⬆️ MMS • РАПОРТ НА ПОВЫШЕНИЕ' : '🏥 MMS • ЕЖЕНЕДЕЛЬНЫЙ РАПОРТ',
                 description: isPromo
-                    ? 'Поступил рапорт на повышение. Требуется проверка High MMS.'
-                    : 'Поступил еженедельный рапорт. Требуется проверка High MMS.',
+                    ? 'Поступил рапорт на повышение. Требуется проверка Руководство MMS.'
+                    : 'Поступил еженедельный рапорт. Требуется проверка Руководство MMS.',
                 color: color,
                 fields: [
                     { name: '👤 Сотрудник', value: '**' + name + '**', inline: true },
@@ -12907,7 +12922,7 @@
                             'Обращайтесь ещё — особенно по сдаче в Discord.',
                             'Не за что. Если остались вопросы по баллам или повышению — спрашивайте.',
                             'Пожалуйста. Удачной проверки рапорта.',
-                            'На связи. Дальше уже за вами и High MMS.'
+                            'На связи. Дальше уже за вами и Руководство MMS.'
                         ];
                         return thanks[Math.floor(Math.random() * thanks.length)];
                     },
@@ -13134,7 +13149,7 @@
                             '   • прикрепите готовый .doc / .html — файл уйдёт как есть.\n' +
                             '3. JSON / .mms.zip — из них подтянутся записи и баллы.\n' +
                             '4. Вкладка «Сдача в Discord» → тип: Еженедельный или На повышение.\n' +
-                            '5. «Отправить в Discord» — Word/файл + ping @High MMS.\n' +
+                            '5. «Отправить в Discord» — Word/файл + ping @Руководство MMS.\n' +
                             '6. Учёт: сдача пишется в Cloudflare (баллы, ID, время) для штабной статистики.\n\n' +
                             '💡 Пустая таблица + прикреплённый .doc — нормально, отправка пройдёт.\n' +
                             '⚠️ PNG и «простыня» JSON в Discord больше не шлются — только один файл отчёта.';
@@ -13187,7 +13202,7 @@
                     action: () => {
                         try {
                             switchTab('discord', null);
-                            return '📨 Открыла вкладку «Сдача в Discord».\n\nВыберите тип рапорта (еженедельный / на повышение), проверьте данные и отправьте. High MMS получит ping в соответствующий канал.';
+                            return '📨 Открыла вкладку «Сдача в Discord».\n\nВыберите тип рапорта (еженедельный / на повышение), проверьте данные и отправьте. Руководство MMS получит ping в соответствующий канал.';
                         } catch (e) {
                             return 'Откройте в меню слева «Сдача в Discord».';
                         }
@@ -13269,7 +13284,7 @@
                         return 'Основные возможности MMS (актуально):\n\n' +
                             '• Карточка сотрудника (ФИО, Static ID)\n' +
                             '• Еженедельная отчётность и отдельно рапорт на повышение\n' +
-                            '• Сдача в Discord: два webhook / два канала + ping @High MMS\n' +
+                            '• Сдача в Discord: два webhook / два канала + ping @Руководство MMS\n' +
                             '• Доказательства, баллы, дубликаты ссылок\n' +
                             '• Фото-вложения с трёхступенчатыми правилами\n' +
                             '• График динамики (режим без формы регистрации)\n' +
@@ -13458,7 +13473,7 @@
                         'что за mms', 'расшифровка mms'
                     ],
                     action: () => {
-                        return 'MMS — Military Medical Service в рамках S.A.N.G. (San Andreas National Guard).\n\nПриложение помогает вести рапорт с доказательствами и баллами и сдавать его в Discord на проверку High MMS.';
+                        return 'MMS — Military Medical Service в рамках S.A.N.G. (San Andreas National Guard).\n\nПриложение помогает вести рапорт с доказательствами и баллами и сдавать его в Discord на проверку Руководство MMS.';
                     },
                     help: 'Что такое MMS / S.A.N.G.'
                 }, {
@@ -13473,12 +13488,12 @@
                         return '📨 Discord в MMS:\n\n' +
                             '• Вкладка «Сдача в Discord» — единственный рабочий путь сдачи.\n' +
                             '• Еженедельный → один канал; На повышение → другой.\n' +
-                            '• В сообщение уходит один файл (.doc) + карточка (ФИО, ID, баллы) + ping @High MMS.\n' +
+                            '• В сообщение уходит один файл (.doc) + карточка (ФИО, ID, баллы) + ping @Руководство MMS.\n' +
                             '• Можно прикрепить готовый .doc/.html или собрать Word из таблицы.\n' +
                             '• Проверка рапортов: mms-report (Inspector Desk) — отдельная страница с лицензией.\n\n' +
                             'Связь с разработчиком — в сайдбаре (by Grechkaaa).';
                     },
-                    help: 'Discord: два канала, один файл, High MMS.'
+                    help: 'Discord: два канала, один файл, Руководство MMS.'
                 }, {
                     id: 'about_license',
                     category: 'help',
