@@ -4899,6 +4899,14 @@
             body :is(.dp-btn, .rv-theme-btn, .font-size-btn, .dc-mode-btn, .quick-type-btn, .close-helper):not(#mmsx) { min-height: 40px; }
             .mms-fstep { min-height: 44px; }
         }
+        /* ===== фото к записям v4 ===== */
+        .cap-missing { border-color: #ff6b6b !important; }
+        .edit-att-head { font-size: 11px; color: var(--text-secondary); margin-top: 8px; text-align: left; }
+        .edit-att { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; padding: 6px; border: 1px dashed rgba(var(--accent-rgb), .35); border-radius: 8px; text-align: left; }
+        .edit-att .edit-att-cap { flex: 1 1 160px; min-width: 140px; text-align: left; }
+        .edit-att .edit-att-pts { width: 64px; flex: none; }
+        .attach-cap { font-size: 11px; line-height: 1.25; color: var(--text-secondary); max-width: 150px; word-break: break-word; text-align: center; margin-top: 2px; }
+        .attach-list > div { max-width: 150px; }
     </style>
 </head>
 <body>
@@ -5265,9 +5273,9 @@
                         <div class="panel-title">✦ Новая запись</div>
                         <div class="add-form add-form-no-points">
                             <div>
-                                <label>ССЫЛКА НА ОТЧЁТ</label>
+                                <label>ССЫЛКА (необязательна, если есть фото)</label>
                                 <input type="text" id="link" placeholder="https://..." oninput="validateLink(this.value); checkAndSuggestPoints(); validateFields();" />
-                                <div class="error-message" id="linkError">Введите ссылку</div>
+                                <div class="error-message" id="linkError">Введите ссылку или прикрепите фото с пояснением</div>
                                 <div class="link-validate-error" id="linkValidateError"></div>
                                 <div class="points-restore-notice" id="pointsRestoreNotice"></div>
                             </div>
@@ -5305,11 +5313,11 @@
                         </div>
                         <div class="attach-row">
                             <div style="flex:1;min-width:200px;">
-                                <label>Снимки / файлы к записи</label>
+                                <label>Фото к записи (до 15 шт., можно без ссылки)</label>
                                 <div class="file-btn-wrap">
                                     <input type="file" id="attachFiles" accept="image/*" multiple onchange="handleAttachFiles(event)" />
                                     <button type="button" class="file-pick-btn btn-secondary" id="filePickBtn" onclick="requestAttachFiles()">Выбрать фото</button>
-                                    <span class="file-pick-hint" id="filePickHint">Файлы не выбраны</span>
+                                    <span class="file-pick-hint" id="filePickHint">Фото не выбраны (до 15)</span>
                                 </div>
                             </div>
                             <div style="min-width:120px;">
@@ -5341,7 +5349,7 @@
                             </div>
                         </div>
                         <div class="pending-attach-box" id="pendingAttachBox">
-                            <div style="font-size:10px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;">Вложения (название + баллы за снимок)</div>
+                            <div style="font-size:10px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;">Фото: пояснение (обязательно) + баллы за снимок</div>
                             <div id="pendingAttachList"></div>
                         </div>
                     </div>
@@ -6762,6 +6770,7 @@
         let lastUsedPoints = 0;
         let lastUsedDate = '';
         let editingId = null;
+        let editDraft = null;
         let archiveReports = [];
         let chartInstance = null;
         let chartVisible = false;
@@ -6865,9 +6874,9 @@
         let pendingAttachments = []; // { id, name, points, dataUrl }
         let selectedEntryIds = new Set();
         let pointsNorm = 0;
-        const MAX_ATTACH_PER_ENTRY = 8;
-        const MAX_ATTACH_DIM = 960;
-        const MAX_ATTACH_QUALITY = 0.78;
+        const MAX_ATTACH_PER_ENTRY = 15;
+        const MAX_ATTACH_DIM = 800;
+        const MAX_ATTACH_QUALITY = 0.72;
 
         function getReportTitle() {
             return reportMode === 'promotion'
@@ -7755,6 +7764,7 @@
         let discordSubmitMode = 'week'; // week | promotion
         let discordFilePoints = null; // баллы из прикреплённого файла
         let discordFileMeta = null;
+        let discordFileEntries = null;
 
         function updateDiscordChannelStatus() {
             const el = document.getElementById('dcWebhookStatus');
@@ -7839,6 +7849,7 @@
             const st = document.getElementById('dcStatus');
             discordFilePoints = null;
             discordFileMeta = null;
+            discordFileEntries = null;
             if (!file) {
                 if (nameEl) nameEl.textContent = 'Файлы не выбраны';
                 if (st) st.textContent = '';
@@ -7865,10 +7876,16 @@
                     ? file.name
                     : (allFiles.length + ' файлов: ' + allFiles.map(function (f) { return f.name; }).join(', '));
             }
-            // для баллов предпочитаем JSON среди выбранных
+            // для чтения записей: JSON, затем .doc/.html, затем первый файл
             let parseFile = file;
+            let found = false;
             for (let i = 0; i < allFiles.length; i++) {
-                if (/\.json$/i.test(allFiles[i].name)) { parseFile = allFiles[i]; break; }
+                if (/\.json$/i.test(allFiles[i].name)) { parseFile = allFiles[i]; found = true; break; }
+            }
+            if (!found) {
+                for (let i = 0; i < allFiles.length; i++) {
+                    if (/\.(doc|html?)$/i.test(allFiles[i].name)) { parseFile = allFiles[i]; break; }
+                }
             }
             const lower = (parseFile.name || '').toLowerCase();
             if (st) { st.textContent = '⏳ Читаю файл(ы)…'; st.style.color = 'var(--text-muted)'; }
@@ -7877,50 +7894,39 @@
                 const file = parseFile;
                 if (lower.endsWith('.json') || (file.type && file.type.indexOf('json') !== -1)) {
                     const data = JSON.parse(await file.text());
+                    const list = (data && data.entries) || (data && data.report && data.report.entries);
                     let pts = Number.isFinite(Number(data.totalPoints)) ? Number(data.totalPoints) : null;
-                    if (pts === null && Array.isArray(data.entries)) pts = data.entries.reduce((sum, e) => sum + (parseInt(e.points, 10) || 0), 0);
+                    if (Array.isArray(list)) {
+                        discordFileEntries = list.map(mmsPreviewItemFromEntry);
+                        if (pts === null) pts = discordFileEntries.reduce(function (s, it) { return s + it.total; }, 0);
+                    }
                     if (pts !== null && !isNaN(pts)) discordFilePoints = pts;
-                    discordFileMeta = { source: 'json', entries: Array.isArray(data.entries) ? data.entries.length : 0 };
-                    // Режим Discord (недельный / повышение) НЕ меняем по содержимому файла —
-                    // его задаёт пользователь кнопками на вкладке сдачи.
-                } else if (lower.endsWith('.html') || lower.endsWith('.htm')) {
-                    const text = await file.text();
-                    let m = text.match(/ИТОГО\s*(?:БАЛЛОВ)?[^\d]{0,40}(\d{1,5})/i) || text.match(/totalPoints["\s:]+(\d{1,5})/i);
-                    if (m) discordFilePoints = parseInt(m[1], 10);
-                    const rows = (text.match(/<tbody[\s\S]*?<\/tbody>/i) || [''])[0].match(/<tr[\s>]/gi);
-                    discordFileMeta = { source: 'html', entries: rows ? rows.length : 0 };
-                } else if (lower.endsWith('.doc')) {
-                    // Word, создаваемый этой программой, является HTML внутри .doc — полноценный DOC-парсер не нужен.
-                    const text = await file.text();
-                    const doc = new DOMParser().parseFromString(text, 'text/html');
-                    const plain = (doc.body && (doc.body.innerText || doc.body.textContent) || text)
-                        .replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
-                    let m = plain.match(/ИТОГО\s+БАЛЛОВ\s*:\s*(\d{1,5})/i) || plain.match(/ИТОГО[^\d]{0,40}(\d{1,5})/i);
-                    if (m) discordFilePoints = parseInt(m[1], 10);
-                    const table = doc.querySelector('table');
-                    const trs = table ? Array.from(table.querySelectorAll('tbody tr')) : [];
-                    const entryRows = trs.filter(tr => {
-                        const cells = tr.querySelectorAll('td');
-                        return cells.length >= 3 && /\d/.test(cells[cells.length - 1].textContent || '') && !/НА ПРОВЕРКЕ|ОЖИДАЕТ|MMS/i.test(tr.textContent || '');
-                    });
-                    discordFileMeta = { source: 'word', entries: entryRows.length };
+                    discordFileMeta = { source: 'json', entries: Array.isArray(list) ? list.length : 0 };
+                } else if (lower.endsWith('.html') || lower.endsWith('.htm') || lower.endsWith('.doc')) {
+                    // Word, создаваемый этой программой, — это HTML внутри .doc
+                    const parsed = mmsParseReportHtml(await file.text());
+                    discordFileEntries = parsed.items;
+                    if (parsed.points !== null && !isNaN(parsed.points)) discordFilePoints = parsed.points;
+                    discordFileMeta = { source: lower.endsWith('.doc') ? 'word' : 'html', entries: parsed.items.length };
                 } else {
                     discordFileMeta = { source: 'file' };
                 }
                 refreshDiscordSubmitForm();
                 if (st) {
                     const src = discordFileMeta && discordFileMeta.source === 'word' ? 'Word' : 'файла';
-                    st.textContent = discordFilePoints !== null ? '✅ Файл прочитан · баллы: ' + discordFilePoints + ' · источник: ' + src : '✅ Файл прикреплён · баллы взяты из текущего рапорта';
+                    const cnt = discordFileEntries ? (' · записей: ' + discordFileEntries.length) : '';
+                    st.textContent = discordFilePoints !== null ? '✅ Файл прочитан · баллы: ' + discordFilePoints + cnt + ' · источник: ' + src : '✅ Файл прикреплён · баллы взяты из текущего рапорта';
                     st.style.color = '#6abf69';
                 }
             } catch (err) {
                 console.warn('Discord file parse:', err);
                 refreshDiscordSubmitForm();
-                if (st) { st.textContent = '⚠️ Файл прикреплён, но автоматически прочитать баллы не удалось.'; st.style.color = '#d9a441'; }
+                if (st) { st.textContent = '⚠️ Файл прикреплён, но автоматически прочитать записи не удалось.'; st.style.color = '#d9a441'; }
             }
         }
 
-        let discordPreviewSize = 'compact';
+        
+let discordPreviewSize = 'compact';
 
         function escapeDiscordPreviewHtml(str) {
             return String(str == null ? '' : str)
@@ -7930,6 +7936,64 @@
                 .replace(/"/g, '&quot;');
         }
 
+        function mmsPreviewItemFromEntry(en) {
+            const atts = Array.isArray(en.attachments) ? en.attachments : [];
+            let total = parseInt(en.points, 10) || 0;
+            atts.forEach(function (a) { total += (parseInt(a.points, 10) || 0); });
+            return {
+                date: en.date || '',
+                category: en.category || '',
+                link: String(en.link || en.proof || en.description || '').trim(),
+                total: total,
+                photos: atts.map(function (a) { return { name: a.name || '', dataUrl: a.dataUrl || '' }; })
+            };
+        }
+
+        // Читает записи (дата, ссылка, категория, баллы, фото) из готового .doc / .html отчёта
+        function mmsParseReportHtml(text) {
+            const doc = new DOMParser().parseFromString(String(text || ''), 'text/html');
+            const plain = ((doc.body && doc.body.textContent) || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+            let points = null;
+            const m = plain.match(/ИТОГО\s+БАЛЛОВ\s*:\s*(\d{1,6})/i) || plain.match(/ИТОГО[^\d]{0,40}(\d{1,6})/i);
+            if (m) points = parseInt(m[1], 10);
+            const items = [];
+            const table = doc.querySelector('table');
+            let rows = [];
+            if (table) rows = (table.tBodies && table.tBodies.length) ? Array.from(table.tBodies[0].rows) : Array.from(table.rows).slice(1);
+            rows.forEach(function (tr) {
+                const cells = tr.cells;
+                if (!cells || cells.length < 3) return;
+                let date = tr.getAttribute('data-mms-date');
+                let category = tr.getAttribute('data-mms-cat');
+                if (date === null) {
+                    const n = cells[0].firstChild;
+                    date = n ? String(n.textContent || '').trim() : '';
+                }
+                if (category === null) {
+                    const dv = cells[0].querySelector('div');
+                    category = dv ? String(dv.textContent || '').trim() : '';
+                }
+                let link = tr.getAttribute('data-mms-link');
+                const evCell = cells[1];
+                if (link === null) {
+                    const a = evCell.querySelector('a[href]');
+                    link = a ? String(a.getAttribute('href') || '').trim() : '';
+                }
+                const photos = [];
+                evCell.querySelectorAll('img').forEach(function (im) {
+                    const src = String(im.getAttribute('src') || '');
+                    if (!/^data:image\//i.test(src)) return;
+                    const capAttr = im.getAttribute('data-cap');
+                    photos.push({ name: capAttr !== null ? capAttr : String(im.getAttribute('alt') || ''), dataUrl: src });
+                });
+                const total = parseInt(String(cells[cells.length - 1].textContent || '').replace(/\D+/g, ''), 10) || 0;
+                if (!date && !link && !photos.length && !total) return;
+                items.push({ date: date, category: category, link: link, total: total, photos: photos });
+            });
+            if (points === null) points = items.reduce(function (s, it) { return s + it.total; }, 0);
+            return { points: points, items: items };
+        }
+
         function buildDiscordPreviewHtml() {
             const first = (document.getElementById('firstName') || {}).value || '';
             const last = (document.getElementById('lastName') || {}).value || '';
@@ -7937,29 +8001,46 @@
             const name = (first + ' ' + last).trim() || '—';
             const dateInput = document.getElementById('reportDate');
             const dateStr = (dateInput && dateInput.value) ? dateInput.value.split('-').reverse().join('.') : '—';
+            const fromFile = Array.isArray(discordFileEntries);
+            const items = fromFile ? discordFileEntries : (Array.isArray(entries) ? entries.map(mmsPreviewItemFromEntry) : []);
             const total = discordFilePoints !== null && !isNaN(discordFilePoints)
                 ? discordFilePoints
-                : (typeof getEntriesTotal === 'function' ? getEntriesTotal(entries) : (entries || []).reduce(function(sum, e) { return sum + (parseInt(e.points, 10) || 0); }, 0));
+                : items.reduce(function (s, it) { return s + it.total; }, 0);
             const isPromo = discordSubmitMode === 'promotion';
             const typeLabel = isPromo ? 'Рапорт на повышение' : 'Еженедельный рапорт';
-            const list = Array.isArray(entries) && entries.length ? entries : [];
-            const esc = (typeof escapeDiscordPreviewHtml === 'function')
-                ? escapeDiscordPreviewHtml
-                : function(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+            const esc = escapeDiscordPreviewHtml;
+            let photoCount = 0;
 
-            const rows = list.length ? list.map(function(entry, idx) {
-                const pts = (typeof entryTotalPoints === 'function') ? entryTotalPoints(entry) : (parseInt(entry.points, 10) || 0);
-                const link = esc(entry.link || entry.proof || entry.description || '—');
-                const date = esc(entry.date || '—');
-                const cat = esc(entry.category || '—');
+            const rows = items.length ? items.map(function (it, idx) {
+                const link = String(it.link || '');
+                let proof;
+                if (link) {
+                    proof = /^https?:\/\//i.test(link)
+                        ? '<a href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + esc(link) + '</a>'
+                        : esc(link);
+                } else {
+                    proof = '<i>Без ссылки — доказательство в виде фото</i>';
+                }
+                let ph = '';
+                const photos = it.photos || [];
+                if (photos.length) {
+                    photoCount += photos.length;
+                    ph = '<div class="ph">' + photos.map(function (p, i) {
+                        const label = '№' + (idx + 1) + '.' + (i + 1) + ' ' + esc(p.name || '');
+                        if (/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(p.dataUrl || '')) {
+                            return '<figure><img src="' + p.dataUrl + '" alt="" /><figcaption>' + label + '</figcaption></figure>';
+                        }
+                        return '<figure><figcaption>' + label + ' (файл не сохранён)</figcaption></figure>';
+                    }).join('') + '</div>';
+                }
                 return '<tr>' +
                     '<td class="c">' + (idx + 1) + '</td>' +
-                    '<td class="c">' + date + '</td>' +
-                    '<td>' + link + '</td>' +
-                    '<td class="c">' + cat + '</td>' +
-                    '<td class="c pts">' + pts + '</td>' +
+                    '<td class="c">' + esc(it.date || '—') + '</td>' +
+                    '<td>' + proof + ph + '</td>' +
+                    '<td class="c">' + esc(it.category || '—') + '</td>' +
+                    '<td class="c pts">' + esc(it.total) + '</td>' +
                     '</tr>';
-            }).join('') : '<tr><td colspan="5" class="empty">Нет записей в рапорте</td></tr>';
+            }).join('') : '<tr><td colspan="5" class="empty">' + (fromFile ? 'В прикреплённом файле записи не распознаны' : 'Нет записей в рапорте') + '</td></tr>';
 
             return '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8" />' +
                 '<meta name="viewport" content="width=device-width, initial-scale=1" />' +
@@ -7976,6 +8057,11 @@
                 'th{background:#efe0b0;color:#3a2e0a;font-weight:700;}' +
                 'td.c{text-align:center;}' +
                 'td{overflow-wrap:anywhere;word-break:break-word;}' +
+                'a{color:#1a3a8a;}' +
+                '.ph{margin-top:8px;}' +
+                '.ph figure{display:inline-block;margin:6px 10px 0 0;max-width:200px;vertical-align:top;}' +
+                '.ph img{max-width:190px;max-height:150px;border:1px solid #b8960f;background:#fff;display:block;}' +
+                '.ph figcaption{font-size:11px;color:#444;margin-top:3px;}' +
                 '@media(max-width:600px){body{padding:16px 12px 28px;}th,td{padding:6px 7px;font-size:12px;}}' +
                 'td.pts{font-weight:700;}' +
                 'td.empty{text-align:center;padding:20px;color:#666;}' +
@@ -7987,12 +8073,12 @@
                 '<div class="meta">' +
                 '<p><b>Сотрудник:</b> ' + esc(name) + '</p>' +
                 '<p><b>Static ID:</b> ' + esc(id) + '</p>' +
-                '<p><b>Дата:</b> ' + esc(dateStr) + ' · <b>Баллы:</b> ' + esc(total) + ' · <b>Записей:</b> ' + list.length + '</p>' +
+                '<p><b>Дата:</b> ' + esc(dateStr) + ' · <b>Баллы:</b> ' + esc(total) + ' · <b>Записей:</b> ' + items.length + ' · <b>Фото:</b> ' + photoCount + '</p>' +
                 '</div>' +
                 '<table><thead><tr><th>№</th><th>Дата</th><th>Доказательство</th><th>Категория</th><th>Баллы</th></tr></thead>' +
                 '<tbody>' + rows + '</tbody></table>' +
                 '<p class="total">ИТОГО: ' + esc(total) + ' баллов</p>' +
-                '<p class="foot">Предпросмотр перед отправкой в Discord · содержимое совпадает с Word-отчётом</p>' +
+                '<p class="foot">Предпросмотр перед отправкой в Discord · ' + (fromFile ? 'данные прочитаны из прикреплённого файла' : 'содержимое совпадает с Word-отчётом') + '</p>' +
                 '</div></body></html>';
         }
 
@@ -8958,7 +9044,7 @@
                     showToast('Рапорт успешно отправлен в Discord', 'success', 4500);
                 }
 
-                if (fileInput) { fileInput.value = ''; discordFilePoints = null; discordFileMeta = null; }
+                if (fileInput) { fileInput.value = ''; discordFilePoints = null; discordFileMeta = null; discordFileEntries = null; }
                 const fn = document.getElementById('dcFileName'); if (fn) fn.textContent = 'Файл не выбран';
                 if (!(responseData && responseData.discord_ok === false)) {
                     mmsFunnelState.sentAtCount = mmsEntriesCount();
@@ -9241,7 +9327,8 @@
             const link = document.getElementById('link').value.trim();
             const err = document.getElementById('linkError');
             const btn = document.getElementById('addBtn');
-            const ok = link.length > 0;
+            const hasPhotos = (typeof pendingAttachments !== 'undefined') && pendingAttachments.length > 0;
+            const ok = link.length > 0 || hasPhotos;
             err.classList.toggle('show', !ok);
             btn.disabled = !ok;
             return ok;
@@ -10389,42 +10476,64 @@
             const data = entriesData || entries;
             let tableRows = '';
             const duplicates = findDuplicates(data);
+            const esc = mmsEscHtml;
 
             data.forEach((entry, index) => {
                 const num = index + 1;
-                const linkIndexes = duplicates[entry.link] || [];
+                const link = String(entry.link || '').trim();
+                const linkIndexes = link ? (duplicates[link] || []) : [];
                 let duplicateText = '';
                 if (linkIndexes.length > 1) {
                     const otherIndexes = linkIndexes.filter(i => i !== index);
                     duplicateText =
                         ` <span style="color:#cc0000;font-weight:bold;font-size:10px;">(⚠️ ссылка схожа с №${otherIndexes.map(i => i + 1).join(', ')})</span>`;
                 }
-                const safeLink = (entry.link || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-                const cat = entry.category || 'прочее';
-                const rowPts = typeof entryTotalPoints === 'function' ? entryTotalPoints(entry) : (entry.points || 0);
-                let attachNote = '';
-                if (Array.isArray(entry.attachments) && entry.attachments.length) {
-                    const imgs = entry.attachments.map(function(a) {
-                        const cap = (a.name || 'снимок') + (a.points ? (' · +' + a.points) : '');
-                        if (a.dataUrl) {
-                            return '<div style="display:inline-block;margin:6px 4px;text-align:center;vertical-align:top;">' +
-                                '<img src="' + a.dataUrl + '" alt="' + String(a.name || 'photo').replace(/"/g, '') + '" ' +
-                                'style="max-width:180px;max-height:140px;object-fit:contain;border:1px solid #c9a227;border-radius:4px;background:#f5f0ea;" />' +
-                                '<div style="font-size:9px;color:#666;margin-top:2px;max-width:180px;">' + cap.replace(/</g,'&lt;') + '</div></div>';
-                        }
-                        return '<div style="font-size:10px;color:#666;">' + cap.replace(/</g,'&lt;') + ' (нет файла)</div>';
-                    }).join('');
-                    attachNote = '<div style="margin-top:8px;text-align:left;">' + imgs + '</div>';
+                const safeLink = esc(link);
+                const cat = esc(entry.category || 'прочее');
+                const rowPts = entryTotalPoints(entry);
+                const atts = Array.isArray(entry.attachments) ? entry.attachments : [];
+
+                let linkBlock;
+                if (link) {
+                    linkBlock = (/^https?:\/\//i.test(link)
+                        ? `<a href="${safeLink}" target="_blank" style="color:#1a3a8a;text-decoration:underline;font-weight:600;">Доказательство</a>`
+                        : `<b>Доказательство</b>`) +
+                        `<div style="font-size:10px;color:#1a3a8a;word-break:break-all;margin-top:3px;">${safeLink}</div>`;
+                } else {
+                    linkBlock = `<span style="color:#6a5a4a;font-style:italic;">Без ссылки — доказательство в виде фото</span>`;
                 }
+
+                let photosHtml = '';
+                if (atts.length) {
+                    const cells = atts.map(function(a, ai) {
+                        const label = num + '.' + (ai + 1);
+                        const capText = esc(a.name || 'фото') + (a.points ? (' · +' + a.points) : '');
+                        let imgHtml;
+                        if (a.dataUrl) {
+                            const sz = mmsFitSize(a.w, a.h, 250, 190);
+                            const hAttr = sz.h ? (' height="' + sz.h + '"') : '';
+                            const hStyle = sz.h ? ('height:' + sz.h + 'px;') : '';
+                            imgHtml = `<img data-mms-photo="1" data-cap="${esc(a.name || '')}" data-pts="${a.points || 0}" src="${a.dataUrl}" alt="${esc(a.name || 'фото')}" width="${sz.w}"${hAttr} style="width:${sz.w}px;${hStyle}border:1px solid #c9a227;background:#f5f0ea;" />`;
+                        } else {
+                            imgHtml = `<div style="font-size:10px;color:#888;">(файл фото не сохранён)</div>`;
+                        }
+                        return `<td style="border:none;padding:6px 8px;vertical-align:top;text-align:left;width:50%;background:#faf8f5;"><div style="font-size:10px;color:#6a5a4a;margin-bottom:2px;">Фото №${label}</div>${imgHtml}<div style="font-size:11px;color:#333;margin-top:3px;"><b>Пояснение:</b> ${capText}</div></td>`;
+                    });
+                    let photoRows = '';
+                    for (let i = 0; i < cells.length; i += 2) {
+                        photoRows += '<tr>' + cells[i] + (cells[i + 1] || '<td style="border:none;background:#faf8f5;"></td>') + '</tr>';
+                    }
+                    photosHtml = `<table style="border:none;border-collapse:collapse;width:100%;margin:8px 0 0 0;"><tbody>${photoRows}</tbody></table>`;
+                }
+
                 tableRows += `
-                        <tr>
-                            <td style="text-align:center;border:1px solid #8a7a6a;padding:8px 10px;background:#faf8f5;font-size:13px;font-family:'Oswald',sans-serif;">${entry.date}<div style="font-size:10px;color:#888;margin-top:2px;">${cat}</div></td>
-                            <td style="text-align:center;border:1px solid #8a7a6a;padding:8px 10px;background:#faf8f5;font-size:13px;font-family:'Oswald',sans-serif;">
+                        <tr data-mms-row="1" data-mms-date="${esc(entry.date || '')}" data-mms-cat="${cat}" data-mms-link="${safeLink}" data-mms-points="${entry.points || 0}">
+                            <td style="text-align:center;border:1px solid #8a7a6a;padding:8px 10px;background:#faf8f5;font-size:13px;font-family:'Oswald',sans-serif;vertical-align:top;">${esc(entry.date || '')}<div style="font-size:10px;color:#888;margin-top:2px;">${cat}</div></td>
+                            <td style="text-align:left;border:1px solid #8a7a6a;padding:8px 10px;background:#faf8f5;font-size:13px;font-family:'Oswald',sans-serif;vertical-align:top;">
                                 <span style="display:inline-block;background:#d4af37;color:#000;padding:2px 10px;border-radius:4px;font-weight:700;font-size:11px;margin-right:6px;">№${num}</span>
-                                <a href="${safeLink}" target="_blank" style="color:#1a3a8a;text-decoration:underline;font-weight:600;">Доказательство</a>
-                                ${duplicateText}${attachNote}
+                                ${linkBlock}${duplicateText}${photosHtml}
                             </td>
-                            <td style="text-align:center;border:1px solid #8a7a6a;padding:8px 10px;background:#faf8f5;font-weight:700;font-size:15px;color:#1a3a8a;">${rowPts}</td>
+                            <td style="text-align:center;border:1px solid #8a7a6a;padding:8px 10px;background:#faf8f5;font-weight:700;font-size:15px;color:#1a3a8a;vertical-align:top;">${rowPts}</td>
                         </tr>
                     `;
             });
@@ -11406,9 +11515,10 @@
                         canvas.width = w;
                         canvas.height = h;
                         const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
                         ctx.drawImage(img, 0, 0, w, h);
                         const dataUrl = canvas.toDataURL('image/jpeg', MAX_ATTACH_QUALITY);
-                        resolve(dataUrl);
+                        resolve({ dataUrl: dataUrl, w: w, h: h });
                     };
                     img.onerror = () => reject(new Error('img load'));
                     img.src = reader.result;
@@ -11418,53 +11528,127 @@
             });
         }
 
+        function mmsFitSize(w, h, maxW, maxH) {
+            w = Number(w) || 0;
+            h = Number(h) || 0;
+            if (!w || !h) return { w: maxW, h: null };
+            const r = Math.min(maxW / w, maxH / h, 1);
+            return { w: Math.max(1, Math.round(w * r)), h: Math.max(1, Math.round(h * r)) };
+        }
+
+        function mmsDateIsoFromRu(ru) {
+            const p = String(ru || '').split('.');
+            return p.length === 3 ? (p[2] + '-' + p[1] + '-' + p[0]) : getTodayDate();
+        }
+
+        function mmsOpenImage(src) {
+            try {
+                const b = mmsDataUrlToBlob(src);
+                if (!b) return;
+                const u = URL.createObjectURL(b);
+                window.open(u, '_blank', 'noopener');
+                setTimeout(function () { try { URL.revokeObjectURL(u); } catch (_) {} }, 60000);
+            } catch (_) {}
+        }
+
+        // Проверка + сжатие выбранных фото. Пояснение (name) пока пустое — его вводит человек.
+        function mmsProcessImageFiles(files, room) {
+            const picked = files.slice(0, Math.max(0, room));
+            return Promise.all(picked.map(mmsVetImageFile)).then(function (okList) {
+                const slice = picked.filter(function (_, i) { return okList[i]; });
+                if (!slice.length) return [];
+                return Promise.all(slice.map(function (f) {
+                    return resizeImageFile(f).then(function (r) {
+                        return { id: Date.now() + Math.random(), name: '', points: 0, dataUrl: r.dataUrl, w: r.w, h: r.h };
+                    });
+                }));
+            });
+        }
+
+        // Выбор файлов без постоянного <input> в разметке
+        function mmsPickImages(multiple, cb) {
+            const inp = document.createElement('input');
+            inp.type = 'file';
+            inp.accept = 'image/*';
+            inp.multiple = !!multiple;
+            inp.style.display = 'none';
+            document.body.appendChild(inp);
+            const cleanup = function () { try { document.body.removeChild(inp); } catch (_) {} };
+            inp.addEventListener('change', function () {
+                const files = Array.from(inp.files || []);
+                cleanup();
+                if (files.length) cb(files);
+            });
+            inp.addEventListener('cancel', cleanup);
+            inp.click();
+        }
+
+        function mmsWithPhotoPolicy(cb) {
+            if (window.__mmsPhotoPolicyAck) { cb(); return; }
+            showConfirm('Правила вложений', PHOTO_POLICY_TEXT, function (ok) {
+                if (!ok) return;
+                window.__mmsPhotoPolicyAck = true;
+                cb();
+            }, [
+                { label: 'Понятно, выбрать фото', value: true, className: 'btn btn-primary' },
+                { label: 'Отмена', value: false, className: 'btn btn-cancel' }
+            ]);
+        }
+
         function handleAttachFiles(ev) {
-            const files = Array.from((ev.target && ev.target.files) || []);
+            const input = ev.target;
+            const files = Array.from((input && input.files) || []);
+            if (input) input.value = '';
             if (!files.length) return;
             const room = MAX_ATTACH_PER_ENTRY - pendingAttachments.length;
             if (room <= 0) {
-                showToast('⚠️ Максимум ' + MAX_ATTACH_PER_ENTRY + ' снимков на одну запись', 'warning');
-                ev.target.value = '';
+                showToast('⚠️ Максимум ' + MAX_ATTACH_PER_ENTRY + ' фото на одну запись', 'warning');
                 return;
             }
-            const picked = files.slice(0, room);
-            Promise.all(picked.map(mmsVetImageFile)).then(okList => {
-            const slice = picked.filter((_, i) => okList[i]);
-            if (!slice.length) return;
-            return Promise.all(slice.map(f => resizeImageFile(f).then(dataUrl => ({
-                id: Date.now() + Math.random(),
-                name: (f.name || 'снимок').replace(/\.[^.]+$/, '').slice(0, 40) || 'снимок',
-                points: 0,
-                dataUrl
-            })))).then(items => {
+            if (files.length > room) {
+                showToast('⚠️ Добавлю только первые ' + room + ' (максимум ' + MAX_ATTACH_PER_ENTRY + ' на запись)', 'warning', 3500);
+            }
+            mmsProcessImageFiles(files, room).then(function (items) {
+                if (!items.length) return;
                 pendingAttachments = pendingAttachments.concat(items);
                 renderPendingAttachments();
-                const hint = document.getElementById('filePickHint');
-                if (hint) hint.textContent = 'Выбрано: ' + pendingAttachments.length;
-                showToast('Добавлено вложений: ' + items.length, 'success');
-            });
-            }).catch(() => showToast('Не удалось обработать изображение', 'error'));
-            ev.target.value = '';
+                showToast('Добавлено фото: ' + items.length + '. Напишите пояснение к каждому.', 'success', 3200);
+                try {
+                    const first = document.querySelector('#pendingAttachList .cap-missing');
+                    if (first) first.focus();
+                } catch (_) {}
+            }).catch(function () { showToast('Не удалось обработать изображение', 'error'); });
+        }
+
+        function onPendingCapInput(i, el) {
+            if (!pendingAttachments[i]) return;
+            pendingAttachments[i].name = el.value;
+            el.classList.toggle('cap-missing', !el.value.trim());
         }
 
         function renderPendingAttachments() {
             const box = document.getElementById('pendingAttachBox');
             const list = document.getElementById('pendingAttachList');
+            const hint = document.getElementById('filePickHint');
+            if (hint) hint.textContent = pendingAttachments.length ? ('Выбрано: ' + pendingAttachments.length + ' / ' + MAX_ATTACH_PER_ENTRY) : ('Фото не выбраны (до ' + MAX_ATTACH_PER_ENTRY + ')');
             if (!box || !list) return;
             if (!pendingAttachments.length) {
                 box.classList.remove('show');
                 list.innerHTML = '';
+                try { validateFields(); } catch (_) {}
                 return;
             }
             box.classList.add('show');
-            list.innerHTML = pendingAttachments.map((a, i) => `
+            list.innerHTML = '<div style="font-size:11px;color:var(--text-secondary);margin-top:6px;">Фото: ' + pendingAttachments.length + ' / ' + MAX_ATTACH_PER_ENTRY + '. К каждому фото напишите пояснение: что на нём и от чего оно.</div>' +
+                pendingAttachments.map((a, i) => `
                 <div class="pending-attach-item" data-i="${i}">
                     <img src="${a.dataUrl}" alt="" />
-                    <input type="text" value="${(a.name || '').replace(/"/g, '&quot;')}" onchange="pendingAttachments[${i}].name=this.value" placeholder="Название" style="flex:1;min-width:100px;padding:4px 8px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text);border-radius:4px;font-size:12px;" />
-                    <input type="number" value="${a.points || 0}" min="0" onchange="pendingAttachments[${i}].points=parseInt(this.value)||0" title="Баллы за снимок" style="width:70px;padding:4px 6px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text);border-radius:4px;font-size:12px;" />
+                    <input type="text" class="${String(a.name || '').trim() ? '' : 'cap-missing'}" value="${mmsEscHtml(a.name || '')}" maxlength="160" oninput="onPendingCapInput(${i}, this)" placeholder="Пояснение к фото (что на нём, от чего)" style="flex:1;min-width:160px;padding:4px 8px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text);border-radius:4px;font-size:12px;" />
+                    <input type="number" value="${a.points || 0}" min="0" oninput="pendingAttachments[${i}].points=parseInt(this.value)||0" title="Баллы за снимок" style="width:70px;padding:4px 6px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text);border-radius:4px;font-size:12px;" />
                     <button type="button" class="btn-sm danger btn-danger" onclick="removePendingAttach(${i})" style="padding:3px 8px;">✕</button>
                 </div>
             `).join('');
+            try { validateFields(); } catch (_) {}
         }
 
         function removePendingAttach(i) {
@@ -11514,18 +11698,26 @@
             return 'MMS_' + fio + idPart + '_' + ds + modePart + arch + ext;
         }
 
-        function addEntry() {
+function addEntry() {
             const linkInput = document.getElementById('link');
             const link = linkInput.value.trim();
             if (!validateLink(link)) { showToast('⚠️ Ссылка недействительна', 'error'); return; }
-            if (!validateFields()) { showToast('⚠️ Введите ссылку', 'error'); return; }
+            if (!validateFields()) { showToast('⚠️ Введите ссылку или прикрепите фото', 'error'); return; }
+            if (pendingAttachments.some(a => !String(a.name || '').trim())) {
+                showToast('⚠️ Напишите пояснение к каждому фото (что на нём, от чего)', 'error', 4500);
+                try {
+                    const first = document.querySelector('#pendingAttachList .cap-missing');
+                    if (first) first.focus();
+                } catch (_) {}
+                return;
+            }
             const dateInput = document.getElementById('date');
             if (!dateInput.value) { dateInput.value = getTodayDate(); }
             const date = dateInput.value.split('-').reverse().join('.');
             lastUsedDate = dateInput.value;
             let points = parseInt(document.getElementById('points').value) || 0;
             if (points === 0 && document.getElementById('points').value.trim() === '') {
-                const u = prompt('Введите баллы за ссылку:', lastUsedPoints || '1');
+                const u = prompt('Введите баллы за запись:', lastUsedPoints || '1');
                 if (u === null) return;
                 const p = parseInt(u);
                 if (isNaN(p) || p < 0) { showToast('❌ Введите число', 'error'); return; }
@@ -11537,7 +11729,7 @@
             const category = (categoryEl && categoryEl.value) || 'прочее';
 
             const backup = JSON.parse(JSON.stringify(savedPoints));
-            if (savedPoints[link] !== undefined && points !== savedPoints[link]) {
+            if (link && savedPoints[link] !== undefined && points !== savedPoints[link]) {
                 showConfirm('🔍 Ссылка уже использовалась',
                     `Сохранённые баллы: ${savedPoints[link]}\nНовые баллы: ${points}\n\nВыберите действие:`,
                     function(choice) {
@@ -11558,7 +11750,7 @@
                 );
                 return;
             }
-            savedPoints[link] = points;
+            if (link) savedPoints[link] = points;
             finishAdd(link, date, points, backup, category);
         }
 
@@ -11570,9 +11762,11 @@
             evidenceCounter = Math.max(evidenceCounter, entries.length) + 1;
             const attachments = pendingAttachments.map(a => ({
                 id: a.id,
-                name: a.name || 'снимок',
+                name: String(a.name || '').trim(),
                 points: parseInt(a.points, 10) || 0,
-                dataUrl: a.dataUrl
+                dataUrl: a.dataUrl,
+                w: a.w || 0,
+                h: a.h || 0
             }));
             const entry = {
                 date, link, points,
@@ -11582,7 +11776,6 @@
                 id: makeEntryId()
             };
             entries.push(entry);
-            // перенумеровать все строки по порядку
             entries.forEach((e, i) => { e.evidenceNumber = `№${i + 1}`; });
             evidenceCounter = entries.length;
             pushUndo('add', {
@@ -11600,12 +11793,10 @@
             window.__mmsDirty = false;
             document.getElementById('link').value = '';
             document.getElementById('points').value = '0';
-            const fh = document.getElementById('filePickHint');
-            if (fh) fh.textContent = 'Файлы не выбраны';
             document.querySelectorAll('.quick-type-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('pointsRestoreNotice').classList.remove('show');
             validateFields();
-            const extra = attachments.length ? ` (+${attachments.length} снимок.)` : '';
+            const extra = attachments.length ? ` (+${attachments.length} фото)` : '';
             showToast('Запись добавлена' + extra + '. Всего: ' + entries.length, 'success');
             if (chartVisible) buildChart();
         }
@@ -11639,46 +11830,170 @@
         }
 
         // ===== EDIT =====
+        function mmsEditStart(entry) {
+            editDraft = {
+                id: String(entry.id),
+                dateIso: mmsDateIsoFromRu(entry.date),
+                link: entry.link || '',
+                points: entry.points || 0,
+                category: entry.category || 'прочее',
+                attachments: JSON.parse(JSON.stringify(entry.attachments || []))
+            };
+        }
+
+        function mmsEditActive() {
+            return !!(editDraft && editingId !== null && String(editingId) === editDraft.id);
+        }
+
+        // Переносит введённые в строке значения в черновик (чтобы не терять их при перерисовке)
+        function mmsEditSyncFromDom() {
+            if (!mmsEditActive()) return;
+            const row = document.querySelector('tr[data-id="' + editDraft.id + '"]');
+            if (!row) return;
+            const d = row.querySelector('.date-input');
+            if (d && d.value) editDraft.dateIso = d.value;
+            const l = row.querySelector('.link-input');
+            if (l) editDraft.link = l.value;
+            const p = row.querySelector('.points-input');
+            if (p) editDraft.points = parseInt(p.value, 10) || 0;
+            const c = row.querySelector('.cat-input');
+            if (c) editDraft.category = c.value;
+        }
+
+        function onEditAttCap(i, el) {
+            if (!mmsEditActive() || !editDraft.attachments[i]) return;
+            editDraft.attachments[i].name = el.value;
+            el.classList.toggle('cap-missing', !el.value.trim());
+        }
+
+        function onEditAttPts(i, el) {
+            if (!mmsEditActive() || !editDraft.attachments[i]) return;
+            editDraft.attachments[i].points = parseInt(el.value, 10) || 0;
+        }
+
+        function editAttRemove(i) {
+            if (!mmsEditActive()) return;
+            mmsEditSyncFromDom();
+            editDraft.attachments.splice(i, 1);
+            renderTable();
+        }
+
+        function editAttReplace(i) {
+            if (!mmsEditActive()) return;
+            mmsWithPhotoPolicy(function () {
+                mmsPickImages(false, function (files) {
+                    mmsProcessImageFiles(files, 1).then(function (items) {
+                        if (!items.length || !mmsEditActive()) return;
+                        mmsEditSyncFromDom();
+                        const old = editDraft.attachments[i] || {};
+                        editDraft.attachments[i] = {
+                            id: old.id || items[0].id,
+                            name: old.name || '',
+                            points: old.points || 0,
+                            dataUrl: items[0].dataUrl,
+                            w: items[0].w,
+                            h: items[0].h
+                        };
+                        renderTable();
+                        showToast('Фото заменено (проверьте пояснение)', 'success', 2500);
+                    }).catch(function () { showToast('Не удалось обработать изображение', 'error'); });
+                });
+            });
+        }
+
+        function editAttAdd() {
+            if (!mmsEditActive()) return;
+            const room = MAX_ATTACH_PER_ENTRY - editDraft.attachments.length;
+            if (room <= 0) {
+                showToast('⚠️ Максимум ' + MAX_ATTACH_PER_ENTRY + ' фото на одну запись', 'warning');
+                return;
+            }
+            mmsWithPhotoPolicy(function () {
+                mmsPickImages(true, function (files) {
+                    if (files.length > room) {
+                        showToast('⚠️ Добавлю только первые ' + room + ' (максимум ' + MAX_ATTACH_PER_ENTRY + ' на запись)', 'warning', 3500);
+                    }
+                    mmsProcessImageFiles(files, room).then(function (items) {
+                        if (!items.length || !mmsEditActive()) return;
+                        mmsEditSyncFromDom();
+                        editDraft.attachments = editDraft.attachments.concat(items);
+                        renderTable();
+                        showToast('Добавлено фото: ' + items.length + '. Напишите пояснение.', 'success', 3000);
+                        try {
+                            const first = document.querySelector('tr[data-id="' + editDraft.id + '"] .cap-missing');
+                            if (first) first.focus();
+                        } catch (_) {}
+                    }).catch(function () { showToast('Не удалось обработать изображение', 'error'); });
+                });
+            });
+        }
+
+        function cancelEdit(id) {
+            editingId = null;
+            editDraft = null;
+            renderTable();
+        }
+
         function toggleEdit(id) {
             const sid = String(id);
             if (String(editingId) === sid) {
-                const row = document.querySelector(`tr[data-id="${sid}"]`);
-                if (!row) { editingId = null;
-                    renderTable(); return; }
                 const entry = entries.find(e => String(e.id) === sid);
-                if (!entry) { editingId = null;
-                    renderTable(); return; }
-                const dateInput = row.querySelector('.date-input');
-                const linkInput = row.querySelector('.link-input');
-                const pointsInput = row.querySelector('.points-input');
-                const catInput = row.querySelector('.cat-input');
-                const newLink = linkInput ? linkInput.value.trim() : entry.link;
-                const newPoints = pointsInput ? parseInt(pointsInput.value) || 0 : entry.points;
-                if (catInput) entry.category = catInput.value || 'прочее';
-                if (dateInput) {
-                    const parts = dateInput.value.split('-');
-                    if (parts.length === 3) entry.date = `${parts[2]}.${parts[1]}.${parts[0]}`;
+                const row = document.querySelector('tr[data-id="' + sid + '"]');
+                if (!entry || !row || !editDraft || editDraft.id !== sid) {
+                    editingId = null;
+                    editDraft = null;
+                    renderTable();
+                    return;
                 }
-                if (entry.link !== newLink && !validateLink(newLink)) {
+                mmsEditSyncFromDom();
+                const d = editDraft;
+                const newLink = String(d.link || '').trim();
+                const newPoints = Math.max(0, parseInt(d.points, 10) || 0);
+                const newCat = d.category || 'прочее';
+                const atts = d.attachments || [];
+                if (!newLink && !atts.length) {
+                    showToast('⚠️ Нужна ссылка или хотя бы одно фото', 'error');
+                    return;
+                }
+                if (newLink && newLink !== entry.link && !validateLink(newLink)) {
                     showToast('⚠️ Ссылка недействительна', 'error');
                     return;
                 }
+                if (atts.some(a => !String(a.name || '').trim())) {
+                    showToast('⚠️ Напишите пояснение к каждому фото (что на нём, от чего)', 'error', 4500);
+                    return;
+                }
+                const dp = String(d.dateIso || '').split('-');
+                const newDate = dp.length === 3 ? (dp[2] + '.' + dp[1] + '.' + dp[0]) : entry.date;
                 const oldLink = entry.link;
-                if (oldLink !== newLink && savedPoints[newLink] !== undefined) {
+                const applyAll = function (pointsVal) {
+                    entry.date = newDate;
+                    entry.category = newCat;
+                    entry.link = newLink;
+                    entry.points = pointsVal;
+                    entry.attachments = atts.map(a => ({
+                        id: a.id,
+                        name: String(a.name || '').trim(),
+                        points: parseInt(a.points, 10) || 0,
+                        dataUrl: a.dataUrl,
+                        w: a.w || 0,
+                        h: a.h || 0
+                    }));
+                };
+                if (newLink && oldLink !== newLink && savedPoints[newLink] !== undefined) {
                     showConfirm('🔍 Ссылка уже использовалась',
                         `Сохранённые баллы: ${savedPoints[newLink]}\nНовые баллы: ${newPoints}`,
                         function(choice) {
                             if (choice === 'use_saved') {
-                                entry.points = savedPoints[newLink];
-                                const pi = row.querySelector('.points-input');
-                                if (pi) pi.value = savedPoints[newLink];
+                                applyAll(savedPoints[newLink]);
                                 finishEdit(entry, newLink, oldLink);
                             } else if (choice === 'use_new') {
-                                entry.points = newPoints;
                                 savedPoints[newLink] = newPoints;
+                                applyAll(newPoints);
                                 finishEdit(entry, newLink, oldLink);
                             } else {
                                 editingId = null;
+                                editDraft = null;
                                 renderTable();
                                 showToast('❌ Отменено', 'warning');
                             }
@@ -11693,17 +12008,22 @@
                     return;
                 }
                 if (oldLink !== newLink) {
-                    delete savedPoints[oldLink];
-                    entry.points = newPoints;
+                    if (oldLink) delete savedPoints[oldLink];
+                    if (newLink) savedPoints[newLink] = newPoints;
+                } else if (newLink) {
                     savedPoints[newLink] = newPoints;
-                    entry.link = newLink;
-                } else {
-                    entry.points = newPoints;
-                    savedPoints[oldLink] = newPoints;
                 }
+                applyAll(newPoints);
                 finishEdit(entry, newLink, oldLink);
             } else {
+                if (editingId !== null && document.querySelector('tr[data-id="' + String(editingId) + '"].edit-mode')) {
+                    showToast('Сначала завершите правку текущей записи (OK или Отмена)', 'warning', 3000);
+                    return;
+                }
+                const cur = entries.find(e => String(e.id) === sid);
+                if (!cur) return;
                 editingId = sid;
+                mmsEditStart(cur);
                 renderTable();
             }
         }
@@ -11712,15 +12032,14 @@
             entry.link = newLink;
             entry.evidenceNumber = `№${entries.indexOf(entry) + 1}`;
             editingId = null;
+            editDraft = null;
             renderTable();
             saveToLocalStorage();
             showToast('✅ Запись обновлена', 'success');
             if (chartVisible) buildChart();
         }
 
-        // ============================================================
-        // ОЧИСТИТЬ БАЗУ
-        // ============================================================
+                // ОЧИСТИТЬ БАЗУ
         function clearDatabase(e) {
             if (e) { e.preventDefault();
                 animateClick(e.currentTarget); }
@@ -11823,6 +12142,7 @@
             const data = entriesData || entries;
             const linkMap = {};
             data.forEach((entry, index) => {
+                if (!entry.link) return; // записи без ссылки (только фото) дубликатами не считаются
                 if (!linkMap[entry.link]) {
                     linkMap[entry.link] = [];
                 }
@@ -11841,24 +12161,41 @@
             const fullTotal = getEntriesTotal(entries);
             filtered.forEach((entry) => {
                 const index = entries.indexOf(entry);
-                const isEditing = String(editingId) === String(entry.id);
+                const eid = String(entry.id);
+                const isEditing = String(editingId) === eid;
                 const rowPoints = entryTotalPoints(entry);
                 const tr = document.createElement('tr');
-                tr.setAttribute('data-id', String(entry.id));
+                tr.setAttribute('data-id', eid);
                 tr.className = isEditing ? 'edit-mode' : 'view-mode';
                 let dateHtml, linkHtml, pointsHtml, catHtml;
                 const cat = entry.category || 'прочее';
                 if (isEditing) {
-                    const dateParts = (entry.date || '').split('.');
-                    const dateValue = `${dateParts[2] || '2026'}-${dateParts[1] || '07'}-${dateParts[0] || '29'}`;
+                    const dr = (editDraft && editDraft.id === eid) ? editDraft : null;
+                    const dateValue = dr ? dr.dateIso : mmsDateIsoFromRu(entry.date);
+                    const linkVal = dr ? dr.link : (entry.link || '');
+                    const ptsVal = dr ? dr.points : (entry.points || 0);
+                    const catVal = dr ? dr.category : cat;
+                    const atts = dr ? dr.attachments : (entry.attachments || []);
                     dateHtml = `<input type="date" class="editable-input date-input" value="${dateValue}">`;
-                    linkHtml =
-                        `<input type="text" class="editable-input link-input" value="${mmsEscHtml(entry.link || '')}" placeholder="https://...">`;
-                    pointsHtml = `<input type="number" class="editable-input points-input" value="${entry.points || 0}" min="0">`;
+                    const attEdit = atts.map((a, i) => `
+                        <div class="edit-att">
+                            ${a.dataUrl ? `<img class="attach-thumb" src="${a.dataUrl}" alt="">` : '<span class="attach-cap">файл не сохранён</span>'}
+                            <input type="text" class="editable-input edit-att-cap ${String(a.name || '').trim() ? '' : 'cap-missing'}" value="${mmsEscHtml(a.name || '')}" maxlength="160" oninput="onEditAttCap(${i}, this)" placeholder="Пояснение к фото (что на нём, от чего)">
+                            <input type="number" class="editable-input edit-att-pts" value="${a.points || 0}" min="0" oninput="onEditAttPts(${i}, this)" title="Баллы за снимок">
+                            <button type="button" class="btn-secondary btn-xs" onclick="editAttReplace(${i})">Заменить фото</button>
+                            <button type="button" class="btn-danger btn-xs" onclick="editAttRemove(${i})" title="Убрать фото">✕</button>
+                        </div>`).join('');
+                    const addBtn = atts.length < MAX_ATTACH_PER_ENTRY
+                        ? `<button type="button" class="btn-secondary btn-xs" style="margin-top:8px;" onclick="editAttAdd()">＋ Добавить фото</button>`
+                        : '<div class="edit-att-head">Достигнут максимум фото</div>';
+                    linkHtml = `<input type="text" class="editable-input link-input" value="${mmsEscHtml(linkVal)}" placeholder="https://... (можно пусто, если есть фото)">
+                        <div class="edit-att-head">Фото: ${atts.length} / ${MAX_ATTACH_PER_ENTRY}</div>
+                        ${attEdit}${addBtn}`;
+                    pointsHtml = `<input type="number" class="editable-input points-input" value="${ptsVal}" min="0">`;
                     catHtml = `<select class="editable-input cat-input">${ENTRY_CATEGORIES.map(c =>
-                        `<option value="${c}" ${c === cat ? 'selected' : ''}>${c}</option>`).join('')}</select>`;
+                        `<option value="${c}" ${c === catVal ? 'selected' : ''}>${c}</option>`).join('')}</select>`;
                 } else {
-                    const linkIndexes = duplicates[entry.link] || [];
+                    const linkIndexes = entry.link ? (duplicates[entry.link] || []) : [];
                     let duplicateHtml = '';
                     if (linkIndexes.length > 1) {
                         const otherIndexes = linkIndexes.filter(i => i !== index);
@@ -11868,21 +12205,30 @@
                     dateHtml = entry.date;
                     let attachHtml = '';
                     if (Array.isArray(entry.attachments) && entry.attachments.length) {
-                        attachHtml = '<div class="attach-list">' + entry.attachments.map(a =>
-                            `<div style="text-align:center;"><img class="attach-thumb" src="${a.dataUrl}" alt="${(a.name || '').replace(/"/g, '')}" title="${(a.name || '')} (+${a.points || 0})" onclick="window.open(this.src,'_blank')" /><div class="attach-meta">${a.name || 'снимок'} · ${a.points || 0}</div></div>`
-                        ).join('') + '</div>';
+                        attachHtml = '<div class="attach-list">' + entry.attachments.map(a => {
+                            const cap = mmsEscHtml(a.name || 'фото');
+                            const img = a.dataUrl
+                                ? `<img class="attach-thumb" src="${a.dataUrl}" alt="${cap}" title="${cap} (+${a.points || 0})" onclick="mmsOpenImage(this.src)" />`
+                                : '<div class="attach-cap">файл не сохранён</div>';
+                            return `<div style="text-align:center;">${img}<div class="attach-cap">${cap}${a.points ? ' · +' + a.points : ''}</div></div>`;
+                        }).join('') + '</div>';
                     }
-                    linkHtml = `<span class="evidence-number">${entry.evidenceNumber}</span>
-                                    <a href="${/^https?:\/\//i.test(String(entry.link || '')) ? mmsEscHtml(entry.link) : '#'}" target="_blank" rel="noopener noreferrer" style="margin-left:6px;">Доказательство</a>
-                                    ${duplicateHtml}${attachHtml}`;
+                    const linkStr = String(entry.link || '');
+                    let proofHtml;
+                    if (/^https?:\/\//i.test(linkStr)) {
+                        proofHtml = `<a href="${mmsEscHtml(linkStr)}" target="_blank" rel="noopener noreferrer" style="margin-left:6px;">Доказательство</a>`;
+                    } else if (linkStr) {
+                        proofHtml = `<span style="margin-left:6px;">${mmsEscHtml(linkStr)}</span>`;
+                    } else {
+                        proofHtml = '<span style="margin-left:6px;color:var(--text-secondary);">Без ссылки · фото</span>';
+                    }
+                    linkHtml = `<span class="evidence-number">${entry.evidenceNumber}</span>${proofHtml}${duplicateHtml}${attachHtml}`;
                     pointsHtml = `<span style="font-weight:700;">${rowPoints}</span>` +
                         (entry.attachments && entry.attachments.length
-                            ? `<div style="font-size:9px;color:var(--text-muted);">ссылка ${entry.points || 0}</div>` : '');
+                            ? `<div style="font-size:9px;color:var(--text-muted);">запись ${entry.points || 0}</div>` : '');
                     catHtml = `<span class="cat-chip">${cat}</span>`;
                 }
-                const eid = String(entry.id);
                 const checked = selectedEntryIds.has(eid) ? 'checked' : '';
-                tr.setAttribute('data-id', eid);
                 tr.innerHTML = `
                         <td><input type="checkbox" class="entry-select-cb" ${checked} onchange="toggleEntrySelect('${eid}', this.checked)" title="Выбрать для обращения" /></td>
                         <td>${dateHtml}</td>
@@ -11893,6 +12239,7 @@
                             <button class="btn-edit btn-secondary btn-xs ${isEditing ? 'active' : ''}" onclick="toggleEdit('${eid}')" title="Изменить">
                                 ${isEditing ? 'OK' : 'Изм.'}
                             </button>
+                            ${isEditing ? `<button class="btn-ghost btn-xs" style="margin-top:4px;" onclick="cancelEdit('${eid}')" title="Отменить правку">Отмена</button>` : ''}
                         </td>
                         <td class="delete-btn-cell">
                             <button class="btn-delete btn-danger btn-xs" onclick="deleteEntry('${eid}')" title="Удалить">Удал.</button>
@@ -11911,7 +12258,6 @@
             updateCategoryTotals();
             refreshFeedbackAttachBox();
             try { mmsFunnelRender(); } catch (_) {}
-            // счётчик в бейдже достижений
             try {
                 const b = document.getElementById('achievementsBadge');
                 if (b && currentTab === 'achievements') b.textContent = String(entries.length || '▲');
