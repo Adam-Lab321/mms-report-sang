@@ -5111,7 +5111,7 @@
             </button>
             <!-- ZIP-пакет и Excel скрыты: Discord плохо принимает ZIP -->
             <button class="nav-btn" id="btnMmsPackage" onclick="downloadWord(event)" style="display:none;" aria-hidden="true">
-                <span class="icon">📦</span> Пакет для проверки
+                <span class="icon">📦</span> Резервная копия
             </button>
             <button class="nav-btn" id="btnExcel" onclick="downloadExcel(event)" style="display:none;" aria-hidden="true">
                 <span class="icon">📊</span> Отчёт в Excel
@@ -5585,8 +5585,8 @@
                         <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">Проверяющие открывают вложение в Word. В сообщении Discord всегда видно: сотрудник, ID, дата и баллы — даже если имя файла обрезано.</div>
                         <div style="margin-top:12px;padding:10px 12px;border-radius:8px;border:1px solid rgba(212,175,55,0.2);background:rgba(0,0,0,0.25);font-size:11px;line-height:1.5;color:var(--text-secondary);">
                             <b style="color:var(--gold);">Учёт сдачи MMS</b><br>
-                            При отправке фиксируются <b>метаданные</b> для учёта подразделения: время, тип рапорта, ID сотрудника, лицензия (если активна), результат доставки.
-                            Полные webhook Discord и пароли <b>не сохраняются</b>. Данные хранятся на инфраструктуре Cloudflare (Workers / KV) для командования MMS, <b>третьим лицам не передаются</b>.
+                            При отправке фиксируются <b>служебные данные</b> для учёта подразделения: время, тип рапорта, ID сотрудника, лицензия (если активна), результат доставки.
+                            Пароли <b>не сохраняются</b>. Данные видит только командование MMS, <b>третьим лицам они не передаются</b>.
                         </div>
                     </div>
 
@@ -5703,8 +5703,8 @@
                 • HTML-отчёты (.html, .htm)<br>
                 • Word (.doc) — как HTML внутри<br>
                 • JSON рапорта (.json)<br>
-                • Пакет для проверки (.mms.zip / .zip)<br><br>
-                Из пакета откроется <b>report.html</b> (или Word/JSON).<br>
+                • Резервная копия (.zip)<br><br>
+                Из копии откроется <b>report.html</b> (или Word/JSON).<br>
                 Текущие данные вашего рапорта <strong>не изменятся</strong>.
             </p>
             <div class="btn-group">
@@ -5856,6 +5856,8 @@
         // ============================================================
         // ЛИЦЕНЗИРОВАНИЕ MMS (HMAC + expires + soft fingerprint)
         // ============================================================
+        // ВНИМАНИЕ: всё, что лежит в браузере, видно любому. Эта подпись — только быстрая проверка для интерфейса.
+        // Решающая проверка ключа — на сервере (см. блок «СЕССИЯ ЛИЦЕНЗИИ» ниже). Новых секретов сюда не добавлять.
         const MMS_LICENSE_SECRET = 'MMS-SANG-2026-Grechkaaa-HMAC-Secret-Key-v1!';
         const MMS_LICENSE_STORAGE = 'mmsLicenseActivation';
         // Срок лицензии только из поля expires ключа (генератор)
@@ -5906,7 +5908,7 @@
 
         async function mmsHmacSign(secret, data) {
             if (!window.crypto || !crypto.subtle) {
-                throw new Error('Браузер блокирует криптографию (часто при открытии как file://). Откройте рапорт через GitHub Pages (https://) или localhost.');
+                throw new Error('Браузер не может проверить ключ. Откройте рапорт по ссылке сайта (не из скачанного файла).');
             }
             const encoder = new TextEncoder();
             const key = await crypto.subtle.importKey(
@@ -5991,7 +5993,7 @@
                 // backward-compatible: old keys without expires field
                 const legacy = await mmsHmacSign(MMS_LICENSE_SECRET, org + '|' + userId + '|' + issueDate);
                 if (legacy !== signature) {
-                    return { ok: false, error: 'Подпись не совпала. Ключ подделан или секрет другой.' };
+                    return { ok: false, error: 'Ключ не принят: подпись не совпала. Запросите новый license.key.' };
                 }
             }
             return {
@@ -6128,7 +6130,7 @@
             if (gate) gate.classList.remove('hidden');
             let text = msg || '';
             if (!window.isSecureContext || !window.crypto || !crypto.subtle) {
-                text = (text ? text + ' ' : '') + '⚠️ Откройте рапорт по HTTPS (GitHub Pages), не файл с диска — иначе лицензия не активируется.';
+                text = (text ? text + ' ' : '') + '⚠️ Откройте рапорт по ссылке сайта, а не из скачанного файла — иначе лицензия не активируется.';
             }
             if (st) { st.textContent = text; st.classList.remove('ok'); }
             document.body.style.overflow = 'hidden';
@@ -6141,47 +6143,149 @@
             mmsUpdateWatermark();
         }
 
-        /** Проверка лицензии на Cloudflare (секрет только на Worker) */
-        async function mmsActivateOnCloudflare(lic, password) {
+        // ============================================================
+        // СЕССИЯ ЛИЦЕНЗИИ (источник истины — сервер)
+        // Локальная проверка подписи выше — только быстрый отклик интерфейса:
+        // секрет в браузере виден всем. Настоящая проверка — на Worker: /license выдаёт сессию,
+        // а без неё (заголовок X-MMS-Session) Worker рапорт не примет. Новых секретов в клиент не добавляем.
+        // ============================================================
+        const MMS_SESSION_KEY = 'mmsCfSession';
+        const MMS_LICENSE_NEEDED_TEXT = 'Нужна активная лицензия. Загрузите license.key и пароль.';
+
+        function mmsSessionLoad() {
             try {
-                const payload = {
-                    license: {
-                        org: lic.org,
-                        userId: lic.userId,
-                        issueDate: lic.issueDate,
-                        expires: lic.expires || '',
-                        signature: lic.signature,
-                        passwordHash: lic.passwordHash || ''
-                    },
-                    password: password || '',
-                    fingerprint: (typeof mmsGetFingerprint === 'function') ? mmsGetFingerprint() : ''
-                };
+                const o = JSON.parse(localStorage.getItem(MMS_SESSION_KEY) || 'null');
+                return (o && o.sessionToken) ? o : null;
+            } catch (_) { return null; }
+        }
+        function mmsSessionSave(data) {
+            const now = Date.now();
+            const ttl = (Number(data && data.expiresIn) || 86400) * 1000;
+            try {
+                localStorage.setItem(MMS_SESSION_KEY, JSON.stringify({
+                    sessionToken: String(data.sessionToken || ''),
+                    userId: data.userId || '',
+                    org: data.org || '',
+                    at: now,
+                    exp: now + ttl
+                }));
+            } catch (_) {}
+        }
+        function mmsSessionClear() {
+            try { localStorage.removeItem(MMS_SESSION_KEY); } catch (_) {}
+        }
+        /** Действующий токен сессии (с запасом в минуту) или пустая строка */
+        function mmsSessionToken() {
+            const s = mmsSessionLoad();
+            if (!s || !s.sessionToken) return '';
+            if (s.exp && Date.now() > s.exp - 60000) return '';
+            return s.sessionToken;
+        }
+
+        /** Простой русский текст вместо сырых ответов сервера лицензий */
+        function mmsLicenseErrorText(raw, status) {
+            const t = String(raw == null ? '' : raw).trim();
+            const st = Number(status) || 0;
+            if (st >= 500 || /LICENSE_HMAC_SECRET|не задан/i.test(t)) return 'Сервер лицензий временно недоступен. Повторите позже или сообщите руководству.';
+            if (/истёк|истек|expired/i.test(t)) return 'Срок действия лицензии истёк. Запросите новый license.key.';
+            if (/подпис|signature|не хватает|формат/i.test(t)) return 'Ключ не принят: он повреждён или выдан не для этой системы. Запросите новый license.key.';
+            if (t && /[А-Яа-яЁё]/.test(t) && t.length < 300) return t;
+            if (st === 401 || st === 403 || /unauthori[sz]ed|forbidden/i.test(t)) return 'Ключ не принят сервером. Запросите новый license.key.';
+            return 'Не удалось проверить ключ. Повторите попытку.';
+        }
+
+        /** Проверка ключа на сервере → сохраняем сессию. offline:true — нет связи (не отказ ключа) */
+        async function mmsActivateOnCloudflare(lic) {
+            let timer = null;
+            try {
+                const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                if (ctl) timer = setTimeout(function () { try { ctl.abort(); } catch (_) {} }, 12000);
                 const res = await fetch(MMS_LICENSE_API, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({
+                        license: {
+                            org: lic.org,
+                            userId: lic.userId,
+                            issueDate: lic.issueDate,
+                            expires: lic.expires || '',
+                            signature: lic.signature,
+                            passwordHash: lic.passwordHash || ''
+                        },
+                        fingerprint: mmsGetFingerprint()
+                    }),
+                    signal: ctl ? ctl.signal : undefined
                 });
                 let data = null;
                 try { data = await res.json(); } catch (_) { data = null; }
-                if (!res.ok || !data || !data.ok) {
-                    const err = (data && data.error) ? data.error : ('HTTP ' + res.status);
-                    console.warn('CF license:', err);
-                    return { ok: false, error: err };
+                if (!res.ok || !data || !data.ok || !data.sessionToken) {
+                    const raw = (data && data.error) ? data.error : ('HTTP ' + res.status);
+                    console.warn('[mms] license rejected:', raw);
+                    return { ok: false, error: mmsLicenseErrorText(raw, res.status) };
                 }
-                try {
-                    localStorage.setItem('mmsCfSession', JSON.stringify({
-                        sessionToken: data.sessionToken || '',
-                        userId: data.userId || '',
-                        org: data.org || '',
-                        at: Date.now()
-                    }));
-                } catch (_) {}
+                mmsSessionSave(data);
                 return { ok: true, data: data };
             } catch (e) {
-                console.warn('CF license network:', e);
-                // Сеть недоступна — не блокируем локальную активацию
-                return { ok: false, error: 'Нет связи с сервером лицензий', offline: true };
+                console.warn('[mms] license network:', e);
+                return { ok: false, offline: true, error: 'Нет связи с сервером лицензий. Проверьте интернет и повторите.' };
+            } finally {
+                if (timer) clearTimeout(timer);
             }
+        }
+
+        /** Есть ли действующая сессия; если нет — тихо получаем новую по сохранённой активации (пароль не нужен) */
+        let mmsSessionPending = null;
+        async function mmsEnsureSession() {
+            const have = mmsSessionToken();
+            if (have) return { ok: true, token: have };
+            if (mmsSessionPending) return mmsSessionPending;
+            mmsSessionPending = (async function () {
+                try {
+                    const lic = mmsLoadActivation();
+                    if (!lic || !lic.signature) return { ok: false, reason: 'no_license' };
+                    const r = await mmsActivateOnCloudflare(lic);
+                    if (r.ok) return { ok: true, token: mmsSessionToken() };
+                    return { ok: false, reason: r.offline ? 'offline' : 'rejected', error: r.error };
+                } finally {
+                    mmsSessionPending = null;
+                }
+            })();
+            return mmsSessionPending;
+        }
+
+        /**
+         * Заголовок X-MMS-Session браузер пропустит, только если Worker разрешил его в CORS.
+         * Проверяем один раз за вкладку безопасным запросом OPTIONS (рапорт при этом не отправляется).
+         * Если не разрешён — кладём сессию в Authorization: Worker принимает её и так.
+         */
+        let mmsSessionHeaderOk = null;
+        async function mmsCanUseSessionHeader() {
+            if (mmsSessionHeaderOk !== null) return mmsSessionHeaderOk;
+            try {
+                const c = sessionStorage.getItem('mmsSessHdr');
+                if (c === '1' || c === '0') { mmsSessionHeaderOk = (c === '1'); return mmsSessionHeaderOk; }
+            } catch (_) {}
+            let ok = false, timer = null;
+            try {
+                const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                if (ctl) timer = setTimeout(function () { try { ctl.abort(); } catch (_) {} }, 6000);
+                await fetch(MMS_PROXY_URL + '/', {
+                    method: 'OPTIONS',
+                    headers: { 'Authorization': 'Bearer probe', 'X-MMS-Session': 'probe' },
+                    signal: ctl ? ctl.signal : undefined
+                });
+                ok = true;
+            } catch (_) { ok = false; }
+            finally { if (timer) clearTimeout(timer); }
+            mmsSessionHeaderOk = ok;
+            try { if (ok || navigator.onLine !== false) sessionStorage.setItem('mmsSessHdr', ok ? '1' : '0'); } catch (_) {}
+            return ok;
+        }
+        async function mmsSubmitHeaders(sessionToken) {
+            if (await mmsCanUseSessionHeader()) {
+                return { 'Authorization': 'Bearer ' + MMS_PROXY_TOKEN, 'X-MMS-Session': sessionToken };
+            }
+            return { 'Authorization': 'Bearer ' + sessionToken };
         }
 
         async function mmsActivateFromFile(file) {
@@ -6198,7 +6302,7 @@
                 }
                 if (!window.crypto || !crypto.subtle) {
                     if (st) {
-                        st.textContent = '❌ Нужен HTTPS: откройте сайт через GitHub Pages, не скачанный HTML с диска (file://).';
+                        st.textContent = '❌ Откройте рапорт по ссылке сайта, а не из скачанного файла — иначе лицензия не активируется.';
                         st.classList.remove('ok');
                     }
                     return false;
@@ -6289,7 +6393,7 @@
             } catch (e) {
                 console.error('mmsActivateFromFile', e);
                 if (st) {
-                    st.textContent = '❌ Ошибка: ' + (e && e.message ? e.message : e);
+                    st.textContent = '❌ Не удалось прочитать ключ. Проверьте файл и повторите.';
                     st.classList.remove('ok');
                 }
                 return false;
@@ -6310,7 +6414,7 @@
             }
             if (!window.crypto || !crypto.subtle) {
                 if (st) {
-                    st.textContent = '❌ Нужен HTTPS (GitHub Pages), не file://';
+                    st.textContent = '❌ Откройте рапорт по ссылке сайта, а не из скачанного файла.';
                     st.classList.remove('ok');
                 }
                 return false;
@@ -6338,30 +6442,28 @@
                     try { if (typeof showToast === 'function') showToast('Ключ отклонён', 'error', 3500); } catch (_) {}
                     return false;
                 }
+                // activated-ключ готовим заранее, но в result и на диск ничего не пишем, пока сервер не ответил
                 activatedObj = mmsBuildActivatedLicenseFile(result, result.passwordHash, fp);
                 activatedObj = await mmsSealActivatedLicense(activatedObj);
+            }
+
+            // Сервер — источник истины: сначала сессия, и только потом сохраняем активацию и отдаём activated-ключ
+            if (st) { st.textContent = 'Проверяю ключ на сервере…'; st.classList.remove('ok'); }
+            const cf = await mmsActivateOnCloudflare(result);
+            if (!cf.ok && !cf.offline) {
+                if (st) { st.textContent = '❌ ' + cf.error; st.classList.remove('ok'); }
+                try { if (typeof showToast === 'function') showToast('Ключ отклонён сервером', 'error', 4000); } catch (_) {}
+                return false; // ключ остаётся загруженным — можно исправить пароль/связь и повторить
+            }
+            if (isFirstActivation && activatedObj) {
                 result.lastActivated = activatedObj.lastActivated;
                 result.activationSeal = activatedObj.activationSeal;
                 result.activatedFingerprint = fp;
             }
-
             mmsSaveActivation(result);
             mmsMarkSignatureUsed(result.signature, result.expires || '', fp);
             mmsPendingLicense = null;
-
-            // Синхронизация с Cloudflare (секрет проверяется на Worker)
-            try {
-                const pwdForCf = (document.getElementById('licensePasswordInput') || {}).value || password || '';
-                const cf = await mmsActivateOnCloudflare(result, pwdForCf);
-                if (cf.ok) {
-                    console.log('CF license OK', cf.data && cf.data.userId);
-                } else if (!cf.offline) {
-                    console.warn('CF license rejected:', cf.error);
-                    // Не блокируем вход, если локальная подпись валидна — dual-mode
-                }
-            } catch (cfErr) {
-                console.warn('CF license:', cfErr);
-            }
+            const offlineNote = cf.ok ? '' : ' Нет связи с сервером: сдача рапорта станет доступна, когда появится интернет.';
 
             const pwdWrap = document.getElementById('licensePasswordWrap');
             if (pwdWrap) pwdWrap.style.display = 'none';
@@ -6371,13 +6473,13 @@
                 mmsDownloadActivatedKey(activatedObj);
                 if (st) {
                     const expTxt = result.expires ? (' до ' + result.expires) : ' (бессрочно)';
-                    st.textContent = '✅ Активировано: ' + result.userId + expTxt + '. Скачан license_activated_*.key. Исходный ключ повторно использовать нельзя.';
+                    st.textContent = '✅ Активировано: ' + result.userId + expTxt + '. Скачан license_activated_*.key. Исходный ключ повторно использовать нельзя.' + offlineNote;
                     st.classList.add('ok');
                 }
             } else {
                 if (st) {
                     const expTxt = result.expires ? (' до ' + result.expires) : ' (бессрочно)';
-                    st.textContent = '✅ Лицензия: ' + result.org + ' / ' + result.userId + expTxt;
+                    st.textContent = '✅ Лицензия: ' + result.org + ' / ' + result.userId + expTxt + offlineNote;
                     st.classList.add('ok');
                 }
             }
@@ -6390,7 +6492,7 @@
             } catch (finErr) {
                 console.error(finErr);
                 if (st) {
-                    st.textContent = '❌ Активация: ' + (finErr && finErr.message ? finErr.message : finErr);
+                    st.textContent = '❌ Не удалось активировать лицензию. Повторите попытку.';
                     st.classList.remove('ok');
                 }
                 return false;
@@ -6439,6 +6541,7 @@
             mmsLicenseActive = true;
             mmsLicenseInfo = stored;
             mmsHideGate();
+            try { mmsEnsureSession(); } catch (_) {} // сессия нужна для сдачи; обновляется тихо
             return true;
         }
 
@@ -6579,6 +6682,8 @@
         }
 
         function mmsInitLicenseUI() {
+            if (window.__mmsLicenseUiBound) return; // не вешаем обработчики повторно (иначе двойная активация и два скачивания)
+            window.__mmsLicenseUiBound = true;
             const btn = document.getElementById('licenseLoadBtn');
             const input = document.getElementById('licenseFileInput');
             if (btn && input) {
@@ -7397,8 +7502,8 @@
             const rawName = String(file.name || '');
             const name = rawName.trim();
             if (!name) return { ok: false, reason: 'у файла нет имени' };
-            if (/[\u0000-\u001f\u202a-\u202e\u2066-\u2069]/.test(rawName)) return { ok: false, reason: 'в имени файла скрытые управляющие символы' };
-            if (/[. ]$/.test(rawName)) return { ok: false, reason: 'имя файла заканчивается точкой или пробелом' };
+            if (/[\u0000-\u001f\u202a-\u202e\u2066-\u2069]/.test(rawName)) return { ok: false, reason: 'в имени файла есть скрытые символы — переименуйте файл' };
+            if (/[. ]$/.test(rawName)) return { ok: false, reason: 'имя файла заканчивается точкой или пробелом — переименуйте файл' };
             if (name.length > 180) return { ok: false, reason: 'имя файла слишком длинное' };
             const exts = name.toLowerCase().split('.').slice(1).map(function (p) { return p.trim(); }).filter(Boolean);
             const last = exts.length ? exts[exts.length - 1] : '';
@@ -7407,8 +7512,8 @@
                 return {
                     ok: false,
                     reason: exts.length > 1
-                        ? 'двойное расширение «.' + exts.join('.') + '» — так исполняемые файлы маскируют под документы'
-                        : 'тип «.' + bad + '» запрещён (исполняемые и скриптовые файлы не принимаются)'
+                        ? 'у файла два расширения («.' + exts.join('.') + '») — так маскируют опасные файлы. Выберите обычный файл без двойного расширения'
+                        : 'тип «.' + bad + '» не принимается (программы и скрипты отправлять нельзя)'
                 };
             }
             // docx в Discord не шлём (бинарный zip); локальный просмотр — да
@@ -7416,14 +7521,14 @@
             if (purpose === 'discord' && MMS_ALLOW_ARCHIVE_IN_DISCORD) allowed = allowed.concat(['zip', 'mms']);
             if (!last || allowed.indexOf(last) === -1) {
                 if (purpose === 'discord' && (last === 'zip' || last === 'mms' || last === '7z' || last === 'rar' || last === 'docx')) {
-                    return { ok: false, reason: 'архивы и бинарный .docx в Discord не принимаются — нужен Word (.doc HTML) из программы, HTML или JSON' };
+                    return { ok: false, reason: 'архивы и .docx не принимаются — прикрепите .doc или .html из этой программы' };
                 }
-                return { ok: false, reason: 'тип «.' + (last || '?') + '» не разрешён для этой операции' };
+                return { ok: false, reason: 'тип «.' + (last || '?') + '» не принимается' };
             }
             const max = purpose === 'viewer' ? MMS_MAX_VIEW_BYTES
                 : (purpose === 'image' ? MMS_MAX_ATTACH_BYTES : MMS_MAX_WORD_BYTES);
             if (!(file.size > 0)) return { ok: false, reason: 'пустой файл' };
-            if (file.size > max) return { ok: false, reason: 'размер больше ' + mmsMb(max) };
+            if (file.size > max) return { ok: false, reason: 'файл больше ' + mmsMb(max) };
             return { ok: true };
         }
 
@@ -7454,16 +7559,16 @@
             const raw = String(text || '').replace(/^\uFEFF/, '');
             const head = raw.trimStart().slice(0, 80).toLowerCase();
             if (!(head.indexOf('<!doctype') === 0 || head.indexOf('<html') === 0 || head.indexOf('<?xml') === 0)) {
-                return { ok: false, reason: (label || 'файл') + ' не является текстовым HTML-документом (повреждён или подменён)' };
+                return { ok: false, reason: (label || 'файл') + ' не похож на отчёт (файл повреждён или это другой документ)' };
             }
             if (raw.slice(0, 4096).indexOf('\x00') !== -1) {
-                return { ok: false, reason: (label || 'файл') + ' содержит подозрительные бинарные данные' };
+                return { ok: false, reason: (label || 'файл') + ' повреждён (внутри посторонние данные)' };
             }
             if (/\bMZ\b/.test(raw.slice(0, 512))) {
-                return { ok: false, reason: (label || 'файл') + ' содержит сигнатуру исполняемого файла' };
+                return { ok: false, reason: (label || 'файл') + ' повреждён или это не документ' };
             }
             const hit = mmsScanHtmlText(raw);
-            if (hit) return { ok: false, reason: 'в документе найдено: ' + hit };
+            if (hit) { try { console.warn('[mms] опасное содержимое:', hit); } catch (_) {} return { ok: false, reason: 'в документе есть скрипты или опасные вставки' }; }
             return { ok: true };
         }
         async function mmsVerifyGeneratedWord(blob) {
@@ -7479,31 +7584,31 @@
                 const is = function (sig) { return sig.every(function (b, i) { return head[i] === b; }); };
                 const fail = function (r) { return { ok: false, reason: r }; };
                 // Исполняемые / скрипты под маской
-                if (is([0x4D, 0x5A])) return fail('внутри исполняемый файл Windows (MZ) под видом документа');
-                if (is([0x7F, 0x45, 0x4C, 0x46])) return fail('внутри ELF-исполняемый файл');
-                if (is([0xCA, 0xFE, 0xBA, 0xBE]) || is([0xCE, 0xFA, 0xED, 0xFE]) || is([0xCF, 0xFA, 0xED, 0xFE])) return fail('внутри Mach-O исполняемый файл');
+                if (is([0x4D, 0x5A])) return fail('это не документ: внутри программа');
+                if (is([0x7F, 0x45, 0x4C, 0x46])) return fail('это не документ: внутри программа');
+                if (is([0xCA, 0xFE, 0xBA, 0xBE]) || is([0xCE, 0xFA, 0xED, 0xFE]) || is([0xCF, 0xFA, 0xED, 0xFE])) return fail('это не документ: внутри программа');
                 // Изображения / PDF / docx — строгое соответствие расширению
-                if (ext === 'png' && !is([0x89, 0x50, 0x4E, 0x47])) return fail('содержимое не похоже на PNG — расширение подменено');
-                if ((ext === 'jpg' || ext === 'jpeg') && !is([0xFF, 0xD8, 0xFF])) return fail('содержимое не похоже на JPEG — расширение подменено');
-                if (ext === 'gif' && !is([0x47, 0x49, 0x46, 0x38])) return fail('содержимое не похоже на GIF — расширение подменено');
-                if (ext === 'webp' && !(is([0x52, 0x49, 0x46, 0x46]) && head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50)) return fail('содержимое не похоже на WebP — расширение подменено');
-                if (ext === 'pdf' && !is([0x25, 0x50, 0x44, 0x46])) return fail('содержимое не похоже на PDF — расширение подменено');
-                if (ext === 'docx' && !is([0x50, 0x4B, 0x03, 0x04])) return fail('содержимое не похоже на .docx');
+                if (ext === 'png' && !is([0x89, 0x50, 0x4E, 0x47])) return fail('это не настоящий PNG: тип файла не совпадает с содержимым');
+                if ((ext === 'jpg' || ext === 'jpeg') && !is([0xFF, 0xD8, 0xFF])) return fail('это не настоящий JPEG: тип файла не совпадает с содержимым');
+                if (ext === 'gif' && !is([0x47, 0x49, 0x46, 0x38])) return fail('это не настоящий GIF: тип файла не совпадает с содержимым');
+                if (ext === 'webp' && !(is([0x52, 0x49, 0x46, 0x46]) && head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50)) return fail('это не настоящий WebP: тип файла не совпадает с содержимым');
+                if (ext === 'pdf' && !is([0x25, 0x50, 0x44, 0x46])) return fail('это не настоящий PDF: тип файла не совпадает с содержимым');
+                if (ext === 'docx' && !is([0x50, 0x4B, 0x03, 0x04])) return fail('это не настоящий .docx');
                 // ZIP под видом картинки / pdf
                 if ((ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'gif' || ext === 'pdf') && is([0x50, 0x4B, 0x03, 0x04])) {
-                    return fail('внутри ZIP-архив под видом «.' + ext + '»');
+                    return fail('внутри архив, а не «.' + ext + '»');
                 }
                 if (ext === 'json') {
                     if (file.size > MMS_MAX_WORD_BYTES) return fail('JSON больше ' + mmsMb(MMS_MAX_WORD_BYTES));
                     const raw = await file.text();
-                    try { JSON.parse(raw); } catch (_) { return fail('JSON повреждён или невалиден'); }
-                    if (/<\\s*script\\b/i.test(raw) || /javascript\\s*:/i.test(raw)) return fail('в JSON найдена подозрительная разметка');
+                    try { JSON.parse(raw); } catch (_) { return fail('файл JSON повреждён'); }
+                    if (/<\s*script\b/i.test(raw) || /javascript\s*:/i.test(raw)) return fail('в файле JSON есть скрипты');
                     return { ok: true };
                 }
                 if (ext === 'doc' || ext === 'html' || ext === 'htm') {
                     // Классический OLE .doc (бинарный) — в Discord не используем как бланк MMS
                     if (ext === 'doc' && is([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1])) {
-                        return fail('бинарный Word (OLE) не принимается — нужен бланк .doc из этой программы (HTML)');
+                        return fail('нужен бланк .doc из этой программы (обычный Word-файл не подходит)');
                     }
                     if (file.size > MMS_MAX_WORD_BYTES) return fail('размер больше ' + mmsMb(MMS_MAX_WORD_BYTES));
                     return mmsVerifyHtmlText(await file.text(), 'файл');
@@ -7720,8 +7825,8 @@
             const roleHint = document.getElementById('dcRoleHint');
             if (roleView) roleView.textContent = '🔔 ' + MMS_DISCORD_ROLE_LABEL;
             if (roleHint) roleHint.textContent = MMS_DISCORD_ROLE_ID
-                ? 'Настроен настоящий ping роли Discord (оба канала).'
-                : 'Бета-режим: пока показывается тег @Руководство MMS без настоящего ping. ID роли добавится позже в код.';
+                ? 'Руководство MMS получит уведомление в сообщении (оба канала).'
+                : 'Уведомление руководства MMS будет добавлено в сообщение.';
             updateDiscordChannelStatus();
             try { mmsFunnelRender(); } catch (_) {}
         }
@@ -8068,7 +8173,7 @@
                 '<th style="padding:8px;border:1px solid #1a3a8a;">Баллы</th>' +
                 '</tr></thead><tbody>' + (rowsHtml || '<tr><td colspan="4" style="padding:16px;text-align:center;border:1px solid #8a7a6a;">Нет записей</td></tr>') +
                 '</tbody></table>' +
-                '<div style="margin-top:18px;text-align:center;font-size:11px;color:#6a5a4a;letter-spacing:1px;">MMS REPORT · лист для просмотра администрацией · без доп. программ</div>';
+                '<div style="margin-top:18px;text-align:center;font-size:11px;color:#6a5a4a;letter-spacing:1px;">MMS REPORT · лист для просмотра · без доп. программ</div>';
 
             document.body.appendChild(root);
             return root;
@@ -8246,7 +8351,7 @@
             ctx.textAlign = 'center';
             ctx.fillStyle = '#6a5a4a';
             ctx.font = '11px Oswald, sans-serif';
-            ctx.fillText('MMS REPORT · лист для администрации · без доп. программ', W / 2, y + 24);
+            ctx.fillText('MMS REPORT · лист для просмотра · без доп. программ', W / 2, y + 24);
 
             // Обрезаем пустое
             const usedH = Math.min(canvas.height, Math.ceil((y + 50) * scale));
@@ -8473,7 +8578,7 @@
         async function downloadMmsPackage(e) {
             if (e) { e.preventDefault(); try { animateClick(e.currentTarget); } catch (_) {} }
             if (!entries || !entries.length) {
-                showToast('Нет записей для пакета', 'error');
+                showToast('Нет записей для резервной копии', 'error');
                 return;
             }
             const first = (document.getElementById('firstName') || {}).value || '';
@@ -8485,7 +8590,7 @@
             const points = typeof getEntriesTotal === 'function' ? getEntriesTotal(entries) : entries.reduce(function (s, en) { return s + (en.points || 0); }, 0);
             const isPromo = (typeof reportMode !== 'undefined' && reportMode === 'promotion');
             try {
-                showToast('Собираю пакет для проверки…', 'info');
+                showToast('Собираю резервную копию…', 'info');
                 const pack = await mmsBuildPackageZip({
                     isPromo: isPromo,
                     name: name,
@@ -8503,10 +8608,10 @@
                 a.click();
                 document.body.removeChild(a);
                 setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
-                showToast('Пакет для проверки скачан: ' + pack.fileName, 'success');
+                showToast('Резервная копия скачана: ' + pack.fileName, 'success');
             } catch (err) {
                 console.error(err);
-                showToast('Ошибка пакета: ' + (err.message || err), 'error');
+                showToast('Не удалось собрать резервную копию. Повторите попытку.', 'error');
             }
         }
 
@@ -8546,7 +8651,7 @@
             zip.forEach(function (path) {
                 if (/report\.json$/i.test(path)) jsonPath = path;
             });
-            if (!jsonPath) throw new Error('В пакете нет report.json');
+            if (!jsonPath) throw new Error('В резервной копии нет report.json');
             const text = await zip.file(jsonPath).async('string');
             const data = JSON.parse(text);
             const out = { data: data, files: [] };
@@ -8612,8 +8717,8 @@
             const embed = {
                 title: isPromo ? '⬆️ MMS • РАПОРТ НА ПОВЫШЕНИЕ' : '🏥 MMS • ЕЖЕНЕДЕЛЬНЫЙ РАПОРТ',
                 description: isPromo
-                    ? 'Поступил рапорт на повышение. Требуется проверка Руководство MMS.'
-                    : 'Поступил еженедельный рапорт. Требуется проверка Руководство MMS.',
+                    ? 'Поступил рапорт на повышение. Требуется проверка руководства MMS.'
+                    : 'Поступил еженедельный рапорт. Требуется проверка руководства MMS.',
                 color: color,
                 fields: [
                     { name: '👤 Сотрудник', value: '**' + name + '**', inline: true },
@@ -8643,6 +8748,17 @@
             const started = performance.now();
             try {
                 let res;
+                // Лицензия: без серверной сессии Worker рапорт не примет — не отправляем и не повторяем
+                setStatus('Проверяю лицензию…', null);
+                const sess = await mmsEnsureSession();
+                if (!sess.ok) {
+                    const lerr = new Error(sess.reason === 'offline'
+                        ? 'Нет связи с сервером лицензий. Проверьте интернет и повторите.'
+                        : MMS_LICENSE_NEEDED_TEXT);
+                    lerr.mmsLicense = (sess.reason !== 'offline');
+                    throw lerr;
+                }
+                setStatus(isPromo ? 'Отправка в канал повышения...' : 'Отправка в канал еженедельных...', null);
                 // Всегда отправляем вложение-файлом (в Discord виден файл для скачивания, а не «простыня» кода)
                 const fd = new FormData();
                 fd.append('mode', isPromo ? 'promotion' : 'week');
@@ -8737,7 +8853,7 @@
 
                 // Можно слать, если есть записи ИЛИ готовый .doc/.html
                 if (!entriesForDoc.length && !attachedReportFile) {
-                    throw new Error('Нет записей для отчёта. Добавьте доказательства или прикрепите пакет/JSON/.doc с записями.');
+                    throw new Error('Нет записей для отчёта. Добавьте записи в рапорт или прикрепите готовый файл .doc / .html.');
                 }
 
                 const fullName = name + (id ? (' (ID: ' + id + ')') : '');
@@ -8796,11 +8912,10 @@
                 fd.append('meta_doc_ok', '1');
                 fd.append('meta_entries', String(entriesForDoc.length));
 
+                // Authorization (как раньше) + X-MMS-Session — сессия лицензии обязательна
                 res = await fetch(MMS_PROXY_URL, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + MMS_PROXY_TOKEN
-                    },
+                    headers: await mmsSubmitHeaders(sess.token),
                     body: fd
                 });
 
@@ -8817,6 +8932,14 @@
                         }
                     }
                 } catch (_) {}
+
+                // Сервер не признал лицензию: сессию сбрасываем и НЕ повторяем отправку
+                if (res.status === 403 || (responseData && (responseData.code === 'license_required' || responseData.code === 'license_expired'))) {
+                    mmsSessionClear();
+                    const lerr = new Error(MMS_LICENSE_NEEDED_TEXT);
+                    lerr.mmsLicense = true;
+                    throw lerr;
+                }
 
                 if (!res.ok || (responseData && responseData.ok === false)) {
                     const errMessage = (responseData && (responseData.error || responseData.message)) || responseText || `Ошибка ${res.status}`;
@@ -8846,6 +8969,7 @@
                 const text = mmsHumanError(err && err.message ? err.message : String(err || ''), 0);
                 setStatus('Ошибка: ' + text, false);
                 showToast(text, 'error', 5000);
+                if (err && err.mmsLicense) { try { mmsShowGate(text); } catch (_) {} } // окно, где можно загрузить license.key
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = 'Отправить в Discord'; }
                 try { mmsFunnelRender(); } catch (_) {}
@@ -9462,7 +9586,7 @@
                 '.foot{margin-top:20px;padding-top:12px;border-top:1px solid #333;font-size:12px;color:#888;}' +
                 '</style></head><body><div class="wrap">' +
                 '<h1>MMS — Просмотр рапорта</h1>' +
-                '<div class="sub">' + esc(typeLabel) + ' · полный пакет с фото</div>' +
+                '<div class="sub">' + esc(typeLabel) + ' · полная копия с фото</div>' +
                 '<div class="meta">' +
                 '<div><b>Сотрудник:</b> ' + esc(emp.fullName || emp.name || '—') + '</div>' +
                 '<div><b>Static ID:</b> ' + esc(emp.id || '—') + '</div>' +
@@ -9885,7 +10009,7 @@
                 const fullBytes = mmsEstimateBytes(data);
                 // 1) IndexedDB — основное хранилище (цель до ~30 МБ с фото)
                 if (fullBytes > MMS_IDB_SOFT_LIMIT) {
-                    sizeWarn = 'Данные >30 МБ: сохраните «Пакет для проверки», иначе браузер может отказать.';
+                    sizeWarn = 'Данные >30 МБ: сохраните резервную копию, иначе браузер может отказать.';
                     console.warn('[MMS] payload', fullBytes, 'bytes exceeds soft 30MB');
                 }
                 try { mmsIdbPut(key, data); } catch (_) {}
@@ -9906,13 +10030,13 @@
                         mmsWriteLocal(key, light);
                         savedLight = true;
                         if (typeof showToast === 'function') {
-                            showToast('⚠️ localStorage переполнен: фото только в IndexedDB. При сбое скачайте пакет.', 'warning', 4500);
+                            showToast('⚠️ localStorage переполнен: фото только во внутреннем хранилище браузера. При сбое сохраните резервную копию.', 'warning', 4500);
                         }
                     } catch (e2) {
                         console.error('saveToLocalStorage quota fail', e2);
                         _mmsLastSaveOk = false;
                         if (typeof showToast === 'function') {
-                            showToast('❌ Не удалось сохранить в localStorage. Данные в IndexedDB (если доступна). Скачайте пакет.', 'error', 5000);
+                            showToast('❌ Не удалось сохранить в localStorage. Данные во внутреннем хранилище браузера (если доступно). Сохраните резервную копию.', 'error', 5000);
                         }
                         // IDB уже пытались записать — не fail полностью
                     }
@@ -10903,7 +11027,7 @@
             async function openFromPackageBlob(blob, label) {
                 const okZip = (typeof JSZip !== 'undefined') || (await window.__mmsEnsureJSZip());
                 if (!okZip || typeof JSZip === 'undefined') {
-                    fail('⚠️ Для открытия пакета нужен JSZip (проверьте интернет / CDN)');
+                    fail('⚠️ Не удалось открыть резервную копию: проверьте интернет и обновите страницу.');
                     return;
                 }
                 const zip = await JSZip.loadAsync(blob);
@@ -10928,7 +11052,7 @@
                     showHtml(htmlFromReviewJson(data, 'report.json'), (label || file.name) + ' → report.json');
                     return;
                 }
-                fail('⚠️ В пакете нет report.html / report.doc / report.json');
+                fail('⚠️ В резервной копии нет отчёта (report.html / report.doc / report.json).');
             }
 
             (async function () {
@@ -10952,7 +11076,7 @@
                                 for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
                                 const html = await new Blob([arr]).text();
                                 if (/<\s*html/i.test(html)) {
-                                    showHtml(html, file.name + ' (Word из пакета)');
+                                    showHtml(html, file.name + ' (Word из резервной копии)');
                                     return;
                                 }
                             } catch (_) {}
@@ -12654,7 +12778,7 @@
                             '• ⬆️ Отдельный рапорт на повышение (данные не смешиваются)',
                             '• 📈 График динамики баллов (без формы регистрации)',
                             '• 📁 Архив, тестовый режим, отмена действий',
-                            '• 📦 Пакет для проверки + 📄 Word (основная сдача через Discord)',
+                            '• 💾 Резервная копия + 📄 Word (основная сдача через Discord)',
                             '• 🔐 Лицензия с паролем 2FA',
                             '',
                             'Спросите: «как сдать отчёт», «discord», «повышение», «правила фото».'
@@ -12675,7 +12799,7 @@
                     ],
                     action: () => {
                         return 'В рапорте сотрудника используются печати статуса сдачи:\n\n' +
-                            '🔵 «НА ПРОВЕРКЕ — MMS · SANG» — синяя, в интерфейсе и при экспорте Word и пакет для проверки.\n' +
+                            '🔵 «НА ПРОВЕРКЕ — MMS · SANG» — синяя, в интерфейсе и при экспорте Word и резервной копии.\n' +
                             '🔵 «ОЖИДАЕТ ПРОВЕРКИ» — синяя, парная печать статуса.\n' +
                             '🔴 «АРХИВНАЯ КОПИЯ» — красная, при восстановлении из архива с печатью.\n\n' +
                             'Печати «Одобрено» ставят только проверяющие в отдельной программе (mms_reviewer).\n' +
@@ -12741,26 +12865,26 @@
                         'куда сохранить отчёт', 'зачем экспорт', 'почему word',
                         'что такое word отчёт', 'чем excel отличается',
                         'как скачать word', 'как скачать excel', 'для чего выгрузка',
-                        'куда девается файл', 'пакет для проверки', 'пакет проверки',
+                        'куда девается файл', 'пакет для проверки', 'пакет проверки', 'резервная копия', 'резервную копию',
                         'как сделать пакет', 'сформировать пакет', 'mms пакет',
                         'что такое пакет', 'зачем пакет'
                     ],
                     action: () => {
                         return '📄 Документы и сдача:\n\n' +
                             '• Основной способ сдать рапорт — «Сдача в Discord».\n' +
-                            '• «Пакет для проверки» — один .mms.zip: JSON + Word + HTML + PNG для проверяющего.\n' +
-                            '• «Отчёт в Word» — официальный лист A4 (тот же вид, что HTML в пакете).\n' +
+                            '• «Резервная копия» — архив ваших данных на случай сбоя (для Discord не нужна).\n' +
+                            '• «Отчёт в Word» — официальный лист A4 (тот же вид, что HTML в копии).\n' +
                             '• Excel больше не используется.\n' +
                             '• В Discord: еженедельный канал или канал на повышение.\n\n' +
-                            'Спросите «как сдать отчёт в Discord» или «пакет для проверки».';
+                            'Спросите «как сдать отчёт в Discord» или «резервная копия».';
                     },
-                    help: 'Объясняет документы и сдачу (Discord + пакет для проверки).'
+                    help: 'Объясняет документы и сдачу (Discord + резервная копия).'
                 }, {
                     id: 'make_review_package',
                     category: 'export',
                     priority: 10,
                     patterns: [
-                        'сделать пакет для проверки', 'скачать пакет для проверки',
+                        'сделать пакет для проверки', 'скачать пакет для проверки', 'сделать резервную копию', 'скачать резервную копию',
                         'сформировать пакет', 'пакет для проверяющего',
                         'собрать пакет', 'скачать пакет mms', 'mms.zip',
                         'подготовить пакет', 'выгрузить пакет'
@@ -12768,18 +12892,18 @@
                     action: () => {
                         try {
                             if (typeof entries === 'undefined' || !entries.length) {
-                                return 'Нет записей для пакета. Сначала добавьте доказательства в рапорт.';
+                                return 'Нет записей для резервной копии. Сначала добавьте доказательства в рапорт.';
                             }
                             if (typeof downloadMmsPackage === 'function') {
                                 downloadMmsPackage(null);
-                                return '📦 Собираю пакет для проверки (.mms.zip): JSON + Word + HTML + PNG.\nОткройте HTML в браузере или Word — содержимое одинаковое.';
+                                return '💾 Собираю резервную копию: записи + Word + HTML.\nОткройте HTML в браузере или Word — содержимое одинаковое.';
                             }
-                            return 'Функция пакета недоступна. Используйте кнопку «Пакет для проверки» в меню «Документы».';
+                            return 'Резервная копия сейчас недоступна. Попробуйте обновить страницу.';
                         } catch (e) {
-                            return 'Не удалось собрать пакет: ' + (e && e.message ? e.message : e);
+                            return 'Не удалось собрать резервную копию. Повторите попытку.';
                         }
                     },
-                    help: 'Собирает единый пакет для проверяющего.'
+                    help: 'Собирает резервную копию данных.'
                 }, {
                     id: 'ui_map',
                     category: 'help',
@@ -12805,7 +12929,7 @@
                             });
                             if (!groups.length) return 'Не удалось прочитать меню. Обновите страницу (Ctrl+F5).';
                             return '🗺 Текущее меню слева (актуально после обновлений):\n\n' + groups.join('\n\n') +
-                                '\n\nСпросите, например: «как сдать в Discord» или «пакет для проверки».';
+                                '\n\nСпросите, например: «как сдать в Discord» или «резервная копия».';
                         } catch (e) {
                             return 'Не удалось прочитать интерфейс.';
                         }
@@ -12923,7 +13047,7 @@
                             'Обращайтесь ещё — особенно по сдаче в Discord.',
                             'Не за что. Если остались вопросы по баллам или повышению — спрашивайте.',
                             'Пожалуйста. Удачной проверки рапорта.',
-                            'На связи. Дальше уже за вами и Руководство MMS.'
+                            'На связи. Дальше уже за вами и руководством MMS.'
                         ];
                         return thanks[Math.floor(Math.random() * thanks.length)];
                     },
@@ -12976,7 +13100,7 @@
                         try {
                             if (typeof importReport === 'function') {
                                 importReport(null);
-                                return '📂 Открываю выбор файла отчёта.\n\nПоддерживаются: HTML, Word (.doc), JSON, пакет .mms.zip.\nИз пакета откроется report.html (или Word/JSON). Просмотр не меняет ваш рапорт.\n\nЕсли окно не появилось — разрешите диалог выбора файла в браузере.';
+                                return '📂 Открываю выбор файла отчёта.\n\nПоддерживаются: HTML, Word (.doc), JSON, резервная копия (.zip).\nИз копии откроется report.html (или Word/JSON). Просмотр не меняет ваш рапорт.\n\nЕсли окно не появилось — разрешите диалог выбора файла в браузере.';
                             }
                         } catch (e) {
                             return 'Не удалось вызвать диалог. Нажмите в сайдбаре кнопку открытия отчёта вручную. Ошибка: ' + (e && e.message ? e.message : e);
@@ -13148,14 +13272,14 @@
                             '2. Два рабочих варианта:\n' +
                             '   • заполните таблицу доказательств (ссылки, даты, баллы), или\n' +
                             '   • прикрепите готовый .doc / .html — файл уйдёт как есть.\n' +
-                            '3. JSON / .mms.zip — из них подтянутся записи и баллы.\n' +
+                            '3. JSON с записями — из него подтянутся записи и баллы.\n' +
                             '4. Вкладка «Сдача в Discord» → тип: Еженедельный или На повышение.\n' +
                             '5. «Отправить в Discord» — Word/файл + ping @Руководство MMS.\n' +
-                            '6. Учёт: сдача пишется в Cloudflare (баллы, ID, время) для штабной статистики.\n\n' +
+                            '6. Учёт: данные сдачи (баллы, ID, время) попадают в штабную статистику командования.\n\n' +
                             '💡 Пустая таблица + прикреплённый .doc — нормально, отправка пройдёт.\n' +
                             '⚠️ PNG и «простыня» JSON в Discord больше не шлются — только один файл отчёта.';
                     },
-                    help: 'Сдача: таблица или готовый .doc; два канала Discord; учёт в Cloudflare.'
+                    help: 'Сдача: таблица или готовый .doc; два канала Discord; учёт сдач командованием.'
                 }, {
                     id: 'attach_file_report',
                     category: 'help',
@@ -13185,12 +13309,12 @@
                     ],
                     action: () => {
                         return '📊 Учёт сдач:\n\n' +
-                            'После «Отправить в Discord» Worker сохраняет сдачу (ID, имя, баллы, тип, время).\n' +
+                            'После «Отправить в Discord» система сохраняет сдачу (ID, имя, баллы, тип, время).\n' +
                             'Командование смотрит штабную статистику по защищённой ссылке с токеном.\n' +
                             'Имена подтягиваются из отчётов автоматически.\n' +
                             'Обычным сотрудникам эта панель не нужна — только сдача рапорта.';
                     },
-                    help: 'Cloudflare-учёт и штабная статистика.'
+                    help: 'Учёт сдач и штабная статистика.'
                 }, {
                     id: 'switch_discord',
                     category: 'navigation',
@@ -13285,7 +13409,7 @@
                         return 'Основные возможности MMS (актуально):\n\n' +
                             '• Карточка сотрудника (ФИО, Static ID)\n' +
                             '• Еженедельная отчётность и отдельно рапорт на повышение\n' +
-                            '• Сдача в Discord: два webhook / два канала + ping @Руководство MMS\n' +
+                            '• Сдача в Discord: два канала + уведомление @Руководство MMS\n' +
                             '• Доказательства, баллы, дубликаты ссылок\n' +
                             '• Фото-вложения с трёхступенчатыми правилами\n' +
                             '• График динамики (режим без формы регистрации)\n' +
@@ -13340,7 +13464,7 @@
                             : '\n\nЧтобы открыть раздел: в меню нажмите «Рапорт на повышение» или скажите мне «открой рапорт на повышение».';
                         return '⬆️ Рапорт на повышение:\n\n' +
                             'Отдельный тип рапорта для рассмотрения повышения по службе.\n' +
-                            'Интерфейс тот же (ссылки-доказательства, даты, баллы, архив, Word и пакет для проверки),\n' +
+                            'Интерфейс тот же (ссылки-доказательства, даты, баллы, архив, Word и резервная копия),\n' +
                             'но данные хранятся в отдельном «отсеке» и не смешиваются с ежедневной / еженедельной отчётностью.\n\n' +
                             '• Ежедневная отчётность — текущая работа за период, недельные итоги.\n' +
                             '• Рапорт на повышение — пакет доказательств специально под рассмотрение повышения.\n\n' +
@@ -13522,7 +13646,7 @@
                             '2. Проверьте тестовый режим и localStorage.\n' +
                             '3. «Нет записей для отчёта» — добавьте строки в таблицу ИЛИ прикрепите .doc/.html/JSON.\n' +
                             '4. Discord не принял — проверьте интернет и повторите; метаданные всё равно могут сохраниться на сервере учёта.\n' +
-                            '5. Лицензия — только по HTTPS (GitHub Pages), не file://.\n' +
+                            '5. Лицензию активируйте на сайте рапорта, а не из скачанного файла.\n' +
                             '6. Chrome / Edge стабильнее для голоса и скачиваний.\n\n' +
                             'Опишите ошибку точнее — разберём по шагам.';
                     },
@@ -13538,11 +13662,11 @@
                     action: () => {
                         return '🔐 Что где хранится:\n\n' +
                             '• Черновик и архив — в вашем браузере (localStorage).\n' +
-                            '• При «Отправить в Discord» — файл и метаданные (ФИО, Static ID, баллы, тип, время) уходят на Cloudflare Worker для учёта командования и в Discord-канал.\n' +
-                            '• Webhook-секреты на сайте не хранятся.\n' +
+                            '• При «Отправить в Discord» — файл и метаданные (ФИО, Static ID, баллы, тип, время) уходят в Discord-канал и в учёт командования.\n' +
+                            '• Пароли на сайте не хранятся.\n' +
                             '• Не выкладывайте отчёты с личными данными в открытый доступ.';
                     },
-                    help: 'Браузер + Discord + учёт Cloudflare.'
+                    help: 'Браузер + Discord + учёт командования.'
                 }, {
                     id: 'about_duplicates_why',
                     category: 'help',
@@ -14170,7 +14294,7 @@
                     { id: 'about_stamps', re: /печат|штамп|одобрен|hoffman|corruption|брет|адам/, priority: 17 },
                     { id: 'open_report_viewer', re: /открыть\s*(чужой\s*)?отч|просмотр\s*отч|импорт\s*отч|загрузить\s*отч|файл\s*отч/, priority: 22 },
                     { id: 'about_export', re: /экспорт|выгруз|скачать\s*(word|excel|отчёт|отчет)|ворд|эксель|\bword\b|\bexcel\b|пакет\s*для\s*провер|пакет\s*mms|сформировать\s*пакет/, priority: 17 },
-                    { id: 'make_review_package', re: /сделать\s*пакет|скачать\s*пакет|собрать\s*пакет|mms\.zip|пакет\s*для\s*провер/, priority: 20 },
+                    { id: 'make_review_package', re: /резервн\w*\s*коп|сделать\s*пакет|скачать\s*пакет|собрать\s*пакет|mms\.zip|пакет\s*для\s*провер/, priority: 20 },
                     { id: 'ui_map', re: /где\s*кнопк|что\s*в\s*меню|карта\s*меню|список\s*кноп|где\s*находит/, priority: 18 },
                     { id: 'about_undo', re: /отмен|undo|откат/, priority: 16 },
                     { id: 'about_feedback', re: /жалоб|предложен|обращен/, priority: 15 },
