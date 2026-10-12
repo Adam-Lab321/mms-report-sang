@@ -6293,7 +6293,7 @@
         // Ник на сервере: «Ранг | Имя Фамилия | StaticID»
         // ============================================================
         const MMS_DISCORD_STORAGE = 'mmsDiscordAuth';
-        const MMS_DISCORD_CLIENT_ID = '1559348159693234277'; // mms-db Application ID
+        const MMS_DISCORD_CLIENT_ID = '1559340159693234277'; // mms-db Application ID
         const MMS_DISCORD_GUILD_ID = '1482047719697678498';  // Discord server
         const MMS_DISCORD_AUTH_URL = (typeof MMS_PROXY_URL !== 'undefined' ? MMS_PROXY_URL : '') + '/auth/discord';
         let mmsDiscordAuth = null;
@@ -6475,32 +6475,85 @@
             try { showToast('✅ Вход: ' + data.first + ' ' + data.last + ' · ' + data.staticId, 'success', 2800); } catch (_) {}
         }
 
+        function mmsDiscordRedirectUri() {
+            // Канонический redirect для GitHub Pages (с хвостовым /)
+            // Должен совпасть с OAuth2 → Redirects в Developer Portal
+            var origin = window.location.origin;
+            var path = window.location.pathname || '/';
+            // /mms-report-sang  → /mms-report-sang/
+            if (path.indexOf('/mms-report-sang') === 0) {
+                if (path === '/mms-report-sang' || path === '/mms-report-sang/') {
+                    return origin + '/mms-report-sang/';
+                }
+            }
+            if (path.length > 1 && path.slice(-1) !== '/') {
+                // если открыт .../index.html — redirect на папку
+                if (/\/index\.html$/i.test(path)) {
+                    return origin + path.replace(/\/index\.html$/i, '/');
+                }
+            }
+            return origin + path;
+        }
+
         function mmsDiscordLogin() {
             const st = document.getElementById('authStatus');
-            // Если настроен Client ID — OAuth через Discord
-            if (MMS_DISCORD_CLIENT_ID) {
-                const redirect = encodeURIComponent(window.location.origin + window.location.pathname);
-                const scope = encodeURIComponent('identify guilds.members.read');
-                const url = 'https://discord.com/api/oauth2/authorize?client_id=' + encodeURIComponent(MMS_DISCORD_CLIENT_ID) +
-                    '&redirect_uri=' + redirect +
-                    '&response_type=code&scope=' + scope +
-                    (MMS_DISCORD_GUILD_ID ? ('&guild_id=' + encodeURIComponent(MMS_DISCORD_GUILD_ID)) : '');
-                // Сохраняем return path
-                try { sessionStorage.setItem('mmsDiscordOAuth', '1'); } catch (_) {}
-                window.location.href = url;
+            if (!MMS_DISCORD_CLIENT_ID) {
+                if (st) {
+                    st.textContent = 'OAuth не настроен. Вставьте ник с сервера в поле ниже.';
+                    st.classList.remove('ok');
+                }
+                var inp0 = document.getElementById('authNickInput');
+                if (inp0) inp0.focus();
                 return;
             }
-            // Без Client ID — подсказка использовать ник
+            // file:// — OAuth не работает
+            if (window.location.protocol === 'file:') {
+                if (st) {
+                    st.textContent = 'Откройте рапорт по https-ссылке сайта, не из файла. Или войдите по нику.';
+                    st.classList.remove('ok');
+                }
+                return;
+            }
+            var redirectUri = mmsDiscordRedirectUri();
+            try {
+                sessionStorage.setItem('mmsDiscordOAuth', '1');
+                sessionStorage.setItem('mmsDiscordRedirect', redirectUri);
+            } catch (_) {}
+            // identify достаточно для входа; guilds.members.read — ник на сервере (без бота)
+            var scope = 'identify guilds.members.read';
+            // guild_id в authorize не обязателен для user-OAuth (ник читаем после входа)
+            var params = new URLSearchParams({
+                client_id: String(MMS_DISCORD_CLIENT_ID).trim(),
+                redirect_uri: redirectUri,
+                response_type: 'code',
+                scope: scope
+            });
+            var url = 'https://discord.com/api/oauth2/authorize?' + params.toString();
             if (st) {
-                st.textContent = 'OAuth пока не настроен. Вставьте ник с сервера в поле ниже (формат как на скриншоте).';
+                st.textContent = 'Переход в Discord…';
                 st.classList.remove('ok');
             }
-            const inp = document.getElementById('authNickInput');
-            if (inp) inp.focus();
+            window.location.href = url;
         }
 
         async function mmsHandleDiscordOAuthCallback() {
             const params = new URLSearchParams(window.location.search);
+            const oauthErr = params.get('error');
+            if (oauthErr) {
+                const st = document.getElementById('authStatus');
+                const desc = params.get('error_description') || oauthErr;
+                if (st) {
+                    st.textContent = 'Discord: ' + desc + '. Проверьте Redirect URL в Developer Portal и Client ID.';
+                    st.classList.remove('ok');
+                }
+                try {
+                    var u = new URL(window.location.href);
+                    u.searchParams.delete('error');
+                    u.searchParams.delete('error_description');
+                    window.history.replaceState({}, '', u.pathname + u.search + u.hash);
+                } catch (_) {}
+                return false;
+            }
             const code = params.get('code');
             if (!code) return false;
             const st = document.getElementById('authStatus');
@@ -6511,7 +6564,7 @@
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (typeof MMS_PROXY_TOKEN !== 'undefined' ? MMS_PROXY_TOKEN : '') },
                     body: JSON.stringify({
                         code: code,
-                        redirect_uri: window.location.origin + window.location.pathname,
+                        redirect_uri: (function(){ try { return sessionStorage.getItem('mmsDiscordRedirect') || mmsDiscordRedirectUri(); } catch(_){ return mmsDiscordRedirectUri(); } })(),
                         guild_id: MMS_DISCORD_GUILD_ID || undefined
                     })
                 });
