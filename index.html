@@ -4272,6 +4272,101 @@
         body.style-amber .nav-btn.active { border-color: #c4a060; color: #c4a060; }
         body.style-amber .sidebar-brand h2 { color: #c4a060; }
 
+
+        /* Кофейный — тёмный, тёплый, для глаз в тёмной комнате */
+        body.style-coffee {
+            --bg-main: #0e0a08;
+            --bg-card: #16110e;
+            --bg-sidebar: #0a0706;
+            --gold: #b8956a;
+            --gold-dark: #8a6e48;
+            --gold-light: #d4b48a;
+            --text-main: #e8ddd0;
+            --text-secondary: #a89078;
+            --text-muted: #5e5040;
+            --input-bg: #100c0a;
+            --input-text: #e8ddd0;
+            --input-border: #2a2218;
+            --table-bg: #0e0a08;
+            --table-row-even: #0e0a08;
+            --table-row-odd: #16110e;
+            --table-border: #2a2218;
+            --table-header-bg: #0a0706;
+            --table-header-border: #5a4830;
+            --blue-stamp: #b8956a;
+            --shadow: 0 8px 28px rgba(20, 10, 0, 0.6);
+            background: #0e0a08;
+            color: #e8ddd0;
+        }
+        body.style-coffee .sidebar { background: #0a0706; }
+        body.style-coffee .container, body.style-coffee .header { border-color: #b8956a; }
+        body.style-coffee .nav-btn.active { border-color: #b8956a; color: #b8956a; }
+        body.style-coffee .sidebar-brand h2 { color: #b8956a; }
+        body.style-coffee .nav-btn:hover {
+            background: rgba(184, 149, 106, 0.12);
+            border-color: rgba(184, 149, 106, 0.3);
+        }
+
+        /* Лаванда — мягкий фиолетовый */
+        body.style-lavender {
+            --bg-main: #12101a;
+            --bg-card: #1a1624;
+            --bg-sidebar: #0c0a12;
+            --gold: #9a8ab8;
+            --gold-dark: #7a6a98;
+            --gold-light: #b8a8d0;
+            --text-main: #e4e0f0;
+            --text-secondary: #9a90b0;
+            --text-muted: #5a5470;
+            --input-bg: #100e18;
+            --input-text: #e4e0f0;
+            --input-border: #2a2438;
+            --table-bg: #12101a;
+            --table-row-even: #12101a;
+            --table-row-odd: #1a1624;
+            --table-border: #2a2438;
+            --table-header-bg: #0c0a12;
+            --table-header-border: #4a4060;
+            --blue-stamp: #9a8ab8;
+            --shadow: 0 8px 28px rgba(20, 10, 40, 0.55);
+            background: #12101a;
+            color: #e4e0f0;
+        }
+        body.style-lavender .sidebar { background: #0c0a12; }
+        body.style-lavender .container, body.style-lavender .header { border-color: #9a8ab8; }
+        body.style-lavender .nav-btn.active { border-color: #9a8ab8; color: #9a8ab8; }
+        body.style-lavender .sidebar-brand h2 { color: #9a8ab8; }
+
+        /* Уголь — почти чёрный с холодным акцентом */
+        body.style-charcoal {
+            --bg-main: #0c0c0e;
+            --bg-card: #141416;
+            --bg-sidebar: #08080a;
+            --gold: #8a9aaa;
+            --gold-dark: #6a7a8a;
+            --gold-light: #aabacc;
+            --text-main: #d8dce0;
+            --text-secondary: #8a929a;
+            --text-muted: #4a5058;
+            --input-bg: #0a0a0c;
+            --input-text: #d8dce0;
+            --input-border: #222428;
+            --table-bg: #0c0c0e;
+            --table-row-even: #0c0c0e;
+            --table-row-odd: #141416;
+            --table-border: #222428;
+            --table-header-bg: #08080a;
+            --table-header-border: #3a4048;
+            --blue-stamp: #8a9aaa;
+            --shadow: 0 8px 28px rgba(0, 0, 0, 0.7);
+            background: #0c0c0e;
+            color: #d8dce0;
+        }
+        body.style-charcoal .sidebar { background: #08080a; }
+        body.style-charcoal .container, body.style-charcoal .header { border-color: #8a9aaa; }
+        body.style-charcoal .nav-btn.active { border-color: #8a9aaa; color: #8a9aaa; }
+        body.style-charcoal .sidebar-brand h2 { color: #8a9aaa; }
+
 /* ===== ДЕНЬ / НОЧЬ ===== */
         body.day-mode {
             filter: none;
@@ -4492,6 +4587,34 @@
         body.style-forest  { --accent-rgb: 107, 154, 114; }
         body.style-slate   { --accent-rgb: 122, 143, 168; }
         body.style-amber   { --accent-rgb: 196, 160, 96; }
+        body.style-coffee  { --accent-rgb: 184, 149, 106; }
+        body.style-lavender{ --accent-rgb: 154, 138, 184; }
+        body.style-charcoal{ --accent-rgb: 138, 154, 170; }
+
+        
+        .report-table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--bg-card) 92%, #000 8%);
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 12%, transparent);
+            margin: 10px 0 4px;
+        }
+        .report-table-wrap #reportTable {
+            width: 100%;
+            min-width: 100%;
+            margin: 0;
+            border-collapse: collapse;
+        }
+        .report-table-wrap #reportTable th {
+            border-bottom: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
+        }
+        .report-table-wrap #reportTable td,
+        .report-table-wrap #reportTable th {
+            border-left: none;
+            border-right: none;
+        }
 
         .door-back-btn {
             background: rgba(var(--accent-rgb, 201, 168, 76), 0.08) !important;
@@ -5103,6 +5226,18 @@
                         <span class="style-shape waves" style="background:linear-gradient(135deg,#2a2010,#6a5030);"></span>
                         <span>Янтарь</span>
                     </div>
+                    <div class="style-option" onclick="setStyle('coffee')" data-style="coffee" title="Кофейный">
+                        <span class="style-shape circle" style="background:linear-gradient(135deg,#1a1008,#5a4030);"></span>
+                        <span>Кофейный</span>
+                    </div>
+                    <div class="style-option" onclick="setStyle('lavender')" data-style="lavender" title="Лаванда">
+                        <span class="style-shape square" style="background:linear-gradient(135deg,#1a1020,#4a3a60);"></span>
+                        <span>Лаванда</span>
+                    </div>
+                    <div class="style-option" onclick="setStyle('charcoal')" data-style="charcoal" title="Уголь">
+                        <span class="style-shape square" style="background:linear-gradient(135deg,#0a0a0c,#3a4048);"></span>
+                        <span>Уголь</span>
+                    </div>
                 </div>
                 <div style="font-size:10px;color:var(--gold);letter-spacing:1px;margin:10px 0 8px;text-transform:uppercase;border-top:1px solid rgba(212,175,55,0.15);padding-top:10px;">Узор поверхности</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
@@ -5378,9 +5513,10 @@
                                 <select id="category" style="width:100%;">
                                     <option value="прочее">Прочее</option>
                                     <option value="медэкзамен">Мед. экзамен</option>
+                                    <option value="медсмотр">Мед. смотр</option>
                                     <option value="кадры">Кадры / заявки</option>
+                                    <option value="поставки">Поставки</option>
                                     <option value="присяга">Присяга</option>
-                                    <option value="аудит">Кадровый аудит</option>
                                     <option value="агитация">Агитация</option>
                                     <option value="дежурство">Дежурство</option>
                                     <option value="обучение">Обучение</option>
@@ -5395,12 +5531,12 @@
                             <button class="btn-add btn-primary" id="addBtn" onclick="requestAddEntry()" disabled>ДОБАВИТЬ</button>
                         </div>
                         <div class="quick-types" id="quickTypes" title="Быстрый выбор категории записи">
-                            <button type="button" class="quick-type-btn" onclick="applyQuickType(\'кадры\')">Заявки пов./увол.</button>
-                            <button type="button" class="quick-type-btn" onclick="applyQuickType(\'медэкзамен\')">Мед. экзамен</button>
-                            <button type="button" class="quick-type-btn" onclick="applyQuickType(\'кадры\')">Приём в MMS</button>
-                            <button type="button" class="quick-type-btn" onclick="applyQuickType(\'присяга\')">Присяга</button>
-                            <button type="button" class="quick-type-btn" onclick="applyQuickType(\'аудит\')">Кадровый аудит</button>
-                            <button type="button" class="quick-type-btn" onclick="applyQuickType(\'агитация\')">Агитация</button>
+                            <button type="button" class="quick-type-btn" onclick="applyQuickType('кадры')">Кадры / заявки</button>
+                            <button type="button" class="quick-type-btn" onclick="applyQuickType('медэкзамен')">Мед. экзамен</button>
+                            <button type="button" class="quick-type-btn" onclick="applyQuickType('медсмотр')">Мед. смотр</button>
+                            <button type="button" class="quick-type-btn" onclick="applyQuickType('поставки')">Поставки</button>
+                            <button type="button" class="quick-type-btn" onclick="applyQuickType('присяга')">Присяга</button>
+                            <button type="button" class="quick-type-btn" onclick="applyQuickType('агитация')">Агитация</button>
                         </div>
                         <div class="attach-row">
                             <div style="flex:1;min-width:200px;">
@@ -5500,9 +5636,10 @@
                             <select id="filterCategory" onchange="renderTable()">
                                 <option value="">Все</option>
                                 <option value="медэкзамен">Мед. экзамен</option>
+                                <option value="медсмотр">Мед. смотр</option>
                                 <option value="кадры">Кадры / заявки</option>
+                                <option value="поставки">Поставки</option>
                                 <option value="присяга">Присяга</option>
-                                <option value="аудит">Кадровый аудит</option>
                                 <option value="агитация">Агитация</option>
                                 <option value="дежурство">Дежурство</option>
                                 <option value="обучение">Обучение</option>
@@ -5514,17 +5651,16 @@
                         <div class="category-totals" id="categoryTotals"></div>
 
                         <!-- TABLE -->
-                        <div style="overflow-x:auto;">
+                        <div class="report-table-wrap">
                             <table id="reportTable">
                                 <thead>
                                     <tr>
-                                        <th style="width:5%;">Выб.</th>
+                                        <th style="width:4%;">Выб.</th>
                                         <th style="width:12%;">ДАТА</th>
-                                        <th style="width:40%;">ДОКАЗАТЕЛЬСТВО</th>
-                                        <th style="width:12%;">КАТЕГОРИЯ</th>
-                                        
-                                        <th style="width:8%;">Изм.</th>
-                                        <th style="width:8%;">Удал.</th>
+                                        <th style="width:48%;">ДОКАЗАТЕЛЬСТВО</th>
+                                        <th style="width:16%;">КАТЕГОРИЯ</th>
+                                        <th style="width:10%;">Изм.</th>
+                                        <th style="width:10%;">Удал.</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -6895,7 +7031,7 @@
         let _inactiveStore = null;
 
         // ===== КАТЕГОРИИ / ВЛОЖЕНИЯ / НОРМА / ФИЛЬТР =====
-        const ENTRY_CATEGORIES = ['медэкзамен', 'кадры', 'присяга', 'аудит', 'агитация', 'дежурство', 'обучение', 'помощь', 'прочее'];
+        const ENTRY_CATEGORIES = ['медэкзамен', 'медсмотр', 'кадры', 'поставки', 'присяга', 'агитация', 'дежурство', 'обучение', 'помощь', 'прочее'];
 
         function syncPointsDisplay() {
             /* совместимость: раньше была плашка pointsDisplay */
@@ -6903,31 +7039,39 @@
             if (pts && pts.value === '') pts.value = '0';
         }
 
-        function applyQuickType(category, points) {
+        function applyQuickType(category) {
             const cat = document.getElementById('category');
-            const pts = document.getElementById('points');
-            if (cat) {
-                let found = false;
-                for (let i = 0; i < cat.options.length; i++) {
-                    if (cat.options[i].value === category) { found = true; break; }
+            if (!cat) { showToast('Поле категории не найдено', 'error'); return; }
+            const labels = {
+                'медэкзамен': 'Мед. экзамен',
+                'медсмотр': 'Мед. смотр',
+                'кадры': 'Кадры / заявки',
+                'поставки': 'Поставки',
+                'присяга': 'Присяга',
+                'агитация': 'Агитация',
+                'дежурство': 'Дежурство',
+                'обучение': 'Обучение',
+                'помощь': 'Помощь',
+                'прочее': 'Прочее'
+            };
+            let found = false;
+            for (let i = 0; i < cat.options.length; i++) {
+                if (cat.options[i].value === category) { found = true; break; }
+            }
+            if (!found) {
+                const opt = document.createElement('option');
+                opt.value = category;
+                opt.textContent = labels[category] || category;
+                cat.appendChild(opt);
+            }
+            cat.value = category;
+            document.querySelectorAll('.quick-type-btn').forEach(function(b) { b.classList.remove('active'); });
+            try {
+                if (typeof event !== 'undefined' && event && event.currentTarget) {
+                    event.currentTarget.classList.add('active');
                 }
-                if (!found) {
-                    const opt = document.createElement('option');
-                    opt.value = category;
-                    opt.textContent = category;
-                    cat.appendChild(opt);
-                }
-                cat.value = category;
-            }
-            if (pts) {
-                pts.value = points;
-                lastUsedPoints = points;
-            }
-            document.querySelectorAll('.quick-type-btn').forEach(b => b.classList.remove('active'));
-            if (typeof event !== 'undefined' && event && event.currentTarget) {
-                event.currentTarget.classList.add('active');
-            }
-            showToast('Категория: «' + category + '»', 'success', 1600);
+            } catch (_) {}
+            showToast('Категория: «' + (labels[category] || category) + '»', 'success', 1600);
         }
 
         const PHOTO_POLICY_TEXT =
@@ -12372,7 +12516,6 @@ function addEntry() {
                         <td>${dateHtml}</td>
                         <td>${linkHtml}</td>
                         <td>${catHtml}</td>
-                        <td>${pointsHtml}</td>
                         <td class="edit-btn-cell">
                             <button class="btn-edit btn-secondary btn-xs ${isEditing ? 'active' : ''}" onclick="toggleEdit('${eid}')" title="Изменить">
                                 ${isEditing ? 'OK' : 'Изм.'}
@@ -12769,9 +12912,9 @@ function addEntry() {
                     patterns: [
                         'добавить запись', 'добавить достижение', 'добавить работу', 'внести запись',
                         'новая запись', 'добавить строку', 'внести достижение', 'добавить доказательство',
-                        'создать запись', 'добавить баллы', 'новое достижение', 'записать работу',
+                        'создать запись', 'новое достижение', 'записать работу',
                         'добавить ссылку', 'ввести достижение', 'вписать работу',
-                        'как добавить запись', 'как добавить достижение', 'как внести баллы',
+                        'как добавить запись', 'как добавить достижение', 'категории',
                         'как создать строку', 'зачем добавлять доказательство', 'что такое достижение'
                     ],
                     action: () => {
@@ -12780,8 +12923,8 @@ function addEntry() {
                             const el = document.getElementById('link');
                             if (el) el.focus();
                         } catch (_) {}
-                        try { showToast('📝 Введите ссылку, дату и баллы', 'success', 2500); } catch (_) {}
-                        return 'Перейдите в «Регистрацию достижений». Введите ссылку, дату и баллы, затем нажмите «ДОБАВИТЬ».\n\nЗачем: каждое доказательство с баллами идёт в итог отчёта, в недельную статистику и учитывается при повышении.';
+                        try { showToast('📝 Введите ссылку или фото и дату', 'success', 2500); } catch (_) {}
+                        return 'Перейдите в «Ежедневную отчётность».\n\n1) Вставьте ссылку (полный Discord URL или путь сервер/канал/сообщение) или прикрепите фото с пояснением.\n2) Выберите категорию кнопкой или из списка (мед. экзамен, мед. смотр, кадры/заявки, поставки…).\n3) Укажите дату и нажмите «ДОБАВИТЬ».\n\nБаллы больше не используются — учитывается только факт записи.';
                     },
                     help: 'Для добавления записи перейдите во вкладку «Регистрация достижений», заполните поля и нажмите «ДОБАВИТЬ».'
                 }, {
@@ -13258,7 +13401,7 @@ function addEntry() {
                             '',
                             'Главное:',
                             '• 📨 Сдача рапорта в Discord (два канала: недельный и на повышение)',
-                            '• 📋 Записи, баллы, дубликаты ссылок, фото с правилами',
+                            '• 📋 Записи, категории, дубликаты ссылок, фото с правилами',
                             '• ⬆️ Отдельный рапорт на повышение (данные не смешиваются)',
                             '• 📈 График динамики баллов (без формы регистрации)',
                             '• 📁 Архив, тестовый режим, отмена действий',
@@ -13333,7 +13476,7 @@ function addEntry() {
                         return '📁 Архив MMS — локальные снимки вашего отчёта.\n\n' +
                             'Где найти:\n' +
                             '• Слева в меню «Документы» / «Архив» (кнопка с папкой).\n' +
-                            '• «Сохранить в архив» — снимок текущих записей и баллов.\n' +
+                            '• «Сохранить в архив» — снимок текущих записей.\n' +
                             '• «Открыть архив» — список копий, можно восстановить.\n\n' +
                             'Сейчас копий в архиве: ' + count + '.\n' +
                             'Хранится только в этом браузере (localStorage), не на сервере.\n' +
@@ -13867,9 +14010,22 @@ function addEntry() {
                         'баллы что это', 'очки что это', 'что за баллы'
                     ],
                     action: () => {
-                        return '📋 Система баллов отключена.\n\nУчитываются только записи с доказательствами (ссылка или фото) и категория. Итог — число записей.';
+                        return '📋 Система баллов отключена.\n\nВ рапорте учитываются только записи:\n• ссылка на доказательство (Discord / http) или фото с пояснением\n• категория (мед. экзамен, мед. смотр, кадры/заявки, поставки, присяга…)\n• дата\n\nИтог — число записей, без баллов. Быстрые кнопки под формой сразу ставят категорию.';
                     },
                     help: 'Система баллов отключена — учитываются только записи.'
+                }, {
+                    id: 'about_categories',
+                    category: 'help',
+                    priority: 16,
+                    patterns: [
+                        'категории', 'какие категории', 'список категорий', 'медсмотр', 'мед смотр',
+                        'поставки', 'кадры заявки', 'что ставить в категорию', 'быстрые кнопки',
+                        'мед экзамен', 'мед. экзамен', 'категория записи'
+                    ],
+                    action: () => {
+                        return '📂 Категории записей рапорта:\n\n• Мед. экзамен — экзамены по медицине\n• Мед. смотр — медосмотры\n• Кадры / заявки — приём, увольнение, заявки\n• Поставки — поставки материалов/имущества\n• Присяга\n• Агитация\n• Дежурство, обучение, помощь, прочее\n\nБыстрые кнопки под формой сразу выбирают категорию. Кадровый аудит объединён с «Кадры / заявки». Баллы не начисляются.';
+                    },
+                    help: 'Категории: мед. экзамен, мед. смотр, кадры/заявки, поставки…'
                 }, {
                     id: 'about_stamps_full',
                     category: 'help',
