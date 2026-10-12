@@ -132,8 +132,180 @@
             max-width: 320px;
         }
 
-        /* ========== LICENSE GATE ========== */
-        #licenseGate {
+        
+        /* ========== DISCORD AUTH GATE ========== */
+        #authGate {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483000;
+            pointer-events: auto;
+            background:
+                radial-gradient(ellipse at 50% 20%, rgba(184, 149, 106, 0.12) 0%, transparent 55%),
+                radial-gradient(ellipse at center, #1a1510 0%, #0a0806 70%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-family: 'Oswald', sans-serif;
+        }
+        #authGate.hidden { display: none !important; }
+        .auth-card {
+            max-width: 420px;
+            width: 100%;
+            background: linear-gradient(180deg, #1e1a16 0%, #161210 100%);
+            border: 1px solid rgba(184, 149, 106, 0.4);
+            border-radius: 16px;
+            padding: 36px 30px 28px;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.75), 0 0 40px rgba(184,149,106,0.06);
+            text-align: center;
+        }
+        .auth-brand {
+            font-size: 10px;
+            letter-spacing: 3px;
+            color: rgba(184, 149, 106, 0.65);
+            margin-bottom: 8px;
+        }
+        .auth-card h1 {
+            font-family: 'Cinzel', serif;
+            color: #c9a87a;
+            font-size: 24px;
+            letter-spacing: 3px;
+            margin-bottom: 10px;
+        }
+        .auth-sub {
+            color: #a89880;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 22px;
+        }
+        .auth-sub strong { color: #c9a87a; }
+        .auth-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 13px 16px;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+        }
+        .auth-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+        .auth-discord {
+            background: #5865F2;
+            color: #fff;
+            box-shadow: 0 6px 20px rgba(88, 101, 242, 0.35);
+        }
+        .auth-discord:hover { box-shadow: 0 8px 28px rgba(88, 101, 242, 0.45); }
+        .auth-discord-ico { display: flex; }
+        .auth-nick {
+            background: linear-gradient(135deg, #c9a87a, #a88850);
+            color: #1a1208;
+            margin-top: 10px;
+        }
+        .auth-confirm {
+            background: linear-gradient(135deg, #c9a87a, #a88850);
+            color: #1a1208;
+            margin-top: 14px;
+        }
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0 14px;
+            color: #6a6050;
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .auth-divider::before, .auth-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(184, 149, 106, 0.2);
+        }
+        .auth-label {
+            display: block;
+            text-align: left;
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #c9a87a;
+            margin-bottom: 6px;
+        }
+        .auth-input {
+            width: 100%;
+            padding: 12px 14px;
+            background: #0e0c0a;
+            border: 1px solid rgba(184, 149, 106, 0.3);
+            border-radius: 10px;
+            color: #e8e0d4;
+            font-family: 'Oswald', sans-serif;
+            font-size: 14px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .auth-input:focus { border-color: #c9a87a; }
+        .auth-hint {
+            margin-top: 12px;
+            font-size: 11px;
+            color: #7a7060;
+            line-height: 1.45;
+            text-align: left;
+        }
+        .auth-hint code {
+            background: rgba(184, 149, 106, 0.1);
+            padding: 1px 6px;
+            border-radius: 4px;
+            color: #c9a87a;
+            font-size: 11px;
+        }
+        .auth-status {
+            margin-top: 12px;
+            font-size: 13px;
+            color: #ff8a8a;
+            min-height: 1.2em;
+        }
+        .auth-status.ok { color: #6bcb7a; }
+        .auth-preview {
+            margin-top: 16px;
+            padding: 14px;
+            border: 1px solid rgba(184, 149, 106, 0.3);
+            border-radius: 12px;
+            background: rgba(184, 149, 106, 0.06);
+            text-align: left;
+        }
+        .auth-preview-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 6px 0;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(184, 149, 106, 0.1);
+        }
+        .auth-preview-row:last-of-type { border-bottom: none; }
+        .auth-preview-row span { color: #8a8070; }
+        .auth-preview-row b { color: #e8e0d4; font-weight: 600; }
+        .auth-watermark {
+            position: fixed;
+            bottom: 6px;
+            right: 12px;
+            z-index: 8;
+            font-size: 10px;
+            letter-spacing: 0.6px;
+            color: rgba(184, 149, 106, 0.28);
+            pointer-events: none;
+            font-family: 'Oswald', sans-serif;
+        }
+
+        /* ========== LICENSE GATE (legacy, hidden) ========== */
+        #licenseGate { display:none !important;
             position: fixed;
             inset: 0;
             z-index: 2147483000;
@@ -5120,25 +5292,41 @@
 </head>
 <body>
 
-    <div id="licenseGate" aria-modal="true" role="dialog">
-        <div class="license-card">
-            <h1>🔐 ЛИЦЕНЗИЯ MMS</h1>
-            <p class="sub">Для работы нужна именная лицензия подразделения.<br>
-            Загрузите <strong>license.key</strong> и введите <strong>пароль активации</strong> из генератора.<br>
-            Копирование и перепродажа ПО запрещены.</p>
-            <button type="button" class="license-btn btn-secondary" id="licenseLoadBtn" onclick="(function(){var i=document.getElementById('licenseFileInput'); if(i) i.click();})()">📁 Загрузить license.key</button>
-            <input type="file" id="licenseFileInput" accept=".key,.json,application/json,text/plain" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0;" />
-            <div id="licensePasswordWrap" style="display:none;margin-top:12px;text-align:left;">
-                <label style="display:block;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:4px;">Пароль активации (2FA)</label>
-                <input type="password" id="licensePasswordInput" autocomplete="off" placeholder="Пароль из генератора лицензий"
-                    style="width:100%;padding:10px 12px;background:#111;border:1px solid #333;border-radius:8px;color:#fff;font-family:Oswald,sans-serif;font-size:14px;box-sizing:border-box;" />
-                <button type="button" class="license-btn btn-primary" id="licenseActivateBtn" style="margin-top:10px;" onclick="(function(){var p=document.getElementById('licensePasswordInput'); if(typeof mmsFinalizeActivation==='function') mmsFinalizeActivation(mmsPendingLicense, p?p.value:'');})()">🔓 Активировать</button>
+    <div id="authGate" aria-modal="true" role="dialog">
+        <div class="auth-card">
+            <div class="auth-brand">MILITARY MEDICAL SERVICE</div>
+            <h1>MMS · S.A.N.G.</h1>
+            <p class="auth-sub">Вход по профилю Discord на сервере подразделения.<br>
+            Ник вида <strong>Должность | Имя Фамилия | StaticID</strong></p>
+
+            <button type="button" class="auth-btn auth-discord" id="authDiscordBtn" onclick="mmsDiscordLogin()">
+                <span class="auth-discord-ico">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+                </span>
+                Войти через Discord
+            </button>
+
+            <div class="auth-divider"><span>или по нику с сервера</span></div>
+
+            <label class="auth-label">Ник на Discord-сервере</label>
+            <input type="text" id="authNickInput" class="auth-input" placeholder="Com.MMS | Adam Rhodes | 166316" autocomplete="off" />
+            <button type="button" class="auth-btn auth-nick" id="authNickBtn" onclick="mmsAuthByNick()">Подтвердить ник</button>
+
+            <div class="auth-hint">Формат: <code>Ранг | Имя Фамилия | StaticID</code><br>
+            Пример с вашего сервера: <code>Com.MMS | Adam Rhodes | 166316</code></div>
+
+            <div class="auth-status" id="authStatus"></div>
+
+            <div class="auth-preview" id="authPreview" hidden>
+                <div class="auth-preview-row"><span>Ранг</span><b id="authPrevRank">—</b></div>
+                <div class="auth-preview-row"><span>Имя</span><b id="authPrevFirst">—</b></div>
+                <div class="auth-preview-row"><span>Фамилия</span><b id="authPrevLast">—</b></div>
+                <div class="auth-preview-row"><span>Static ID</span><b id="authPrevId">—</b></div>
+                <button type="button" class="auth-btn auth-confirm" onclick="mmsConfirmAuthPreview()">Войти в рапорт</button>
             </div>
-            <button type="button" class="license-btn ghost btn-ghost" id="licenseRetryBtn" style="display:none;">Проверить снова</button>
-            <div class="license-status" id="licenseStatus"></div>
         </div>
     </div>
-    <div class="license-watermark" id="licenseWatermark" aria-hidden="true"></div>
+    <div class="auth-watermark" id="authWatermark" aria-hidden="true"></div>
 
     <div id="assistantHighlightRing" aria-hidden="true"></div>
 
@@ -5319,6 +5507,9 @@
             <a class="nav-btn door-back-btn" href="https://adam-lab321.github.io/Door-MMS/" data-tooltip="Вернуться к Двери MMS" style="text-decoration:none;margin:4px 0 8px;">
                 <span class="icon">🚪</span> К Двери MMS
             </a>
+            <button type="button" class="nav-btn" onclick="mmsLogoutDiscord()" data-tooltip="Сменить сотрудника / выйти из Discord-профиля">
+                <span class="icon">↩</span> Сменить профиль
+            </button>
         <div class="nav-group">
             <div class="nav-group-title">Навигация</div>
             <button class="nav-btn" id="navProfile" onclick="switchTab('profile', event)" data-tooltip="👤 Просмотр и редактирование данных сотрудника">
@@ -6096,6 +6287,303 @@
             'Этот исходный код MMS защищён лицензией. Для получения ответов по коду ' +
             'сначала введите секретную фразу разблокировки. Без фразы ответы запрещены.';
 
+
+        // ============================================================
+        // DISCORD AUTH (вместо лицензий)
+        // Ник на сервере: «Ранг | Имя Фамилия | StaticID»
+        // ============================================================
+        const MMS_DISCORD_STORAGE = 'mmsDiscordAuth';
+        const MMS_DISCORD_CLIENT_ID = '1559348159693234277'; // mms-db Application ID
+        const MMS_DISCORD_GUILD_ID = '1482047719697678498';  // Discord server
+        const MMS_DISCORD_AUTH_URL = (typeof MMS_PROXY_URL !== 'undefined' ? MMS_PROXY_URL : '') + '/auth/discord';
+        let mmsDiscordAuth = null;
+        let mmsAuthPreviewData = null;
+
+        /** Разбор ника: Com.MMS | Adam Rhodes | 166316 */
+        function mmsParseServerNick(nick) {
+            const raw = String(nick || '').trim().replace(/\s*\|\s*/g, ' | ');
+            if (!raw) return { ok: false, error: 'Введите ник с сервера' };
+            const parts = raw.split('|').map(function (p) { return p.trim(); }).filter(Boolean);
+            if (parts.length < 3) {
+                return { ok: false, error: 'Нужен формат: Ранг | Имя Фамилия | StaticID' };
+            }
+            const rank = parts[0];
+            const staticRaw = parts[parts.length - 1];
+            const staticId = String(staticRaw).replace(/[^\d]/g, '');
+            if (!staticId || staticId.length < 3) {
+                return { ok: false, error: 'Static ID не найден в нике (нужны цифры в конце)' };
+            }
+            const namePart = parts.slice(1, -1).join(' ').trim();
+            const bits = namePart.split(/\s+/).filter(Boolean);
+            if (!bits.length) return { ok: false, error: 'Не удалось прочитать имя и фамилию' };
+            const first = bits[0];
+            const last = bits.slice(1).join(' ') || bits[0];
+            return {
+                ok: true,
+                rank: rank,
+                first: first,
+                last: last,
+                staticId: staticId,
+                nick: raw,
+                discordId: null
+            };
+        }
+
+        function mmsSaveDiscordAuth(data) {
+            const payload = {
+                rank: data.rank || '',
+                first: data.first || '',
+                last: data.last || '',
+                staticId: String(data.staticId || ''),
+                nick: data.nick || '',
+                discordId: data.discordId || null,
+                avatar: data.avatar || null,
+                at: Date.now()
+            };
+            try { localStorage.setItem(MMS_DISCORD_STORAGE, JSON.stringify(payload)); } catch (_) {}
+            mmsDiscordAuth = payload;
+            return payload;
+        }
+
+        function mmsLoadDiscordAuth() {
+            try {
+                const o = JSON.parse(localStorage.getItem(MMS_DISCORD_STORAGE) || 'null');
+                if (o && o.staticId && o.first) {
+                    mmsDiscordAuth = o;
+                    return o;
+                }
+            } catch (_) {}
+            mmsDiscordAuth = null;
+            return null;
+        }
+
+        function mmsClearDiscordAuth() {
+            try { localStorage.removeItem(MMS_DISCORD_STORAGE); } catch (_) {}
+            mmsDiscordAuth = null;
+        }
+
+        function mmsApplyAuthToProfile(data) {
+            const f = document.getElementById('firstName');
+            const l = document.getElementById('lastName');
+            const s = document.getElementById('staticId');
+            if (f) f.value = data.first || '';
+            if (l) l.value = data.last || '';
+            if (s) s.value = data.staticId || '';
+            try { if (typeof updateName === 'function') updateName(); } catch (_) {}
+            try {
+                if (typeof saveProfile === 'function') saveProfile();
+            } catch (_) {
+                try {
+                    localStorage.setItem('mmsProfile', JSON.stringify({
+                        first: data.first, last: data.last, id: data.staticId
+                    }));
+                } catch (e2) {}
+            }
+            try { hasEnteredName = true; } catch (_) {}
+        }
+
+        function mmsShowAuthGate(msg) {
+            const gate = document.getElementById('authGate');
+            const st = document.getElementById('authStatus');
+            if (gate) gate.classList.remove('hidden');
+            if (st) {
+                st.textContent = msg || '';
+                st.classList.toggle('ok', false);
+            }
+            document.body.style.overflow = 'hidden';
+        }
+
+        function mmsHideAuthGate() {
+            const gate = document.getElementById('authGate');
+            if (gate) gate.classList.add('hidden');
+            document.body.style.overflow = '';
+            mmsUpdateAuthWatermark();
+        }
+
+        function mmsUpdateAuthWatermark() {
+            const el = document.getElementById('authWatermark');
+            if (!el) return;
+            if (mmsDiscordAuth && mmsDiscordAuth.staticId) {
+                el.textContent = (mmsDiscordAuth.rank ? mmsDiscordAuth.rank + ' · ' : '') +
+                    (mmsDiscordAuth.first || '') + ' ' + (mmsDiscordAuth.last || '') +
+                    ' · ' + mmsDiscordAuth.staticId;
+            } else {
+                el.textContent = '';
+            }
+        }
+
+        function mmsAuthByNick() {
+            const inp = document.getElementById('authNickInput');
+            const st = document.getElementById('authStatus');
+            const parsed = mmsParseServerNick(inp ? inp.value : '');
+            if (!parsed.ok) {
+                if (st) { st.textContent = '⚠️ ' + parsed.error; st.classList.remove('ok'); }
+                return;
+            }
+            mmsAuthPreviewData = parsed;
+            const box = document.getElementById('authPreview');
+            if (box) box.hidden = false;
+            const set = function (id, v) { const e = document.getElementById(id); if (e) e.textContent = v; };
+            set('authPrevRank', parsed.rank);
+            set('authPrevFirst', parsed.first);
+            set('authPrevLast', parsed.last);
+            set('authPrevId', parsed.staticId);
+            if (st) { st.textContent = 'Проверьте данные и нажмите «Войти в рапорт»'; st.classList.add('ok'); }
+        }
+
+        async function mmsConfirmAuthPreview() {
+            if (!mmsAuthPreviewData || !mmsAuthPreviewData.ok) {
+                mmsAuthByNick();
+                if (!mmsAuthPreviewData || !mmsAuthPreviewData.ok) return;
+            }
+            const st = document.getElementById('authStatus');
+            // Пробуем зарегистрировать сессию на Worker
+            try {
+                if (typeof MMS_PROXY_URL !== 'undefined' && MMS_PROXY_URL) {
+                    if (st) { st.textContent = 'Связь с сервером…'; st.classList.remove('ok'); }
+                    const res = await fetch(MMS_PROXY_URL + '/auth/discord', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + (typeof MMS_PROXY_TOKEN !== 'undefined' ? MMS_PROXY_TOKEN : '')
+                        },
+                        body: JSON.stringify({ nick: mmsAuthPreviewData.nick })
+                    });
+                    const j = await res.json().catch(function () { return null; });
+                    if (j && j.ok) {
+                        if (j.sessionToken) {
+                            try {
+                                localStorage.setItem('mmsCfSession', JSON.stringify({
+                                    sessionToken: j.sessionToken,
+                                    userId: j.staticId,
+                                    org: 'MMS',
+                                    at: Date.now(),
+                                    exp: Date.now() + ((j.expiresIn || 86400) * 1000)
+                                }));
+                            } catch (_) {}
+                        }
+                        mmsAuthPreviewData = Object.assign({}, mmsAuthPreviewData, j);
+                    }
+                }
+            } catch (e) {
+                console.warn('auth worker', e);
+            }
+            const data = mmsSaveDiscordAuth(mmsAuthPreviewData);
+            mmsApplyAuthToProfile(data);
+            try { mmsLicenseActive = true; mmsLicenseInfo = { userId: data.staticId, org: 'MMS', discord: true }; } catch (_) {}
+            mmsHideAuthGate();
+            try { showToast('✅ Вход: ' + data.first + ' ' + data.last + ' · ' + data.staticId, 'success', 2800); } catch (_) {}
+        }
+
+        function mmsDiscordLogin() {
+            const st = document.getElementById('authStatus');
+            // Если настроен Client ID — OAuth через Discord
+            if (MMS_DISCORD_CLIENT_ID) {
+                const redirect = encodeURIComponent(window.location.origin + window.location.pathname);
+                const scope = encodeURIComponent('identify guilds.members.read');
+                const url = 'https://discord.com/api/oauth2/authorize?client_id=' + encodeURIComponent(MMS_DISCORD_CLIENT_ID) +
+                    '&redirect_uri=' + redirect +
+                    '&response_type=code&scope=' + scope +
+                    (MMS_DISCORD_GUILD_ID ? ('&guild_id=' + encodeURIComponent(MMS_DISCORD_GUILD_ID)) : '');
+                // Сохраняем return path
+                try { sessionStorage.setItem('mmsDiscordOAuth', '1'); } catch (_) {}
+                window.location.href = url;
+                return;
+            }
+            // Без Client ID — подсказка использовать ник
+            if (st) {
+                st.textContent = 'OAuth пока не настроен. Вставьте ник с сервера в поле ниже (формат как на скриншоте).';
+                st.classList.remove('ok');
+            }
+            const inp = document.getElementById('authNickInput');
+            if (inp) inp.focus();
+        }
+
+        async function mmsHandleDiscordOAuthCallback() {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            if (!code) return false;
+            const st = document.getElementById('authStatus');
+            if (st) { st.textContent = 'Авторизация Discord…'; st.classList.remove('ok'); }
+            try {
+                const res = await fetch(MMS_DISCORD_AUTH_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (typeof MMS_PROXY_TOKEN !== 'undefined' ? MMS_PROXY_TOKEN : '') },
+                    body: JSON.stringify({
+                        code: code,
+                        redirect_uri: window.location.origin + window.location.pathname,
+                        guild_id: MMS_DISCORD_GUILD_ID || undefined
+                    })
+                });
+                const data = await res.json().catch(function () { return null; });
+                // Очистить code из URL
+                try {
+                    const u = new URL(window.location.href);
+                    u.searchParams.delete('code');
+                    u.searchParams.delete('state');
+                    window.history.replaceState({}, '', u.pathname + u.search + u.hash);
+                } catch (_) {}
+                if (!res.ok || !data) {
+                    if (st) st.textContent = 'Discord OAuth: сервер не ответил. Войдите по нику с сервера.';
+                    return false;
+                }
+                // Ожидаем: { nick, first, last, staticId, rank, discordId } или { nick }
+                let profile = data;
+                if (data.nick && (!data.staticId || !data.first)) {
+                    const p = mmsParseServerNick(data.nick);
+                    if (p.ok) profile = Object.assign({}, data, p);
+                }
+                if (!profile.staticId || !profile.first) {
+                    if (st) st.textContent = 'Не удалось прочитать ник с сервера. Введите ник вручную.';
+                    if (data.nick) {
+                        const inp = document.getElementById('authNickInput');
+                        if (inp) inp.value = data.nick;
+                    }
+                    return false;
+                }
+                mmsSaveDiscordAuth(profile);
+                mmsApplyAuthToProfile(profile);
+                try { mmsLicenseActive = true; mmsLicenseInfo = { userId: profile.staticId, org: 'MMS', discord: true }; } catch (_) {}
+                mmsHideAuthGate();
+                try { showToast('✅ Discord: ' + profile.first + ' ' + profile.last, 'success', 2800); } catch (_) {}
+                return true;
+            } catch (e) {
+                if (st) st.textContent = 'Ошибка связи с сервером авторизации. Войдите по нику.';
+                return false;
+            }
+        }
+
+        async function mmsCheckDiscordAuthOnStart() {
+            // OAuth callback?
+            try {
+                if (window.location.search.indexOf('code=') >= 0) {
+                    const ok = await mmsHandleDiscordOAuthCallback();
+                    if (ok) return true;
+                }
+            } catch (_) {}
+
+            const stored = mmsLoadDiscordAuth();
+            if (stored && stored.staticId && stored.first) {
+                mmsApplyAuthToProfile(stored);
+                try { mmsLicenseActive = true; mmsLicenseInfo = { userId: stored.staticId, org: 'MMS', discord: true }; } catch (_) {}
+                mmsHideAuthGate();
+                return true;
+            }
+            // Скрыть старый license gate если вдруг в DOM
+            try {
+                const lg = document.getElementById('licenseGate');
+                if (lg) { lg.classList.add('hidden'); lg.style.display = 'none'; }
+            } catch (_) {}
+            mmsShowAuthGate('');
+            return false;
+        }
+
+        function mmsLogoutDiscord() {
+            mmsClearDiscordAuth();
+            mmsShowAuthGate('Вы вышли. Войдите снова по Discord или нику.');
+        }
+
+
         // ============================================================
         // ЛИЦЕНЗИРОВАНИЕ MMS (HMAC + expires + soft fingerprint)
         // ============================================================
@@ -6368,22 +6856,23 @@
         }
 
         function mmsShowGate(msg) {
-            const gate = document.getElementById('licenseGate');
-            const st = document.getElementById('licenseStatus');
-            if (gate) gate.classList.remove('hidden');
-            let text = msg || '';
-            if (!window.isSecureContext || !window.crypto || !crypto.subtle) {
-                text = (text ? text + ' ' : '') + '⚠️ Откройте рапорт по ссылке сайта, а не из скачанного файла — иначе лицензия не активируется.';
+            /* лицензии отключены — показываем Discord-вход при необходимости */
+            if (typeof mmsShowAuthGate === 'function') {
+                mmsShowAuthGate(msg || '');
+                return;
             }
-            if (st) { st.textContent = text; st.classList.remove('ok'); }
-            document.body.style.overflow = 'hidden';
+            const gate = document.getElementById('licenseGate');
+            if (gate) { gate.classList.add('hidden'); gate.style.display = 'none'; }
         }
 
         function mmsHideGate() {
+            if (typeof mmsHideAuthGate === 'function') {
+                mmsHideAuthGate();
+                return;
+            }
             const gate = document.getElementById('licenseGate');
             if (gate) gate.classList.add('hidden');
             document.body.style.overflow = '';
-            mmsUpdateWatermark();
         }
 
         // ============================================================
@@ -6484,11 +6973,14 @@
             if (mmsSessionPending) return mmsSessionPending;
             mmsSessionPending = (async function () {
                 try {
-                    const lic = mmsLoadActivation();
-                    if (!lic || !lic.signature) return { ok: false, reason: 'no_license' };
-                    const r = await mmsActivateOnCloudflare(lic);
-                    if (r.ok) return { ok: true, token: mmsSessionToken() };
-                    return { ok: false, reason: r.offline ? 'offline' : 'rejected', error: r.error };
+                    // Лицензии отключены: сессия опциональна (Discord-вход на клиенте)
+                    const lic = (typeof mmsLoadActivation === 'function') ? mmsLoadActivation() : null;
+                    if (lic && lic.signature) {
+                        const r = await mmsActivateOnCloudflare(lic);
+                        if (r.ok) return { ok: true, token: mmsSessionToken() };
+                    }
+                    // Без лицензии — сдачу всё равно разрешаем (токен прокси)
+                    return { ok: true, token: mmsSessionToken() || ('discord:' + ((mmsDiscordAuth && mmsDiscordAuth.staticId) || 'guest')) };
                 } finally {
                     mmsSessionPending = null;
                 }
@@ -9476,12 +9968,22 @@ function openDiscordPreviewModal() {
 
         function loadProfile() {
             try {
+                // Discord-профиль приоритетнее
+                const d = (typeof mmsLoadDiscordAuth === 'function') ? mmsLoadDiscordAuth() : null;
+                if (d && d.staticId && d.first) {
+                    document.getElementById('firstName').value = d.first;
+                    document.getElementById('lastName').value = d.last || '';
+                    document.getElementById('staticId').value = d.staticId;
+                    hasEnteredName = true;
+                    try { updateName(); } catch (_) {}
+                    return;
+                }
                 const p = JSON.parse(localStorage.getItem('mmsProfile'));
                 if (p) {
-                    document.getElementById('firstName').value = p.first || 'Алекс';
-                    document.getElementById('lastName').value = p.last || 'Иванов';
-                    document.getElementById('staticId').value = p.id || '774912';
-                    hasEnteredName = true;
+                    document.getElementById('firstName').value = p.first || '';
+                    document.getElementById('lastName').value = p.last || '';
+                    document.getElementById('staticId').value = p.id || '';
+                    hasEnteredName = !!(p.first && p.id);
                     updateName();
                 }
                 if (localStorage.getItem('hasEnteredName') === 'true') {
@@ -14292,7 +14794,7 @@ function addEntry() {
                         'как активировать', '2fa лицензия', 'ключ лицензии'
                     ],
                     action: () => {
-                        return '🔐 Лицензия MMS:\n\n1. Получите license.key и пароль активации (2FA) от выдающего.\n2. Загрузите ключ на экране лицензии.\n3. Введите пароль.\n4. При первой активации скачается license_activated_*.key с отметкой времени.\n5. Тот же исходный ключ на другом устройстве не пройдёт.\n\nПароль при каждой новой генерации свой — его передают сотруднику отдельно от файла.';
+                        return '🔐 Лицензии отключены.\n\nВход — по профилю Discord на сервере подразделения.\nНик: «Ранг | Имя Фамилия | StaticID»\nПример: Com.MMS | Adam Rhodes | 166316\n\nПароль остаётся только у проверяющих рапорты, не у сотрудников.';
                     },
                     help: 'Лицензия и пароль 2FA.'
                 }, {
@@ -15654,8 +16156,17 @@ function addEntry() {
         // ===== ONLOAD =====
         window.onload = function() {
             try {
-                mmsInitLicenseUI();
-                mmsCheckLicenseOnStart();
+                try { mmsInitLicenseUI(); } catch (_) {}
+                try {
+                    var nickInp = document.getElementById('authNickInput');
+                    if (nickInp) nickInp.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') { e.preventDefault(); mmsAuthByNick(); }
+                    });
+                } catch (_) {}
+                try {
+                    if (typeof mmsCheckDiscordAuthOnStart === 'function') mmsCheckDiscordAuthOnStart();
+                    else if (typeof mmsCheckLicenseOnStart === 'function') mmsCheckLicenseOnStart();
+                } catch (authErr) { console.error('auth', authErr); }
             } catch (licErr) { console.error('license', licErr); }
 
             try {
