@@ -2602,14 +2602,14 @@
             flex: 1 1 auto !important;
             min-height: 0 !important;
             height: auto !important;
-            background: #f5e6c8 !important;
+            background: #0e0c0a !important;
             display: flex !important;
         }
         #discordPreviewFrame {
             width: 100% !important;
             height: 100% !important;
             border: 0 !important;
-            background: #f5e6c8 !important;
+            background: #0e0c0a !important;
             display: block !important;
             flex: 1 !important;
         }
@@ -2618,10 +2618,18 @@
             gap: 12px;
             justify-content: flex-end;
             align-items: center;
-            padding: 12px 16px;
-            border-top: 1px solid rgba(212, 175, 55, 0.2);
-            background: rgba(0, 0, 0, 0.35);
+            padding: 14px 18px;
+            border-top: 1px solid color-mix(in srgb, var(--gold) 28%, transparent);
+            background: linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.45));
             flex-shrink: 0;
+        }
+        .discord-preview-content .report-viewer-header {
+            border-bottom: 1px solid color-mix(in srgb, var(--gold) 25%, transparent);
+            background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 8%, transparent), transparent);
+        }
+        .discord-preview-content .report-viewer-title {
+            letter-spacing: 1.5px;
+            font-size: 14px;
         }
         .dp-btn {
             font-family: 'Oswald', sans-serif;
@@ -5308,7 +5316,7 @@
 
         <!-- НАВИГАЦИЯ -->
 
-            <a class="nav-btn door-back-btn" href="https://adam-lab321.github.io/Door-MMS/" target="_blank" rel="noopener noreferrer" data-tooltip="Вернуться к Двери MMS" style="text-decoration:none;margin:4px 0 8px;">
+            <a class="nav-btn door-back-btn" href="https://adam-lab321.github.io/Door-MMS/" data-tooltip="Вернуться к Двери MMS" style="text-decoration:none;margin:4px 0 8px;">
                 <span class="icon">🚪</span> К Двери MMS
             </a>
         <div class="nav-group">
@@ -8150,7 +8158,7 @@
                 if (st) {
                     const src = discordFileMeta && discordFileMeta.source === 'word' ? 'Word' : 'файла';
                     const cnt = discordFileEntries ? (' · записей: ' + discordFileEntries.length) : '';
-                    st.textContent = discordFilePoints !== null ? '✅ Файл прочитан · баллы: ' + discordFilePoints + cnt + ' · источник: ' + src : '✅ Файл прикреплён · баллы взяты из текущего рапорта';
+                    st.textContent = '✅ Файл прочитан' + cnt + (src ? (' · источник: ' + src) : '');
                     st.style.color = '#6abf69';
                 }
             } catch (err) {
@@ -8238,9 +8246,6 @@ let discordPreviewSize = 'compact';
             const dateStr = (dateInput && dateInput.value) ? dateInput.value.split('-').reverse().join('.') : '—';
             const fromFile = Array.isArray(discordFileEntries);
             const items = fromFile ? discordFileEntries : (Array.isArray(entries) ? entries.map(mmsPreviewItemFromEntry) : []);
-            const total = discordFilePoints !== null && !isNaN(discordFilePoints)
-                ? discordFilePoints
-                : items.reduce(function (s, it) { return s + it.total; }, 0);
             const isPromo = discordSubmitMode === 'promotion';
             const typeLabel = isPromo ? 'Рапорт на повышение' : 'Еженедельный рапорт';
             const esc = escapeDiscordPreviewHtml;
@@ -8254,7 +8259,7 @@ let discordPreviewSize = 'compact';
                         ? '<a href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + esc(link) + '</a>'
                         : esc(link);
                 } else {
-                    proof = '<i>Без ссылки — доказательство в виде фото</i>';
+                    proof = '<span class="muted">Без ссылки — фото</span>';
                 }
                 let ph = '';
                 const photos = it.photos || [];
@@ -8268,56 +8273,75 @@ let discordPreviewSize = 'compact';
                         return '<figure><figcaption>' + label + ' (файл не сохранён)</figcaption></figure>';
                     }).join('') + '</div>';
                 }
+                const cat = esc(it.category || 'прочее');
                 return '<tr>' +
-                    '<td class="c">' + (idx + 1) + '</td>' +
-                    '<td class="c">' + esc(it.date || '—') + '</td>' +
-                    '<td>' + proof + ph + '</td>' +
-                    '<td class="c">' + esc(it.category || '—') + '</td>' +
-                    '<td class="c pts">' + esc(it.total) + '</td>' +
+                    '<td class="c num">' + (idx + 1) + '</td>' +
+                    '<td class="c date">' + esc(it.date || '—') + '</td>' +
+                    '<td class="proof">' + proof + ph + '</td>' +
+                    '<td class="c cat"><span class="chip">' + cat + '</span></td>' +
                     '</tr>';
-            }).join('') : '<tr><td colspan="5" class="empty">' + (fromFile ? 'В прикреплённом файле записи не распознаны' : 'Нет записей в рапорте') + '</td></tr>';
+            }).join('') : '<tr><td class="empty" colspan="4">Нет записей для отправки</td></tr>';
 
             return '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8" />' +
                 '<meta name="viewport" content="width=device-width, initial-scale=1" />' +
+                '<title>Предпросмотр — ' + esc(name) + '</title>' +
                 '<style>' +
-                'html,body{margin:0;padding:0;height:100%;background:#f5e6c8;}' +
-                'body{font-family:"Times New Roman",Times,serif;color:#1a1a1a;padding:28px 32px 40px;box-sizing:border-box;}' +
-                '.sheet{max-width:920px;margin:0 auto;}' +
-                'h1{margin:0 0 4px;text-align:center;font-size:20px;letter-spacing:2px;color:#8b6914;}' +
-                'h2{margin:0 0 18px;text-align:center;font-size:15px;font-weight:600;color:#333;}' +
-                '.meta{margin:0 0 16px;padding:12px 14px;border:1px solid #c9a227;border-radius:6px;background:rgba(212,175,55,0.08);}' +
-                '.meta p{margin:4px 0;font-size:14px;}' +
-                'table{width:100%;border-collapse:collapse;margin-top:8px;background:#fffef8;}' +
-                'th,td{border:1px solid #b8960f;padding:8px 10px;font-size:13px;vertical-align:top;}' +
-                'th{background:#efe0b0;color:#3a2e0a;font-weight:700;}' +
+                '*{box-sizing:border-box;margin:0;padding:0;}' +
+                'body{font-family:"Segoe UI",system-ui,sans-serif;background:linear-gradient(160deg,#1a1612 0%,#0e0c0a 100%);color:#e8e0d4;min-height:100vh;padding:20px 16px 40px;}' +
+                '.sheet{max-width:860px;margin:0 auto;background:#1e1a16;border:1px solid rgba(184,149,106,0.45);border-radius:14px;padding:28px 26px 32px;box-shadow:0 20px 50px rgba(0,0,0,0.45),0 0 0 1px rgba(184,149,106,0.08);}' +
+                '.brand{text-align:center;margin-bottom:6px;}' +
+                '.brand .logo{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:rgba(184,149,106,0.7);margin-bottom:6px;}' +
+                'h1{font-size:22px;font-weight:700;letter-spacing:3px;color:#c9a87a;text-align:center;margin:0 0 4px;}' +
+                'h2{margin:0 0 20px;text-align:center;font-size:14px;font-weight:500;color:#a89880;letter-spacing:1px;}' +
+                '.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin:0 0 20px;padding:14px 16px;border:1px solid rgba(184,149,106,0.28);border-radius:10px;background:rgba(184,149,106,0.06);}' +
+                '.meta .item{font-size:13px;line-height:1.45;}' +
+                '.meta .item b{display:block;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:rgba(184,149,106,0.75);font-weight:600;margin-bottom:2px;}' +
+                '.meta .item span{color:#e8e0d4;}' +
+                '.stats{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px;}' +
+                '.stat{font-size:12px;padding:5px 12px;border-radius:20px;background:rgba(184,149,106,0.12);border:1px solid rgba(184,149,106,0.25);color:#d4c4a8;}' +
+                '.stat strong{color:#c9a87a;}' +
+                'table{width:100%;border-collapse:separate;border-spacing:0;margin-top:4px;border-radius:10px;overflow:hidden;border:1px solid rgba(184,149,106,0.3);}' +
+                'th{background:rgba(184,149,106,0.14);color:#c9a87a;font-weight:600;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:10px 12px;text-align:left;border-bottom:1px solid rgba(184,149,106,0.25);}' +
+                'td{padding:10px 12px;font-size:13px;vertical-align:top;border-bottom:1px solid rgba(184,149,106,0.12);background:#1a1612;}' +
+                'tr:last-child td{border-bottom:none;}' +
+                'tr:hover td{background:#221e18;}' +
                 'td.c{text-align:center;}' +
-                'td{overflow-wrap:anywhere;word-break:break-word;}' +
-                'a{color:#1a3a8a;}' +
-                '.ph{margin-top:8px;}' +
-                '.ph figure{display:inline-block;margin:6px 10px 0 0;max-width:200px;vertical-align:top;}' +
-                '.ph img{max-width:190px;max-height:150px;border:1px solid #b8960f;background:#fff;display:block;}' +
-                '.ph figcaption{font-size:11px;color:#444;margin-top:3px;}' +
-                '@media(max-width:600px){body{padding:16px 12px 28px;}th,td{padding:6px 7px;font-size:12px;}}' +
-                'td.pts{font-weight:700;}' +
-                'td.empty{text-align:center;padding:20px;color:#666;}' +
-                '.total{margin-top:16px;font-size:16px;font-weight:700;}' +
-                '.foot{margin-top:28px;font-size:11px;color:#666;}' +
+                'td.num{width:40px;color:#a89880;font-weight:600;}' +
+                'td.date{width:90px;white-space:nowrap;color:#d4c4a8;}' +
+                'td.cat{width:120px;}' +
+                'td.proof{overflow-wrap:anywhere;word-break:break-word;}' +
+                'a{color:#7ab0e0;text-decoration:none;border-bottom:1px dashed rgba(122,176,224,0.35);}' +
+                'a:hover{color:#a8d0f0;border-bottom-color:#a8d0f0;}' +
+                '.chip{display:inline-block;font-size:11px;padding:3px 10px;border-radius:12px;background:rgba(184,149,106,0.15);border:1px solid rgba(184,149,106,0.3);color:#c9a87a;letter-spacing:0.3px;}' +
+                '.muted{color:#7a7060;font-style:italic;font-size:12px;}' +
+                '.ph{margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;}' +
+                '.ph figure{margin:0;max-width:180px;}' +
+                '.ph img{max-width:170px;max-height:130px;border:1px solid rgba(184,149,106,0.35);border-radius:6px;background:#0e0c0a;display:block;}' +
+                '.ph figcaption{font-size:10px;color:#8a8070;margin-top:3px;}' +
+                'td.empty{text-align:center;padding:28px;color:#7a7060;}' +
+                '.foot{margin-top:20px;padding-top:14px;border-top:1px solid rgba(184,149,106,0.15);font-size:11px;color:#6a6050;text-align:center;letter-spacing:0.3px;}' +
+                '@media(max-width:600px){body{padding:12px 8px 24px;}.sheet{padding:18px 14px 22px;}.meta{grid-template-columns:1fr;}th,td{padding:8px 8px;font-size:12px;}}' +
                 '</style></head><body><div class="sheet">' +
+                '<div class="brand"><div class="logo">Military Medical Service</div></div>' +
                 '<h1>MMS · S.A.N.G.</h1>' +
                 '<h2>' + esc(typeLabel) + '</h2>' +
                 '<div class="meta">' +
-                '<p><b>Сотрудник:</b> ' + esc(name) + '</p>' +
-                '<p><b>Static ID:</b> ' + esc(id) + '</p>' +
-                '<p><b>Дата:</b> ' + esc(dateStr) + ' · <b>Баллы:</b> ' + esc(total) + ' · <b>Записей:</b> ' + items.length + ' · <b>Фото:</b> ' + photoCount + '</p>' +
+                '<div class="item"><b>Сотрудник</b><span>' + esc(name) + '</span></div>' +
+                '<div class="item"><b>Static ID</b><span>' + esc(id) + '</span></div>' +
+                '<div class="item"><b>Дата рапорта</b><span>' + esc(dateStr) + '</span></div>' +
+                '<div class="item"><b>Источник</b><span>' + (fromFile ? 'Прикреплённый файл' : 'Текущий рапорт') + '</span></div>' +
                 '</div>' +
-                '<table><thead><tr><th>№</th><th>Дата</th><th>Доказательство</th><th>Категория</th><th>Баллы</th></tr></thead>' +
+                '<div class="stats">' +
+                '<span class="stat">Записей: <strong>' + items.length + '</strong></span>' +
+                '<span class="stat">Фото: <strong>' + photoCount + '</strong></span>' +
+                '</div>' +
+                '<table><thead><tr><th>№</th><th>Дата</th><th>Доказательство</th><th>Категория</th></tr></thead>' +
                 '<tbody>' + rows + '</tbody></table>' +
-                '<p class="total">ИТОГО: ' + esc(total) + ' баллов</p>' +
-                '<p class="foot">Предпросмотр перед отправкой в Discord · ' + (fromFile ? 'данные прочитаны из прикреплённого файла' : 'содержимое совпадает с Word-отчётом') + '</p>' +
+                '<p class="foot">Предпросмотр перед отправкой в Discord · баллы не используются</p>' +
                 '</div></body></html>';
         }
 
-        function openDiscordPreviewModal() {
+function openDiscordPreviewModal() {
             const modal = document.getElementById('discordPreviewModal');
             const frame = document.getElementById('discordPreviewFrame');
             if (!modal || !frame) return;
@@ -14018,7 +14042,7 @@ function addEntry() {
                     category: 'help',
                     priority: 16,
                     patterns: [
-                        'категории', 'какие категории', 'список категорий', 'медосмотр', 'мед осмотр',
+                        'категории', 'какие категории', 'список категорий', 'медсмотр', 'мед смотр',
                         'поставки', 'кадры заявки', 'что ставить в категорию', 'быстрые кнопки',
                         'мед экзамен', 'мед. экзамен', 'категория записи'
                     ],
