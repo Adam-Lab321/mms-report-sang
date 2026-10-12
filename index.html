@@ -5368,7 +5368,7 @@
                         <div class="add-form add-form-no-points">
                             <div>
                                 <label>ССЫЛКА (необязательна, если есть фото)</label>
-                                <input type="text" id="link" placeholder="https://..." oninput="validateLink(this.value); checkAndSuggestPoints(); validateFields();" />
+                                <input type="text" id="link" placeholder="https://… или Discord: сервер/канал/сообщение" oninput="validateLink(this.value); checkAndSuggestPoints(); validateFields();" />
                                 <div class="error-message" id="linkError">Введите ссылку или прикрепите фото с пояснением</div>
                                 <div class="link-validate-error" id="linkValidateError"></div>
                                 <div class="points-restore-notice" id="pointsRestoreNotice"></div>
@@ -9396,32 +9396,80 @@ let discordPreviewSize = 'compact';
         }
 
         // ===== VALIDATION =====
+        function normalizeProofLink(raw) {
+            let t = String(raw || '').trim();
+            if (!t) return '';
+            // Discord: server/channel/message или channel/message (только цифры и /)
+            // Пример: 482047719697678498/1559192451598786610/155930726910671944
+            const discordPath = t.replace(/^https?:\/\/(?:ptb\.|canary\.)?discord(?:app)?\.com\/channels\//i, '');
+            if (/^\d{5,}\/\d{5,}(\/\d{5,})?$/.test(discordPath)) {
+                return 'https://discord.com/channels/' + discordPath;
+            }
+            // discord.gg invite
+            if (/^(?:https?:\/\/)?discord\.gg\/\w+/i.test(t) && !/^https?:\/\//i.test(t)) {
+                return 'https://' + t.replace(/^\/\//, '');
+            }
+            // Protocol-relative //example.com
+            if (/^\/\/[\w.-]+/.test(t)) return 'https:' + t;
+            // Bare domain example.com/...
+            if (!/^https?:\/\//i.test(t) && !/^file:/i.test(t) && /^[\w.-]+\.[a-z]{2,}\/\S+/i.test(t)) {
+                return 'https://' + t;
+            }
+            return t;
+        }
+
         function validateLink(link) {
             const err = document.getElementById('linkValidateError');
-            if (!link || link.trim() === '') { err.style.display = 'none'; return true; }
-            const t = link.trim();
+            if (!err) return true;
+            if (!link || link.trim() === '') { err.style.display = 'none'; err.classList.remove('show'); return true; }
+            let t = link.trim();
+            const normalized = normalizeProofLink(t);
+            // Автоподстановка: полный Discord-путь (3 id) → полный URL
+            if (normalized && normalized !== t) {
+                const inp = document.getElementById('link');
+                if (inp && normalized.startsWith('https://discord.com/channels/') && /^\d{5,}\/\d{5,}\/\d{5,}$/.test(t.replace(/\s/g,''))) {
+                    inp.value = normalized;
+                    t = normalized;
+                } else {
+                    t = normalized;
+                }
+            }
             if (/^file:\/\//i.test(t) || /^[A-Za-z]:\\/i.test(t) || /^\\\\/.test(t)) {
                 err.textContent = '⚠️ Локальная ссылка. Используйте http:// или https://';
                 err.className = 'link-validate-error show';
                 return false;
             }
+            // Discord snowflake path without prefix — подсказка
+            if (/^\d{5,}\/\d{5,}/.test(t) && !/^https?:\/\//i.test(t)) {
+                err.textContent = '⚠️ Похоже на Discord: будет https://discord.com/channels/' + t;
+                err.className = 'link-validate-error show';
+                // не блокируем — addEntry нормализует
+                return true;
+            }
             if (!t.startsWith('http://') && !t.startsWith('https://')) {
-                err.textContent = '⚠️ Ссылка должна начинаться с http:// или https://';
+                err.textContent = '⚠️ Ссылка должна начинаться с http:// или https:// (для Discord можно вставить server/channel/message)';
                 err.className = 'link-validate-error show';
                 return false;
             }
             err.style.display = 'none';
+            err.classList.remove('show');
             return true;
         }
 
         function validateFields() {
-            const link = document.getElementById('link').value.trim();
+            const linkEl = document.getElementById('link');
+            let link = (linkEl && linkEl.value || '').trim();
+            if (link && typeof normalizeProofLink === 'function') {
+                const n = normalizeProofLink(link);
+                // Не перезаписываем поле на каждый keypress — только для проверки
+                if (n) link = n;
+            }
             const err = document.getElementById('linkError');
             const btn = document.getElementById('addBtn');
             const hasPhotos = (typeof pendingAttachments !== 'undefined') && pendingAttachments.length > 0;
             const ok = link.length > 0 || hasPhotos;
-            err.classList.toggle('show', !ok);
-            btn.disabled = !ok;
+            if (err) err.classList.toggle('show', !ok);
+            if (btn) btn.disabled = !ok;
             return ok;
         }
 
@@ -9446,11 +9494,36 @@ let discordPreviewSize = 'compact';
             }
         }
 
-        document.getElementById('link').addEventListener('input', function() {
-            validateLink(this.value);
-            checkAndSuggestPoints();
-            validateFields();
-        });
+        (function() {
+            const linkEl = document.getElementById('link');
+            if (!linkEl) return;
+            linkEl.addEventListener('input', function() {
+                validateLink(this.value);
+                checkAndSuggestPoints();
+                validateFields();
+            });
+            linkEl.addEventListener('blur', function() {
+                if (typeof normalizeProofLink === 'function') {
+                    const n = normalizeProofLink(this.value);
+                    if (n && n !== this.value.trim()) {
+                        this.value = n;
+                    }
+                }
+                validateLink(this.value);
+                validateFields();
+            });
+            linkEl.addEventListener('paste', function() {
+                const self = this;
+                setTimeout(function() {
+                    if (typeof normalizeProofLink === 'function') {
+                        const n = normalizeProofLink(self.value);
+                        if (n && n !== self.value.trim()) self.value = n;
+                    }
+                    validateLink(self.value);
+                    validateFields();
+                }, 0);
+            });
+        })();
 
         // ===== UNDO =====
         function pushUndo(action, data) {
@@ -11767,7 +11840,7 @@ let discordPreviewSize = 'compact';
                 const n = e.evidenceNumber || '';
                 const cat = e.category || 'прочее';
                 const eid = String(e.id);
-                return `<label><input type="checkbox" class="entry-select-cb" checked onchange="toggleEntrySelect('${eid}', this.checked)" /> ${n} · ${e.date} · ${cat} · ${entryTotalPoints(e)} б. · ${(e.link || '').slice(0, 40)}</label>`;
+                return `<label><input type="checkbox" class="entry-select-cb" checked onchange="toggleEntrySelect('${eid}', this.checked)" /> ${n} · ${e.date} · ${cat} · ${(e.link || '').slice(0, 50)}</label>`;
             }).join('') || '<span style="color:var(--text-muted);font-size:11px;">Нет выбранных строк.</span>';
         }
 
@@ -11786,8 +11859,16 @@ let discordPreviewSize = 'compact';
 
 function addEntry() {
             const linkInput = document.getElementById('link');
-            const link = linkInput.value.trim();
-            if (!validateLink(link)) { showToast('⚠️ Ссылка недействительна', 'error'); return; }
+            let link = (linkInput && linkInput.value || '').trim();
+            // Авто-нормализация Discord server/channel/message → полный URL
+            if (typeof normalizeProofLink === 'function') {
+                const n = normalizeProofLink(link);
+                if (n && n !== link) {
+                    link = n;
+                    if (linkInput) linkInput.value = link;
+                }
+            }
+            if (link && !validateLink(link)) { showToast('⚠️ Ссылка недействительна', 'error'); return; }
             if (!validateFields()) { showToast('⚠️ Введите ссылку или прикрепите фото', 'error'); return; }
             if (pendingAttachments.some(a => !String(a.name || '').trim())) {
                 showToast('⚠️ Напишите пояснение к каждому фото (что на нём, от чего)', 'error', 4500);
@@ -11801,42 +11882,12 @@ function addEntry() {
             if (!dateInput.value) { dateInput.value = getTodayDate(); }
             const date = dateInput.value.split('-').reverse().join('.');
             lastUsedDate = dateInput.value;
-            let points = parseInt(document.getElementById('points').value) || 0;
-            if (points === 0 && document.getElementById('points').value.trim() === '') {
-                const u = prompt('Введите баллы за запись:', lastUsedPoints || '1');
-                if (u === null) return;
-                const p = parseInt(u);
-                if (isNaN(p) || p < 0) { showToast('❌ Введите число', 'error'); return; }
-                points = p;
-                document.getElementById('points').value = points;
-            }
-            if (points > 0) lastUsedPoints = points;
+            const points = 0; /* система баллов отключена */
             const categoryEl = document.getElementById('category');
             const category = (categoryEl && categoryEl.value) || 'прочее';
 
             const backup = JSON.parse(JSON.stringify(savedPoints));
-            if (link && savedPoints[link] !== undefined && points !== savedPoints[link]) {
-                showConfirm('🔍 Ссылка уже использовалась',
-                    `Сохранённые баллы: ${savedPoints[link]}\nНовые баллы: ${points}\n\nВыберите действие:`,
-                    function(choice) {
-                        if (choice === 'use_saved') {
-                            document.getElementById('points').value = savedPoints[link];
-                            finishAdd(link, date, savedPoints[link], backup, category);
-                        } else if (choice === 'use_new') {
-                            savedPoints[link] = points;
-                            finishAdd(link, date, points, backup, category);
-                        } else { showToast('❌ Отменено', 'warning'); }
-                    }, [
-                        { label: `💾 Использовать сохранённые (${savedPoints[link]})`, value: 'use_saved',
-                            className: 'btn btn-primary' },
-                        { label: `🔄 Перезаписать на новые (${points})`, value: 'use_new',
-                            className: 'btn btn-success' },
-                        { label: '✕ Отмена', value: 'cancel', className: 'btn btn-cancel' }
-                    ]
-                );
-                return;
-            }
-            if (link) savedPoints[link] = points;
+            if (link) savedPoints[link] = 0;
             finishAdd(link, date, points, backup, category);
         }
 
