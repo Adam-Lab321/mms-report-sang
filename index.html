@@ -181,13 +181,24 @@
             font-size: 15px;
             font-weight: 600;
             letter-spacing: 1px;
-            cursor: pointer;
-            pointer-events: auto;
+            cursor: pointer !important;
+            pointer-events: auto !important;
             position: relative;
-            z-index: 2;
+            z-index: 2147483002 !important;
             background: linear-gradient(135deg, #d4af37, #b8960f);
             color: #000;
             transition: transform 0.15s, box-shadow 0.15s;
+            opacity: 1 !important;
+        }
+        .license-btn:disabled {
+            opacity: 0.5 !important;
+            cursor: not-allowed !important;
+        }
+        #licenseGate, #licenseGate * {
+            pointer-events: auto !important;
+        }
+        #licenseFileInput {
+            pointer-events: none !important;
         }
         .license-btn:hover { transform: scale(1.01); box-shadow: 0 0 18px rgba(212,175,55,0.25); }
         .license-btn.ghost {
@@ -1696,7 +1707,7 @@
             box-shadow: 0 6px 22px color-mix(in srgb, var(--gold) 40%, transparent);
             transform: translateY(-1px);
         }
-        /* Быстрые типы (система записей) */
+        /* Быстрые типы (система баллов) */
         .quick-types {
             display: flex;
             flex-wrap: wrap;
@@ -3851,7 +3862,6 @@
 
         /* Медицинский */
         body.style-medical {
-            /* спокойный медицинский сине-бирюзовый акцент */
             --bg-main: #0a1628;
             --bg-card: #0f1f3a;
             --bg-sidebar: #081220;
@@ -3915,7 +3925,7 @@
             --bg-main: #1a2a1a;
             --bg-card: #1e2e1e;
             --bg-sidebar: #0d1a0d;
-            --gold: #7a9a52;
+            --gold: #6a8a3a;
             --gold-dark: #4a6a2a;
             --gold-light: #8aaa5a;
             --text-main: #d4e0c8;
@@ -3975,9 +3985,9 @@
             --bg-main: #2a2a2a;
             --bg-card: #333333;
             --bg-sidebar: #1a1a1a;
-            --gold: #8a96a0;
-            --gold-dark: #6a7680;
-            --gold-light: #aab4bc;
+            --gold: #8a8a8a;
+            --gold-dark: #6a6a6a;
+            --gold-light: #aaaaaa;
             --text-main: #e0e0e0;
             --text-secondary: #aaa;
             --text-muted: #666;
@@ -4161,9 +4171,9 @@
             --bg-main: #0a1a24;
             --bg-card: #0f2430;
             --bg-sidebar: #061018;
-            --gold: #4a9aaa;
-            --gold-dark: #3a7a8a;
-            --gold-light: #6abaca;
+            --gold: #3a9aba;
+            --gold-dark: #2a7a9a;
+            --gold-light: #5abada;
             --text-main: #d0e8f0;
             --text-secondary: #80b0c0;
             --text-muted: #406070;
@@ -4217,121 +4227,49 @@
         }
 
         
-        /* Лес — спокойный зелёный для тёмной комнаты */
         body.style-forest {
-            --bg-main: #0e1410;
-            --bg-card: #141c16;
-            --bg-sidebar: #0a100c;
-            --gold: #6b9a72;
-            --gold-dark: #4d7a54;
-            --gold-light: #8aba90;
-            --text-main: #d8e4d8;
-            --text-secondary: #8aaa90;
-            --text-muted: #4a6050;
-            --input-bg: #0c120e;
-            --input-text: #d8e4d8;
-            --input-border: #1e2e22;
-            --table-bg: #0e1410;
-            --table-row-even: #0e1410;
-            --table-row-odd: #141c16;
-            --table-border: #1e2e22;
-            --table-header-bg: #0a100c;
-            --table-header-border: #3a5a40;
-            --blue-stamp: #6b9a72;
-            --shadow: 0 8px 28px rgba(0, 20, 10, 0.55);
-            background: #0e1410;
-            color: #d8e4d8;
+            --bg-main: #0e1410; --bg-card: #141c16; --bg-sidebar: #0a100c;
+            --gold: #6b9a72; --gold-dark: #4d7a54; --gold-light: #8aba90;
+            --text-main: #d8e4d8; --text-secondary: #8aaa90; --text-muted: #4a6050;
+            --input-bg: #0c120e; --input-text: #d8e4d8; --input-border: #1e2e22;
+            --table-bg: #0e1410; --table-row-even: #0e1410; --table-row-odd: #141c16;
+            --table-border: #1e2e22; --table-header-bg: #0a100c; --table-header-border: #3a5a40;
+            --blue-stamp: #6b9a72; --shadow: 0 8px 28px rgba(0,20,10,0.55);
+            background: #0e1410; color: #d8e4d8;
         }
         body.style-forest .sidebar { background: #0a100c; }
-        body.style-forest .container { border-color: #6b9a72; }
-        body.style-forest .header { border-color: #6b9a72; }
-        body.style-forest .nav-btn:hover {
-            background: rgba(107, 154, 114, 0.12);
-            border-color: rgba(107, 154, 114, 0.3);
-        }
-        body.style-forest .nav-btn.active {
-            background: rgba(107, 154, 114, 0.1);
-            border-color: #6b9a72;
-            color: #6b9a72;
-        }
+        body.style-forest .container, body.style-forest .header { border-color: #6b9a72; }
+        body.style-forest .nav-btn.active { border-color: #6b9a72; color: #6b9a72; }
         body.style-forest .sidebar-brand h2 { color: #6b9a72; }
 
-        /* Сланец — нейтральный серо-голубой */
         body.style-slate {
-            --bg-main: #12151a;
-            --bg-card: #181c22;
-            --bg-sidebar: #0c0e12;
-            --gold: #7a8fa8;
-            --gold-dark: #5a7088;
-            --gold-light: #9aafc0;
-            --text-main: #dce2ea;
-            --text-secondary: #8a9ab0;
-            --text-muted: #4a5868;
-            --input-bg: #0e1116;
-            --input-text: #dce2ea;
-            --input-border: #222a35;
-            --table-bg: #12151a;
-            --table-row-even: #12151a;
-            --table-row-odd: #181c22;
-            --table-border: #222a35;
-            --table-header-bg: #0c0e12;
-            --table-header-border: #3a4a5a;
-            --blue-stamp: #7a8fa8;
-            --shadow: 0 8px 28px rgba(0, 8, 16, 0.55);
-            background: #12151a;
-            color: #dce2ea;
+            --bg-main: #12151a; --bg-card: #181c22; --bg-sidebar: #0c0e12;
+            --gold: #7a8fa8; --gold-dark: #5a7088; --gold-light: #9aafc0;
+            --text-main: #dce2ea; --text-secondary: #8a9ab0; --text-muted: #4a5868;
+            --input-bg: #0e1116; --input-text: #dce2ea; --input-border: #222a35;
+            --table-bg: #12151a; --table-row-even: #12151a; --table-row-odd: #181c22;
+            --table-border: #222a35; --table-header-bg: #0c0e12; --table-header-border: #3a4a5a;
+            --blue-stamp: #7a8fa8; --shadow: 0 8px 28px rgba(0,8,16,0.55);
+            background: #12151a; color: #dce2ea;
         }
         body.style-slate .sidebar { background: #0c0e12; }
-        body.style-slate .container { border-color: #7a8fa8; }
-        body.style-slate .header { border-color: #7a8fa8; }
-        body.style-slate .nav-btn:hover {
-            background: rgba(122, 143, 168, 0.12);
-            border-color: rgba(122, 143, 168, 0.3);
-        }
-        body.style-slate .nav-btn.active {
-            background: rgba(122, 143, 168, 0.1);
-            border-color: #7a8fa8;
-            color: #7a8fa8;
-        }
+        body.style-slate .container, body.style-slate .header { border-color: #7a8fa8; }
+        body.style-slate .nav-btn.active { border-color: #7a8fa8; color: #7a8fa8; }
         body.style-slate .sidebar-brand h2 { color: #7a8fa8; }
 
-        /* Янтарь — тёплый мягкий, без яркого жёлтого */
         body.style-amber {
-            --bg-main: #16120e;
-            --bg-card: #1c1812;
-            --bg-sidebar: #100e0a;
-            --gold: #c4a060;
-            --gold-dark: #a08040;
-            --gold-light: #d8bc80;
-            --text-main: #ebe4d4;
-            --text-secondary: #b0a080;
-            --text-muted: #6a6050;
-            --input-bg: #12100c;
-            --input-text: #ebe4d4;
-            --input-border: #2a2418;
-            --table-bg: #16120e;
-            --table-row-even: #16120e;
-            --table-row-odd: #1c1812;
-            --table-border: #2a2418;
-            --table-header-bg: #100e0a;
-            --table-header-border: #5a4a30;
-            --blue-stamp: #c4a060;
-            --shadow: 0 8px 28px rgba(20, 12, 0, 0.5);
-            background: #16120e;
-            color: #ebe4d4;
+            --bg-main: #16120e; --bg-card: #1c1812; --bg-sidebar: #100e0a;
+            --gold: #c4a060; --gold-dark: #a08040; --gold-light: #d8bc80;
+            --text-main: #ebe4d4; --text-secondary: #b0a080; --text-muted: #6a6050;
+            --input-bg: #12100c; --input-text: #ebe4d4; --input-border: #2a2418;
+            --table-bg: #16120e; --table-row-even: #16120e; --table-row-odd: #1c1812;
+            --table-border: #2a2418; --table-header-bg: #100e0a; --table-header-border: #5a4a30;
+            --blue-stamp: #c4a060; --shadow: 0 8px 28px rgba(20,12,0,0.5);
+            background: #16120e; color: #ebe4d4;
         }
         body.style-amber .sidebar { background: #100e0a; }
-        body.style-amber .container { border-color: #c4a060; }
-        body.style-amber .header { border-color: #c4a060; }
-        body.style-amber .nav-btn:hover {
-            background: rgba(196, 160, 96, 0.12);
-            border-color: rgba(196, 160, 96, 0.3);
-        }
-        body.style-amber .nav-btn.active {
-            background: rgba(196, 160, 96, 0.1);
-            border-color: #c4a060;
-            color: #c4a060;
-        }
+        body.style-amber .container, body.style-amber .header { border-color: #c4a060; }
+        body.style-amber .nav-btn.active { border-color: #c4a060; color: #c4a060; }
         body.style-amber .sidebar-brand h2 { color: #c4a060; }
 
 /* ===== ДЕНЬ / НОЧЬ ===== */
@@ -4555,7 +4493,6 @@
         body.style-slate   { --accent-rgb: 122, 143, 168; }
         body.style-amber   { --accent-rgb: 196, 160, 96; }
 
-        /* ========== КНОПКА «К ДВЕРИ» ========== */
         .door-back-btn {
             background: rgba(var(--accent-rgb, 201, 168, 76), 0.08) !important;
             border: 1px solid rgba(var(--accent-rgb, 201, 168, 76), 0.35) !important;
@@ -4565,27 +4502,10 @@
         .door-back-btn:hover {
             background: rgba(var(--accent-rgb, 201, 168, 76), 0.16) !important;
             border-color: var(--gold) !important;
-            color: var(--gold-light, var(--gold)) !important;
-        }
-        /* спокойный минимализм: меньше «золотого шума» */
-        .container {
-            box-shadow: 0 12px 40px rgba(0,0,0,0.35) !important;
-        }
-        .header h1 {
-            letter-spacing: 2px !important;
-            text-shadow: none !important;
-            font-weight: 700 !important;
-        }
-        .nav-group-title {
-            opacity: 0.85;
         }
         .quick-type-btn .qt-pts { display: none !important; }
-        .points-display, .points-restore-notice, #pointsRestoreNotice {
-            display: none !important;
-        }
-        input#points, .points-input-clean, .points-input, .edit-att-pts {
-            display: none !important;
-        }
+        .points-display, .points-restore-notice, #pointsRestoreNotice { display: none !important; }
+        input#points, .points-input-clean, .points-input, .edit-att-pts { display: none !important; }
 
         body.day-mode                { --btn-secondary-text: var(--gold-dark); --ok-fg: #4d6b25; --err-fg: #a82f2f; }
         body.day-mode.style-dark     { --btn-secondary-text: #7a5f00; }
@@ -5075,13 +4995,13 @@
             <p class="sub">Для работы нужна именная лицензия подразделения.<br>
             Загрузите <strong>license.key</strong> и введите <strong>пароль активации</strong> из генератора.<br>
             Копирование и перепродажа ПО запрещены.</p>
-            <button type="button" class="license-btn btn-secondary" id="licenseLoadBtn" >📁 Загрузить license.key</button>
+            <button type="button" class="license-btn btn-secondary" id="licenseLoadBtn" onclick="(function(){var i=document.getElementById('licenseFileInput'); if(i) i.click();})()">📁 Загрузить license.key</button>
             <input type="file" id="licenseFileInput" accept=".key,.json,application/json,text/plain" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0;" />
             <div id="licensePasswordWrap" style="display:none;margin-top:12px;text-align:left;">
                 <label style="display:block;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:4px;">Пароль активации (2FA)</label>
                 <input type="password" id="licensePasswordInput" autocomplete="off" placeholder="Пароль из генератора лицензий"
                     style="width:100%;padding:10px 12px;background:#111;border:1px solid #333;border-radius:8px;color:#fff;font-family:Oswald,sans-serif;font-size:14px;box-sizing:border-box;" />
-                <button type="button" class="license-btn btn-primary" id="licenseActivateBtn" style="margin-top:10px;">🔓 Активировать</button>
+                <button type="button" class="license-btn btn-primary" id="licenseActivateBtn" style="margin-top:10px;" onclick="(function(){var p=document.getElementById('licensePasswordInput'); if(typeof mmsFinalizeActivation==='function') mmsFinalizeActivation(mmsPendingLicense, p?p.value:'');})()">🔓 Активировать</button>
             </div>
             <button type="button" class="license-btn ghost btn-ghost" id="licenseRetryBtn" style="display:none;">Проверить снова</button>
             <div class="license-status" id="licenseStatus"></div>
@@ -5252,7 +5172,7 @@
         </div>
 
         <!-- НАВИГАЦИЯ -->
-        
+
             <a class="nav-btn door-back-btn" href="https://adam-lab321.github.io/Door-MMS/" target="_blank" rel="noopener noreferrer" data-tooltip="Вернуться к Двери MMS" style="text-decoration:none;margin:4px 0 8px;">
                 <span class="icon">🚪</span> К Двери MMS
             </a>
@@ -5448,7 +5368,7 @@
                         <div class="add-form add-form-no-points">
                             <div>
                                 <label>ССЫЛКА (необязательна, если есть фото)</label>
-                                <input type="text" id="link" placeholder="https://..." oninput="validateLink(this.value); validateFields(); validateFields();" />
+                                <input type="text" id="link" placeholder="https://..." oninput="validateLink(this.value); checkAndSuggestPoints(); validateFields();" />
                                 <div class="error-message" id="linkError">Введите ссылку или прикрепите фото с пояснением</div>
                                 <div class="link-validate-error" id="linkValidateError"></div>
                                 <div class="points-restore-notice" id="pointsRestoreNotice"></div>
@@ -5471,7 +5391,7 @@
                                 <label>ДАТА</label>
                                 <input type="date" id="date" onchange="lastUsedDate=this.value" />
                             </div>
-                            
+
                             <button class="btn-add btn-primary" id="addBtn" onclick="requestAddEntry()" disabled>ДОБАВИТЬ</button>
                         </div>
                         <div class="quick-types" id="quickTypes" title="Быстрый выбор категории записи">
@@ -5627,7 +5547,162 @@
                                     <div class="live-stamp stamp-hoffman approval-stamp-pending" id="stampHoffman">
                                         <span class="inner">
                                             <span class="line1">НА ПРОВЕРКЕ</span>
-                                            <span class="line2">MMS
+                                            <span class="line2">MMS · SANG</span>
+                                        </span>
+                                    </div>
+                                    <div class="live-stamp stamp-adam approval-stamp-pending" id="stampAdam">
+                                        <span class="inner">
+                                            <span class="line1">ОЖИДАЕТ</span>
+                                            <span class="line2">ПРОВЕРКИ</span>
+                                        </span>
+                                    </div>
+                                    <div class="live-stamp stamp-archive" id="archiveStamp">
+                                        <span class="inner">
+                                            <span class="line1">АРХИВНАЯ</span>
+                                            <span class="line2">КОПИЯ</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Правый нижний угол — подпись -->
+                            <div class="signature-wrapper">
+                                <div class="signature-name" id="signatureName">Алекс Иванов</div>
+                                <div class="signature-label">Подпись сотрудника</div>
+                                <div class="signature-date">
+                                    «<span id="signatureDate">29.07.2026</span>»
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== ВКЛАДКА: ПРЕДЛОЖЕНИЯ И ЖАЛОБЫ ===== -->
+            <div class="tab-content" id="tabFeedback">
+                <div class="feedback-section">
+                    <h2>💬 Предложения и жалобы</h2>
+                    <p class="feedback-sub">Создайте документ с предложением или жалобой для отправки на рассмотрение.</p>
+
+                    <div class="feedback-form">
+                        <h3 style="color:var(--gold);font-family:'Cinzel',serif;font-size:13px;letter-spacing:2px;margin-bottom:10px;">📝 Создать обращение</h3>
+                        <label>Тип обращения</label>
+                        <select id="feedbackType">
+                            <option value="Предложение">💡 Предложение</option>
+                            <option value="Жалоба">⚠️ Жалоба</option>
+                            <option value="Вопрос">❓ Вопрос</option>
+                        </select>
+                        <label>Описание</label>
+                        <textarea id="feedbackText" placeholder="Опишите ваше предложение или жалобу..."></textarea>
+                        <label>Приложить строки из текущего рапорта</label>
+                        <div class="feedback-attach-box" id="feedbackAttachBox">
+                            <span style="color:var(--text-muted);font-size:11px;">Отметьте строки в таблице достижений (☐), затем вернитесь сюда — список обновится.</span>
+                        </div>
+                        <div class="checkbox-row">
+                            <input type="checkbox" id="feedbackAnonymous" />
+                            <label for="feedbackAnonymous">Скрыть мои данные от рассматривающего сотрудника</label>
+                        </div>
+                        <button class="btn-generate btn-primary" onclick="generateFeedbackWord()">📄 Сгенерировать форму</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== ВКЛАДКА: СДАЧА В DISCORD ===== -->
+            <div class="tab-content" id="tabDiscord">
+                <div class="dc-submit-wrap">
+                    <div class="dc-submit-head">
+                        <div class="dc-submit-badge">MMS · DISCORD</div>
+                        <h2>Сдача рапорта</h2>
+                        <p>Данные берутся из карточки и таблицы рапорта. Можно прикрепить готовый .doc/.html — он уйдёт как есть. Без файла отчёт соберётся автоматически.</p>
+                    </div>
+
+                    <div class="dc-mode-row">
+                        <button type="button" class="dc-mode-btn active" id="dcModeWeek" onclick="setDiscordMode('week')">
+                            <span class="dc-mode-title">ЕЖЕНЕДЕЛЬНЫЙ</span>
+                            <span class="dc-mode-sub">Отчёт за неделю</span>
+                        </button>
+                        <button type="button" class="dc-mode-btn" id="dcModePromo" onclick="setDiscordMode('promotion')">
+                            <span class="dc-mode-title">НА ПОВЫШЕНИЕ</span>
+                            <span class="dc-mode-sub">Рапорт на повышение</span>
+                        </button>
+                    </div>
+
+                    <div class="dc-card">
+                        <div class="dc-grid-2">
+                            <div>
+                                <label class="dc-label">ФИО</label>
+                                <div class="dc-field" id="dcNameView">—</div>
+                            </div>
+                            <div>
+                                <label class="dc-label">ID</label>
+                                <div class="dc-field" id="dcIdView">—</div>
+                            </div>
+                        </div>
+                        <div class="dc-grid-2" style="margin-top:12px;">
+                            <div>
+                                <label class="dc-label">Дата рапорта</label>
+                                <div class="dc-field" id="dcDateView">—</div>
+                            </div>
+                            <div>
+                                <label class="dc-label">Итого баллов</label>
+                                <div class="dc-field dc-points" id="dcPointsView">0</div>
+                                <div class="dc-hint" id="dcPointsHint">из текущего рапорта</div>
+                            </div>
+                        </div>
+                        <div class="dc-notify-box" style="margin-top:12px;">
+                            <div>
+                                <label class="dc-label">Уведомление старшего состава</label>
+                                <div class="dc-role-pill" id="dcRoleView">🔔 @Руководство MMS</div>
+                            </div>
+                            <div class="dc-role-note" id="dcRoleHint">При появлении основной Discord-роли программа автоматически сможет отправлять настоящий ping этой роли.</div>
+                        </div>
+                        <div style="margin-top:12px;">
+                            <label class="dc-label">Кратко / комментарий</label>
+                            <textarea class="dc-input dc-textarea" id="dcSummary" placeholder="Пояснение к сдаче..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="dc-card">
+                        <label class="dc-label">Файл отчёта</label>
+                        <div class="dc-file-row">
+                            <input type="file" id="dcFile" class="dc-file-hidden" multiple accept=".html,.htm,.doc,.docx,.json,.pdf,.png,.jpg,.jpeg,.webp,.gif" onchange="onDiscordFileChosen(event)" />
+                            <button type="button" class="dc-file-btn btn-secondary" onclick="document.getElementById('dcFile').click()">Выбрать файлы</button>
+                            <span class="dc-file-name" id="dcFileName">Файлы не выбраны</span>
+                        </div>
+                        <p class="dc-hint">Можно прикрепить готовый <b>.doc / .html</b> (уйдёт как есть). Без файла — отчёт соберётся из таблицы рапорта. Разрешены: Word, HTML, JSON, картинки, PDF (до 8 МБ). Исполняемые файлы и архивы не принимаются.</p>
+                    </div>
+
+
+                    <div class="dc-help-card" id="dcHelpCard" style="margin:14px 0 18px;padding:14px 16px;border:1px solid rgba(212,175,55,0.28);border-radius:12px;background:rgba(212,175,55,0.06);">
+                        <div style="font-family:Oswald,sans-serif;font-size:13px;letter-spacing:1px;color:var(--gold);margin-bottom:8px;">📋 КАК ПРАВИЛЬНО СДАТЬ РАПОРТ</div>
+                        <ol style="margin:0;padding-left:18px;font-size:12px;line-height:1.55;color:var(--text-secondary);">
+                            <li><b>Заполни карточку</b> — ФИО и Static ID.</li>
+                            <li><b>Добавь записи</b> в рапорт (доказательства и записи).</li>
+                            <li>Вкладка <b>«Сдача в Discord»</b>: выбери тип (еженедельный / повышение).</li>
+                            <li>Нажми <b>«Предпросмотр»</b> (рекомендуется) и проверь рапорт.</li>
+                            <li>Нажми <b>«Отправить в Discord»</b> — уйдёт <b>один Word-файл</b> (.doc) и краткое описание (кто, дата, баллы).</li>
+                        </ol>
+                        <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">Проверяющие открывают вложение в Word. В сообщении Discord всегда видно: сотрудник, ID, дата и баллы — даже если имя файла обрезано.</div>
+                        <div style="margin-top:12px;padding:10px 12px;border-radius:8px;border:1px solid rgba(212,175,55,0.2);background:rgba(0,0,0,0.25);font-size:11px;line-height:1.5;color:var(--text-secondary);">
+                            <b style="color:var(--gold);">Учёт сдачи MMS</b><br>
+                            При отправке фиксируются <b>служебные данные</b> для учёта подразделения: время, тип рапорта, ID сотрудника, лицензия (если активна), результат доставки.
+                            Пароли <b>не сохраняются</b>. Данные видит только командование MMS, <b>третьим лицам они не передаются</b>.
+                        </div>
+                    </div>
+
+                    <div class="dc-webhook-ok" id="dcWebhookStatus">Канал: еженедельный рапорт · ping @Руководство MMS</div>
+                    <div class="dc-ready" id="dcReady" role="status" aria-live="polite"></div>
+
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:center;margin-top:18px;">
+                        <button type="button" class="dc-send-btn btn-secondary" id="dcPreviewBtn" onclick="openDiscordPreviewModal()">Предпросмотр</button>
+                        <button type="button" class="dc-send-btn btn-primary" id="dcSendBtn" onclick="sendReportToDiscord()">Отправить в Discord</button>
+                    </div>
+                    <p class="dc-status" id="dcStatus"></p>
+                    <div class="dc-next" id="dcNextStep" hidden role="status"></div>
+                </div>
+            </div>
+
+            <style>
+            .dc-submit-wrap { max-width: 640px; margin: 0 auto; padding: 8px 4px 32px; }
             .dc-submit-head { text-align: center; margin-bottom: 22px; }
             .dc-submit-badge {
                 display: inline-block; font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase;
@@ -6829,7 +6904,6 @@
         }
 
         function applyQuickType(category, points) {
-            /* баллы отключены — только категория */
             const cat = document.getElementById('category');
             const pts = document.getElementById('points');
             if (cat) {
@@ -6846,7 +6920,8 @@
                 cat.value = category;
             }
             if (pts) {
-                /* points disabled */
+                pts.value = points;
+                lastUsedPoints = points;
             }
             document.querySelectorAll('.quick-type-btn').forEach(b => b.classList.remove('active'));
             if (typeof event !== 'undefined' && event && event.currentTarget) {
@@ -7732,7 +7807,7 @@
                 'profile': '👤 Здесь вы можете просмотреть и отредактировать данные вашего профиля.',
                 'achievements': reportMode === 'promotion'
                     ? '⬆️ Рапорт на повышение: добавляйте доказательства и записи. Данные хранятся отдельно от ежедневной отчётности.'
-                    : '📋 Ежедневная отчётность: добавляйте ссылки и дату. Данные не смешиваются с рапортом на повышение.',
+                    : '📋 Ежедневная отчётность: добавляйте ссылки, дату и баллы. Данные не смешиваются с рапортом на повышение.',
                 'feedback': '💬 Создайте документ с предложением или жалобой для отправки на рассмотрение.',
                 'discord': '📨 Сдача в Discord: данные из карточки и текущего рапорта. Прикрепите файл и отправьте.'
             };
@@ -7931,7 +8006,7 @@
                 if (st) {
                     const src = discordFileMeta && discordFileMeta.source === 'word' ? 'Word' : 'файла';
                     const cnt = discordFileEntries ? (' · записей: ' + discordFileEntries.length) : '';
-                    st.textContent = '✅ Файл прикреплён' + cnt + (src ? (' · источник: ' + src) : '');
+                    st.textContent = discordFilePoints !== null ? '✅ Файл прочитан · баллы: ' + discordFilePoints + cnt + ' · источник: ' + src : '✅ Файл прикреплён · баллы взяты из текущего рапорта';
                     st.style.color = '#6abf69';
                 }
             } catch (err) {
@@ -8093,7 +8168,7 @@ let discordPreviewSize = 'compact';
                 '</div>' +
                 '<table><thead><tr><th>№</th><th>Дата</th><th>Доказательство</th><th>Категория</th><th>Баллы</th></tr></thead>' +
                 '<tbody>' + rows + '</tbody></table>' +
-                '<p class="total">Записей: ' + esc(total) + '</p>' +
+                '<p class="total">ИТОГО: ' + esc(total) + ' баллов</p>' +
                 '<p class="foot">Предпросмотр перед отправкой в Discord · ' + (fromFile ? 'данные прочитаны из прикреплённого файла' : 'содержимое совпадает с Word-отчётом') + '</p>' +
                 '</div></body></html>';
         }
@@ -8224,7 +8299,16 @@ let discordPreviewSize = 'compact';
                 if (atts.length) {
                     photosHtml = '<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:10px;">';
                     atts.forEach(function(a, ai) {
-                        const cap = mmsEscHtml((a.name || ('снимок ' + (ai + 1))) + (a.points ? (' else {
+                        const cap = mmsEscHtml((a.name || ('снимок ' + (ai + 1))) + (a.points ? (' · +' + a.points) : ''));
+                        const label = num + '.' + (ai + 1);
+                        if (a.dataUrl) {
+                            photosHtml +=
+                                '<div style="text-align:center;max-width:200px;">' +
+                                '<div style="font-size:10px;color:#6a5a4a;margin-bottom:3px;letter-spacing:0.5px;">№' + label + '</div>' +
+                                '<img src="' + a.dataUrl + '" alt="' + cap + '" crossorigin="anonymous" ' +
+                                'style="max-width:190px;max-height:150px;object-fit:contain;border:1px solid #c9a227;border-radius:4px;background:#fff;" />' +
+                                '<div style="font-size:10px;color:#555;margin-top:3px;line-height:1.2;">' + cap + '</div></div>';
+                        } else {
                             photosHtml += '<div style="font-size:11px;color:#888;">№' + label + ' ' + cap + ' (нет файла)</div>';
                         }
                     });
@@ -8254,7 +8338,7 @@ let discordPreviewSize = 'compact';
                 '<div><b style="color:#1a3a8a;">Сотрудник:</b> ' + mmsEscHtml(fullName) + '</div>' +
                 '<div><b style="color:#1a3a8a;">Static ID:</b> ' + mmsEscHtml(id) + '</div>' +
                 '<div><b style="color:#1a3a8a;">Дата:</b> ' + mmsEscHtml(dateStr) + '</div>' +
-                '<div><b style="color:#1a3a8a;">Записей:</b> <span style="color:#8a6a12;font-weight:700;">' + mmsEscHtml(total) + '</span></div>' +
+                '<div><b style="color:#1a3a8a;">Итого баллов:</b> <span style="color:#8a6a12;font-weight:700;">' + mmsEscHtml(total) + '</span></div>' +
                 '</div>' +
                 (summary ? ('<div style="margin-top:8px;font-size:12px;color:#444;"><b>Комментарий:</b> ' + mmsEscHtml(summary) + '</div>') : '') +
                 '</div>' +
@@ -8361,7 +8445,7 @@ let discordPreviewSize = 'compact';
             ctx.fillText('Дата: ' + dateStr, margin, y);
             ctx.fillStyle = '#8a6a12';
             ctx.font = 'bold 14px Oswald, sans-serif';
-            ctx.fillText('Записей: ' + total, margin + 360, y);
+            ctx.fillText('Итого баллов: ' + total, margin + 360, y);
             y += lineH + 4;
             if (summary) {
                 ctx.fillStyle = '#444';
@@ -9341,19 +9425,19 @@ let discordPreviewSize = 'compact';
             return ok;
         }
 
-        function validateFields() {
+        function checkAndSuggestPoints() {
             const link = document.getElementById('link').value.trim();
             const notice = document.getElementById('pointsRestoreNotice');
             const pointsInput = document.getElementById('points');
             if (!link) { notice.classList.remove('show'); return; }
             if (savedPoints[link] !== undefined) {
-                notice.textContent = `💾 Сохранено`;
+                notice.textContent = `💾 Сохранено: ${savedPoints[link]} баллов`;
                 notice.className = 'points-restore-notice show';
                 pointsInput.value = savedPoints[link];
                 return;
             }
             if (lastUsedPoints > 0) {
-                notice.textContent = ``;
+                notice.textContent = `📋 Последние баллы: ${lastUsedPoints}`;
                 notice.className = 'points-restore-notice show';
                 pointsInput.value = lastUsedPoints;
             } else {
@@ -9364,7 +9448,7 @@ let discordPreviewSize = 'compact';
 
         document.getElementById('link').addEventListener('input', function() {
             validateLink(this.value);
-            validateFields();
+            checkAndSuggestPoints();
             validateFields();
         });
 
@@ -9641,7 +9725,9 @@ let discordPreviewSize = 'compact';
                             '<a href="' + a.dataUrl + '" target="_blank" rel="noopener">' +
                             '<img src="' + a.dataUrl + '" alt="' + esc(a.name || 'снимок') + '" />' +
                             '</a>' +
-                            '<div class="ph-meta">' + esc(a.name || 'снимок') + ').join('') + '</div>';
+                            '<div class="ph-meta">' + esc(a.name || 'снимок') + ' · +' + (a.points || 0) + '</div>' +
+                            '</div>';
+                    }).join('') + '</div>';
                 }
                 const pts = (typeof entryTotalPoints === 'function') ? entryTotalPoints(en) : ((en.points || 0) + (Array.isArray(en.attachments) ? en.attachments.reduce(function(s, a) { return s + (parseInt(a.points, 10) || 0); }, 0) : 0));
                 rows += '<tr>' +
@@ -9684,7 +9770,7 @@ let discordPreviewSize = 'compact';
                 '<div><b>Static ID:</b> ' + esc(emp.id || '—') + '</div>' +
                 (emp.rank ? ('<div><b>Звание:</b> ' + esc(emp.rank) + '</div>') : '') +
                 '<div><b>Дата рапорта:</b> ' + esc(payload.reportDate || '') + '</div>' +
-                '<div><b>Записей:</b> ' + esc(payload.totalPoints) + '</div>' +
+                '<div><b>Итого баллов:</b> ' + esc(payload.totalPoints) + '</div>' +
                 '<div><b>Записей:</b> ' + (payload.entries ? payload.entries.length : 0) + '</div>' +
                 '</div>' +
                 '<table><thead><tr><th style="width:110px">Дата</th><th>Доказательство / фото</th><th style="width:70px">Баллы</th></tr></thead><tbody>' +
@@ -9795,7 +9881,7 @@ let discordPreviewSize = 'compact';
                 if (formPanel) formPanel.style.display = 'none';
                 if (achTitle) {
                     achTitle.dataset.prevHtml = achTitle.innerHTML;
-                    achTitle.innerHTML = '📈 Динамика записей <span class="save-status" id="saveStatus"></span>';
+                    achTitle.innerHTML = '📈 Динамика баллов <span class="save-status" id="saveStatus"></span>';
                 }
                 if (archiveSec) archiveSec.style.display = 'none';
                 if (tableTools) tableTools.style.display = 'none';
@@ -10512,7 +10598,13 @@ let discordPreviewSize = 'compact';
                 if (atts.length) {
                     const cells = atts.map(function(a, ai) {
                         const label = num + '.' + (ai + 1);
-                        const capText = esc(a.name || 'фото') + (a.points ? ('" data-pts="${a.points || 0}" src="${a.dataUrl}" alt="${esc(a.name || 'фото')}" width="${sz.w}"${hAttr} style="width:${sz.w}px;${hStyle}border:1px solid #c9a227;background:#f5f0ea;" />`;
+                        const capText = esc(a.name || 'фото') + (a.points ? (' · +' + a.points) : '');
+                        let imgHtml;
+                        if (a.dataUrl) {
+                            const sz = mmsFitSize(a.w, a.h, 250, 190);
+                            const hAttr = sz.h ? (' height="' + sz.h + '"') : '';
+                            const hStyle = sz.h ? ('height:' + sz.h + 'px;') : '';
+                            imgHtml = `<img data-mms-photo="1" data-cap="${esc(a.name || '')}" data-pts="${a.points || 0}" src="${a.dataUrl}" alt="${esc(a.name || 'фото')}" width="${sz.w}"${hAttr} style="width:${sz.w}px;${hStyle}border:1px solid #c9a227;background:#f5f0ea;" />`;
                         } else {
                             imgHtml = `<div style="font-size:10px;color:#888;">(файл фото не сохранён)</div>`;
                         }
@@ -10672,7 +10764,7 @@ let discordPreviewSize = 'compact';
             let attachBlock = '';
             if (attached.length) {
                 attachBlock = '<div class="info" style="margin-top:12px;"><strong>Приложенные строки рапорта:</strong><ul style="margin:8px 0 0 18px;">' +
-                    attached.map(e => `<li>${e.evidenceNumber || ''} · ${e.date || ''} · ${(e.category || 'прочее')} б. · <a href="${(e.link || '').replace(/"/g, '&quot;')}">${(e.link || '').replace(/</g, '&lt;')}</a></li>`).join('') +
+                    attached.map(e => `<li>${e.evidenceNumber || ''} · ${e.date || ''} · ${(e.category || 'прочее')} · ${typeof entryTotalPoints === 'function' ? entryTotalPoints(e) : (e.points || 0)} б. · <a href="${(e.link || '').replace(/"/g, '&quot;')}">${(e.link || '').replace(/</g, '&lt;')}</a></li>`).join('') +
                     '</ul></div>';
             }
 
@@ -11422,16 +11514,11 @@ let discordPreviewSize = 'compact';
         }
 
         function getEntriesTotal(list) {
-            /* Раньше — число записей; теперь число записей (баллы отключены) */
-            return (list || entries || []).length;
+            return (list || entries || []).length; /* число записей */
         }
 
         function entryTotalPoints(entry) {
-            return 0; /* баллы отключены */
-        }
-
-        function getEntriesCount(list) {
-            return (list || entries || []).length;
+            return 0; /* система баллов отключена */
         }
 
         function clearTableFilters() {
@@ -11486,7 +11573,7 @@ let discordPreviewSize = 'compact';
             const map = {};
             entries.forEach(e => {
                 const c = e.category || 'прочее';
-                map[c] = (map[c] || 0) + 1; /* число записей, не баллы */
+                map[c] = (map[c] || 0) + 1;
             });
             const keys = Object.keys(map);
             if (!keys.length) { box.innerHTML = ''; return; }
@@ -11643,7 +11730,7 @@ let discordPreviewSize = 'compact';
                 <div class="pending-attach-item" data-i="${i}">
                     <img src="${a.dataUrl}" alt="" />
                     <input type="text" class="${String(a.name || '').trim() ? '' : 'cap-missing'}" value="${mmsEscHtml(a.name || '')}" maxlength="160" oninput="onPendingCapInput(${i}, this)" placeholder="Пояснение к фото (что на нём, от чего)" style="flex:1;min-width:160px;padding:4px 8px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text);border-radius:4px;font-size:12px;" />
-                    
+                    <input type="number" value="${a.points || 0}" min="0" oninput="pendingAttachments[${i}].points=parseInt(this.value)||0" title="Баллы за снимок" style="width:70px;padding:4px 6px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text);border-radius:4px;font-size:12px;" />
                     <button type="button" class="btn-sm danger btn-danger" onclick="removePendingAttach(${i})" style="padding:3px 8px;">✕</button>
                 </div>
             `).join('');
@@ -11716,7 +11803,7 @@ function addEntry() {
             lastUsedDate = dateInput.value;
             let points = parseInt(document.getElementById('points').value) || 0;
             if (points === 0 && document.getElementById('points').value.trim() === '') {
-                const u = '0'; /* баллы отключены */
+                const u = prompt('Введите баллы за запись:', lastUsedPoints || '1');
                 if (u === null) return;
                 const p = parseInt(u);
                 if (isNaN(p) || p < 0) { showToast('❌ Введите число', 'error'); return; }
@@ -11758,8 +11845,7 @@ function addEntry() {
         }
 
         function finishAdd(link, date, points, backup, category) {
-            /* Система записей отключена — всегда 0 */
-            points = 0;
+            points = 0; /* система баллов отключена */
             evidenceCounter = Math.max(evidenceCounter, entries.length) + 1;
             const attachments = pendingAttachments.map(a => ({
                 id: a.id,
@@ -12182,7 +12268,7 @@ function addEntry() {
                         <div class="edit-att">
                             ${a.dataUrl ? `<img class="attach-thumb" src="${a.dataUrl}" alt="">` : '<span class="attach-cap">файл не сохранён</span>'}
                             <input type="text" class="editable-input edit-att-cap ${String(a.name || '').trim() ? '' : 'cap-missing'}" value="${mmsEscHtml(a.name || '')}" maxlength="160" oninput="onEditAttCap(${i}, this)" placeholder="Пояснение к фото (что на нём, от чего)">
-                            <input type="number" class="editable-input edit-att-pts" value="${a.points || 0}" min="0" oninput="onEditAttPts(${i}, this)" title="Вложение">
+                            <input type="number" class="editable-input edit-att-pts" value="${a.points || 0}" min="0" oninput="onEditAttPts(${i}, this)" title="Баллы за снимок">
                             <button type="button" class="btn-secondary btn-xs" onclick="editAttReplace(${i})">Заменить фото</button>
                             <button type="button" class="btn-danger btn-xs" onclick="editAttRemove(${i})" title="Убрать фото">✕</button>
                         </div>`).join('');
@@ -12192,7 +12278,7 @@ function addEntry() {
                     linkHtml = `<input type="text" class="editable-input link-input" value="${mmsEscHtml(linkVal)}" placeholder="https://... (можно пусто, если есть фото)">
                         <div class="edit-att-head">Фото: ${atts.length} / ${MAX_ATTACH_PER_ENTRY}</div>
                         ${attEdit}${addBtn}`;
-                    pointsHtml = ``; /* баллы отключены */
+                    pointsHtml = `<input type="number" class="editable-input points-input" value="${ptsVal}" min="0">`;
                     catHtml = `<select class="editable-input cat-input">${ENTRY_CATEGORIES.map(c =>
                         `<option value="${c}" ${c === catVal ? 'selected' : ''}>${c}</option>`).join('')}</select>`;
                 } else {
@@ -12209,9 +12295,10 @@ function addEntry() {
                         attachHtml = '<div class="attach-list">' + entry.attachments.map(a => {
                             const cap = mmsEscHtml(a.name || 'фото');
                             const img = a.dataUrl
-                                ? `<img class="attach-thumb" src="${a.dataUrl}" alt="${cap}" title="${cap}" onclick="mmsOpenImage(this.src)" />`
+                                ? `<img class="attach-thumb" src="${a.dataUrl}" alt="${cap}" title="${cap} (+${a.points || 0})" onclick="mmsOpenImage(this.src)" />`
                                 : '<div class="attach-cap">файл не сохранён</div>';
-                            return `<div style="text-align:center;">${img}<div class="attach-cap">${cap}).join('') + '</div>';
+                            return `<div style="text-align:center;">${img}<div class="attach-cap">${cap}${a.points ? ' · +' + a.points : ''}</div></div>`;
+                        }).join('') + '</div>';
                     }
                     const linkStr = String(entry.link || '');
                     let proofHtml;
@@ -12223,7 +12310,9 @@ function addEntry() {
                         proofHtml = '<span style="margin-left:6px;color:var(--text-secondary);">Без ссылки · фото</span>';
                     }
                     linkHtml = `<span class="evidence-number">${entry.evidenceNumber}</span>${proofHtml}${duplicateHtml}${attachHtml}`;
-                    pointsHtml = ``;color:var(--text-muted);">запись ${entry.points || 0}</div>` : '');
+                    pointsHtml = `<span style="font-weight:700;">${rowPoints}</span>` +
+                        (entry.attachments && entry.attachments.length
+                            ? `<div style="font-size:9px;color:var(--text-muted);">запись ${entry.points || 0}</div>` : '');
                     catHtml = `<span class="cat-chip">${cat}</span>`;
                 }
                 const checked = selectedEntryIds.has(eid) ? 'checked' : '';
@@ -12232,7 +12321,7 @@ function addEntry() {
                         <td>${dateHtml}</td>
                         <td>${linkHtml}</td>
                         <td>${catHtml}</td>
-                        
+                        <td>${pointsHtml}</td>
                         <td class="edit-btn-cell">
                             <button class="btn-edit btn-secondary btn-xs ${isEditing ? 'active' : ''}" onclick="toggleEdit('${eid}')" title="Изменить">
                                 ${isEditing ? 'OK' : 'Изм.'}
@@ -12629,9 +12718,9 @@ function addEntry() {
                     patterns: [
                         'добавить запись', 'добавить достижение', 'добавить работу', 'внести запись',
                         'новая запись', 'добавить строку', 'внести достижение', 'добавить доказательство',
-                        'создать запись', 'новое достижение', 'записать работу',
+                        'создать запись', 'добавить баллы', 'новое достижение', 'записать работу',
                         'добавить ссылку', 'ввести достижение', 'вписать работу',
-                        'как добавить запись', 'как добавить достижение',
+                        'как добавить запись', 'как добавить достижение', 'как внести баллы',
                         'как создать строку', 'зачем добавлять доказательство', 'что такое достижение'
                     ],
                     action: () => {
@@ -12640,7 +12729,7 @@ function addEntry() {
                             const el = document.getElementById('link');
                             if (el) el.focus();
                         } catch (_) {}
-                        try { showToast('📝 Введите ссылку или фото и дату', 'success', 2500); } catch (_) {}
+                        try { showToast('📝 Введите ссылку, дату и баллы', 'success', 2500); } catch (_) {}
                         return 'Перейдите в «Регистрацию достижений». Введите ссылку, дату и баллы, затем нажмите «ДОБАВИТЬ».\n\nЗачем: каждое доказательство с баллами идёт в итог отчёта, в недельную статистику и учитывается при повышении.';
                     },
                     help: 'Для добавления записи перейдите во вкладку «Регистрация достижений», заполните поля и нажмите «ДОБАВИТЬ».'
@@ -12659,7 +12748,7 @@ function addEntry() {
                         const total = entries.reduce((s, e) => s + e.points, 0);
                         return count === 0 ?
                             'Отчёт пуст. Добавьте записи через «Регистрацию достижений».' :
-                            `В отчёте ${count} записей. Таблица открыта.`;
+                            `В отчёте ${count} записей, итого ${total} баллов. Таблица открыта.`;
                     },
                     help: 'Показывает текущий отчёт с таблицей и итогом.'
                 }, {
@@ -12667,8 +12756,8 @@ function addEntry() {
                     category: 'data',
                     priority: 10,
                     patterns: [
-                        'сколько записей', 'итог', 'всего записей',
-                        'число записей', 'итого', 'сколько очков', 'общий счёт',
+                        'сколько баллов', 'итог баллов', 'общая сумма', 'всего баллов',
+                        'сумма баллов', 'итого', 'сколько очков', 'общий счёт',
                         'всего очков', 'баллы итого', 'суммарно баллов',
                         'как посчитать баллы', 'где итог', 'что с баллами', 'почему ноль баллов'
                     ],
@@ -12678,7 +12767,7 @@ function addEntry() {
                         const mode = (typeof reportMode !== 'undefined' && reportMode === 'promotion') ? ' (рапорт на повышение)' : ' (ежедневная отчётность)';
                         return count === 0 ?
                             'Баллов пока нет. Добавьте первую запись!' :
-                            `Всего ${total} записей по ${count} записям${mode}.`;
+                            `Всего ${total} баллов по ${count} записям${mode}.`;
                     },
                     help: 'Показывает сумму всех баллов в отчёте.'
                 }, {
@@ -12712,7 +12801,7 @@ function addEntry() {
                         }
                         return msg;
                     },
-                    help: 'Подводит итог записей за текущую календарную неделю.'
+                    help: 'Подводит итог баллов за текущую календарную неделю.'
                 }, {
                     id: 'norm_left',
                     category: 'data',
@@ -12727,7 +12816,7 @@ function addEntry() {
                             return 'Норма не задана. Укажите число в поле «Норма баллов» над таблицей.';
                         }
                         const left = pointsNorm - total;
-                        if (left <= 0) return `Норма ${pointsNorm} достигнута. Сейчас ${total} записей (+${Math.abs(left)} сверх нормы).`;
+                        if (left <= 0) return `Норма ${pointsNorm} достигнута. Сейчас ${total} баллов (+${Math.abs(left)} сверх нормы).`;
                         return `Норма: ${pointsNorm}. Сейчас: ${total}. Осталось: ${left} баллов.`;
                     },
                     help: 'Показывает, сколько баллов осталось до заданной нормы.'
@@ -12743,7 +12832,7 @@ function addEntry() {
                     action: () => {
                         if (typeof switchReportMode === 'function') switchReportMode('promotion', null);
                         const total = typeof getEntriesTotal === 'function' ? getEntriesTotal(entries) : entries.reduce((s, e) => s + (e.points || 0), 0);
-                        return `⬆️ Режим «Рапорт на повышение». Записей: ${entries.length}, записей: ${total}.`;
+                        return `⬆️ Режим «Рапорт на повышение». Записей: ${entries.length}, итого баллов: ${total}.`;
                     },
                     help: 'Переключает на рапорт на повышение и показывает итог.'
                 }, {
@@ -12968,8 +13057,8 @@ function addEntry() {
                     category: 'ui',
                     priority: 7,
                     patterns: [
-                        'показать график', 'скрыть график', 'график', 'диаграмма',
-                        'динамика записей', 'открыть график', 'закрыть график'
+                        'показать график', 'скрыть график', 'график баллов', 'диаграмма',
+                        'динамика баллов', 'открыть график', 'закрыть график'
                     ],
                     action: () => {
                         toggleChart(null);
@@ -13118,9 +13207,9 @@ function addEntry() {
                             '',
                             'Главное:',
                             '• 📨 Сдача рапорта в Discord (два канала: недельный и на повышение)',
-                            '• 📋 Записи, дубликаты ссылок, фото с правилами',
+                            '• 📋 Записи, баллы, дубликаты ссылок, фото с правилами',
                             '• ⬆️ Отдельный рапорт на повышение (данные не смешиваются)',
-                            '• 📈 График динамики записей (без формы регистрации)',
+                            '• 📈 График динамики баллов (без формы регистрации)',
                             '• 📁 Архив, тестовый режим, отмена действий',
                             '• 💾 Резервная копия + 📄 Word (основная сдача через Discord)',
                             '• 🔐 Лицензия с паролем 2FA',
@@ -13193,7 +13282,7 @@ function addEntry() {
                         return '📁 Архив MMS — локальные снимки вашего отчёта.\n\n' +
                             'Где найти:\n' +
                             '• Слева в меню «Документы» / «Архив» (кнопка с папкой).\n' +
-                            '• «Сохранить в архив» — снимок текущих записей.\n' +
+                            '• «Сохранить в архив» — снимок текущих записей и баллов.\n' +
                             '• «Открыть архив» — список копий, можно восстановить.\n\n' +
                             'Сейчас копий в архиве: ' + count + '.\n' +
                             'Хранится только в этом браузере (localStorage), не на сервере.\n' +
@@ -13326,9 +13415,9 @@ function addEntry() {
                     action: () => {
                         const greetings = [
                             'Здравствуйте! 🫡 Венера на связи — чем помочь по рапорту?',
-                            'Приветствую. Могу подсказать сдачу в Discord, архив или повышение.',
+                            'Приветствую. Могу подсказать сдачу в Discord, баллы, архив или повышение.',
                             'Добрый день! Готова помочь с MMS.',
-                            'Рада вас видеть. Спрашивайте — от «как сдать отчёт» до графика записей.',
+                            'Рада вас видеть. Спрашивайте — от «как сдать отчёт» до графика баллов.',
                             'На связи. Нужна сдача, запись или разбор функции?',
                             'Привет! Коротко: основной путь сдачи — Discord, не Word.',
                             'Добро пожаловать в MMS. Я Венера — спрашивайте своими словами.',
@@ -13348,7 +13437,7 @@ function addEntry() {
                     action: () => {
                         const replies = [
                             'В рабочем режиме 🫡 База знаний обновлена под Discord-сдачу и два канала рапортов. Чем заняться?',
-                            'Нормально, спасибо. Готова подсказать по рапорту или сдаче в Discord.',
+                            'Нормально, спасибо. Готова подсказать по рапорту, баллам или сдаче в Discord.',
                             'Держусь в строю. Если нужно — разберём сдачу, повышение или график.',
                             'Всё штатно. Спросите «как сдать отчёт» или «что умеет приложение».',
                             'Лучше, когда рапорт заполнен без дубликатов 😊 Чем помочь?',
@@ -13389,7 +13478,7 @@ function addEntry() {
                             'Всегда пожалуйста! 🫡',
                             'Рада помочь.',
                             'Обращайтесь ещё — особенно по сдаче в Discord.',
-                            'Не за что. Если остались вопросы по рапорту или повышению — спрашивайте.',
+                            'Не за что. Если остались вопросы по баллам или повышению — спрашивайте.',
                             'Пожалуйста. Удачной проверки рапорта.',
                             'На связи. Дальше уже за вами и руководством MMS.'
                         ];
@@ -13424,7 +13513,7 @@ function addEntry() {
                     action: () => {
                         return `🤖 Я Венера — встроенный помощник MMS v${this.version}.\n\n` +
                             'Работаю офлайн, без внешних API.\n\n' +
-                            'Понимаю вопросы про сдачу в Discord, два типа рапорта, фото, график, архив, лицензию.\n' +
+                            'Понимаю вопросы про сдачу в Discord, два типа рапорта, баллы, фото, график, архив, лицензию.\n' +
                             'Могу открыть вкладки, подсказать шаги и посчитать выражение.\n' +
                             'Исходный код не выдаю — только как пользоваться интерфейсом.';
                     },
@@ -13614,12 +13703,12 @@ function addEntry() {
                         return '📋 Как сдать отчёт (v5.1):\n\n' +
                             '1. Карточка — ФИО и Static ID (обязательно).\n' +
                             '2. Два рабочих варианта:\n' +
-                            '   • заполните таблицу доказательств (ссылки, даты), или\n' +
+                            '   • заполните таблицу доказательств (ссылки, даты, баллы), или\n' +
                             '   • прикрепите готовый .doc / .html — файл уйдёт как есть.\n' +
-                            '3. JSON с записями — из него подтянутся записи.\n' +
+                            '3. JSON с записями — из него подтянутся записи и баллы.\n' +
                             '4. Вкладка «Сдача в Discord» → тип: Еженедельный или На повышение.\n' +
                             '5. «Отправить в Discord» — Word/файл + ping @Руководство MMS.\n' +
-                            '6. Учёт: данные сдачи (ID, время) попадают в штабную статистику командования.\n\n' +
+                            '6. Учёт: данные сдачи (баллы, ID, время) попадают в штабную статистику командования.\n\n' +
                             '💡 Пустая таблица + прикреплённый .doc — нормально, отправка пройдёт.\n' +
                             '⚠️ PNG и «простыня» JSON в Discord больше не шлются — только один файл отчёта.';
                     },
@@ -13639,7 +13728,7 @@ function addEntry() {
                             '2. «Сдача в Discord» → выберите тип (неделя / повышение).\n' +
                             '3. «Выбрать файлы» → ваш .doc или .html.\n' +
                             '4. «Отправить в Discord» — файл уйдёт как есть, таблицу заполнять не обязательно.\n\n' +
-                            'JSON / .mms.zip — из них читаются записи.\n' +
+                            'JSON / .mms.zip — из них читаются записи и баллы.\n' +
                             'Картинки и PDF можно прикладывать, но основным отчётом для канала лучше .doc.';
                     },
                     help: 'Отправка готового .doc без заполнения таблицы.'
@@ -13649,11 +13738,11 @@ function addEntry() {
                     priority: 8,
                     patterns: [
                         'штабная статистика', 'статистика командования', 'учёт сдач',
-                        'cloudflare', 'сервер учёта', 'рейтинг сотрудников'
+                        'куда пишутся баллы', 'cloudflare', 'сервер учёта', 'рейтинг сотрудников'
                     ],
                     action: () => {
                         return '📊 Учёт сдач:\n\n' +
-                            'После «Отправить в Discord» система сохраняет сдачу (ID, имя, тип, время).\n' +
+                            'После «Отправить в Discord» система сохраняет сдачу (ID, имя, баллы, тип, время).\n' +
                             'Командование смотрит штабную статистику по защищённой ссылке с токеном.\n' +
                             'Имена подтягиваются из отчётов автоматически.\n' +
                             'Обычным сотрудникам эта панель не нужна — только сдача рапорта.';
@@ -13700,15 +13789,15 @@ function addEntry() {
                     category: 'help',
                     priority: 8,
                     patterns: [
-                        'как пользоваться графиком', 'график', 'только график',
-                        'почему нет формы на графике', 'динамика записей как',
+                        'как пользоваться графиком', 'график баллов', 'только график',
+                        'почему нет формы на графике', 'динамика баллов как',
                         'открыть график'
                     ],
                     action: () => {
                         try {
                             if (typeof toggleChart === 'function' && !chartVisible) toggleChart(null);
                         } catch (_) {}
-                        return '📈 График:\n\nКнопка «График» в меню показывает динамику записей по датам.\nВ этом режиме форма скрыта — только график.\n«Скрыть график» возвращает форму добавления записей.';
+                        return '📈 График:\n\nКнопка «График» в меню показывает динамику баллов.\nВ этом режиме форма регистрации достижений скрыта — только график и контекст таблицы.\n«Скрыть график» возвращает форму добавления записей.\nНужны записи с разными датами, иначе график может быть пустым.';
                     },
                     help: 'Режим графика без формы регистрации.'
                 }, {
@@ -13716,7 +13805,10 @@ function addEntry() {
                     category: 'help',
                     priority: 14,
                     patterns: [
-                        'система записей',
+                        'сколько дают баллов', 'как начисляются баллы', 'система баллов',
+                        'за что баллы', 'таблица баллов', 'почему нужны баллы',
+                        'зачем баллы', 'для чего баллы', 'что дают баллы',
+                        'зачем нужны баллы', 'почему баллы', 'баллы для чего',
                         'повышение за баллы', 'еженедельная отчетность',
                         'лучший сотрудник', 'рейтинг сотрудников', 'как считаются баллы',
                         'что такое баллы', 'что такое балл', 'что значит баллы',
@@ -13724,7 +13816,7 @@ function addEntry() {
                         'баллы что это', 'очки что это', 'что за баллы'
                     ],
                     action: () => {
-                        return '📋 Система баллов отключена.\n\nМы полностью ушли от начисления баллов. В рапорте учитываются только записи с доказательствами (ссылка или фото) и категория. Итог — число записей, без баллов.';
+                        return '📋 Система баллов отключена.\n\nУчитываются только записи с доказательствами (ссылка или фото) и категория. Итог — число записей.';
                     },
                     help: 'Система баллов отключена — учитываются только записи.'
                 }, {
@@ -13785,7 +13877,7 @@ function addEntry() {
                         'как подвести итоги недели', 'зачем недельный отчет'
                     ],
                     action: () => {
-                        return '📅 Еженедельная отчётность:\n\nПо сумме записей за неделю сравнивают вклад сотрудников.\n\nРекомендуется:\n1. В течение недели добавлять доказательства с баллами.\n2. Сохранить копию в архив.\n3. Сдать через Discord → режим «Еженедельный» (отдельный канал).\n4. Word и пакет для проверки — по желанию, не вместо Discord.\n\nРапорт на повышение сдаётся отдельно (другой канал).';
+                        return '📅 Еженедельная отчётность:\n\nПо сумме баллов за неделю сравнивают вклад сотрудников.\n\nРекомендуется:\n1. В течение недели добавлять доказательства с баллами.\n2. Сохранить копию в архив.\n3. Сдать через Discord → режим «Еженедельный» (отдельный канал).\n4. Word и пакет для проверки — по желанию, не вместо Discord.\n\nРапорт на повышение сдаётся отдельно (другой канал).';
                     },
                     help: 'Еженедельная отчётность и сдача в Discord.'
                 }, {
