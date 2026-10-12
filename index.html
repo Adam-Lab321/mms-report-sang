@@ -6295,7 +6295,8 @@
         const MMS_DISCORD_STORAGE = 'mmsDiscordAuth';
         const MMS_DISCORD_CLIENT_ID = '1559340159693234277'; // mms-db Application ID
         const MMS_DISCORD_GUILD_ID = '1482047719697678498';  // Discord server
-        const MMS_DISCORD_AUTH_URL = (typeof MMS_PROXY_URL !== 'undefined' ? MMS_PROXY_URL : '') + '/auth/discord';
+        // Важно: полный URL Worker (MMS_PROXY_URL объявлен ниже по файлу — нельзя на него ссылаться здесь)
+        const MMS_DISCORD_AUTH_URL = 'https://mms-report-proxy.asakulin874.workers.dev/auth/discord';
         let mmsDiscordAuth = null;
         let mmsAuthPreviewData = null;
 
@@ -6577,7 +6578,35 @@
                     window.history.replaceState({}, '', u.pathname + u.search + u.hash);
                 } catch (_) {}
                 if (!res.ok || !data) {
-                    if (st) st.textContent = 'Discord OAuth: сервер не ответил. Войдите по нику с сервера.';
+                    var msg = (data && (data.error || data.message)) ? (data.error || data.message) : ('HTTP ' + res.status);
+                    if (st) {
+                        st.textContent = 'Discord OAuth: ' + msg + '. Можно войти по нику с сервера.';
+                        st.classList.remove('ok');
+                    }
+                    console.error('auth/discord', res.status, data);
+                    return false;
+                }
+                if (data.ok === false) {
+                    if (st) {
+                        st.textContent = (data.error || 'Ошибка авторизации') + (data.nick ? ' Ник: ' + data.nick : '');
+                        st.classList.remove('ok');
+                    }
+                    if (data.nick) {
+                        var inpN = document.getElementById('authNickInput');
+                        if (inpN) inpN.value = data.nick;
+                    }
+                    // nick_format — показать превью если распарсится
+                    if (data.code === 'nick_format' && data.nick) {
+                        var p2 = mmsParseServerNick(data.nick);
+                        if (p2.ok) {
+                            mmsAuthPreviewData = p2;
+                            var box = document.getElementById('authPreview');
+                            if (box) box.hidden = false;
+                            var set = function (id, v) { var e = document.getElementById(id); if (e) e.textContent = v; };
+                            set('authPrevRank', p2.rank); set('authPrevFirst', p2.first);
+                            set('authPrevLast', p2.last); set('authPrevId', p2.staticId);
+                        }
+                    }
                     return false;
                 }
                 // Ожидаем: { nick, first, last, staticId, rank, discordId } или { nick }
