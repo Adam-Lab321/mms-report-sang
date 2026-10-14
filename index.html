@@ -13424,18 +13424,60 @@ function addEntry() {
          */
 
         // ============================================================
-        // ГОЛОС: только микрофон (распознавание речи → поле ввода)
+        // ГОЛОС: микрофон → текст (Web Speech API или Cloudflare Whisper STT)
         // Озвучка ответов Венеры полностью отключена.
+        // Firefox: Web Speech часто выключен → запись + POST /venus-stt
         // ============================================================
         let recognition = null;
         let isListening = false;
+        let mediaRecorder = null;
+        let mediaChunks = [];
+        let mediaStream = null;
+        let voiceSttInFlight = false;
 
         function isFirefox() {
-            return typeof navigator !== 'undefined' && /firefox/i.test(navigator.userAgent);
+            return typeof navigator !== 'undefined' && /firefox/i.test(navigator.userAgent || '');
         }
 
         function getSpeechRecognitionCtor() {
-            return window.SpeechRecognition || window.webkitSpeechRecognition || window.mozSpeechRecognition || null;
+            try {
+                return window.SpeechRecognition || window.webkitSpeechRecognition || window.mozSpeechRecognition || null;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function mmsVoiceProxyBase() {
+            try {
+                if (typeof MMS_PROXY_URL === 'string' && MMS_PROXY_URL) return MMS_PROXY_URL.replace(/\/$/, '');
+            } catch (_) {}
+            return 'https://mms-report-proxy.asakulin874.workers.dev';
+        }
+
+        function setMicUi(on, title) {
+            const btn = document.getElementById('btnMic');
+            if (!btn) return;
+            btn.classList.toggle('listening', !!on);
+            btn.title = title || (on ? 'Слушаю… нажмите чтобы остановить' : 'Голосовой ввод (микрофон)');
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        }
+
+        function applyVoiceTranscript(text, autoSend) {
+            const t = String(text || '').trim();
+            if (!t) return false;
+            const inp = document.getElementById('assistantInput');
+            if (inp) {
+                inp.value = t;
+                try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
+            }
+            if (autoSend) {
+                setTimeout(function () {
+                    try {
+                        if (typeof sendAssistant === 'function') sendAssistant();
+                    } catch (_) {}
+                }, 200);
+            }
+            return true;
         }
 
         function initSpeechRecognition() {
@@ -13450,92 +13492,106 @@ function addEntry() {
             rec.lang = 'ru-RU';
             rec.continuous = false;
             rec.interimResults = true;
-            rec.maxAlternatives = 3;
+            try { rec.maxAlternatives = 3; } catch (_) {}
 
-            rec.onstart = function() {
+            rec.onstart = function () {
                 isListening = true;
-                const btn = document.getElementById('btnMic');
-                if (btn) {
-                    btn.classList.add('listening');
-                    btn.title = 'Слушаю… нажмите чтобы остановить';
-                }
-                showToast('🎤 Слушаю… говорите по-русски', 'success', 2000);
+                setMicUi(true, 'Слушаю… нажмите чтобы остановить');
+                try { showToast('🎤 Слушаю… говорите по-русски', 'success', 2000); } catch (_) {}
             };
-            rec.onresult = function(event) {
+            rec.onresult = function (event) {
                 let interim = '';
                 let final = '';
-                let bestAlt = '';
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const res = event.results[i];
                     const t = (res[0] && res[0].transcript) || '';
-                    if (res.isFinal) {
-                        final += t;
-                        // берём лучшую альтернативу, если есть
-                        if (res.length > 1 && res[0].confidence < 0.6) {
-                            for (let a = 0; a < res.length; a++) {
-                                if (res[a] && res[a].transcript) bestAlt = res[a].transcript;
-                            }
-                        }
-                    } else {
-                        interim += t;
-                    }
+                    if (res.isFinal) final += t;
+                    else interim += t;
                 }
+                const textVal = (final || interim).trim();
                 const inp = document.getElementById('assistantInput');
-                const textVal = (final || bestAlt || interim).trim();
                 if (inp && textVal) inp.value = textVal;
-                if (final || bestAlt) {
-                    setTimeout(function() {
+                if (final.trim()) {
+                    setTimeout(function () {
                         const v = document.getElementById('assistantInput');
-                        if (v && v.value.trim()) sendAssistant();
+                        if (v && v.value.trim()) {
+                            try { sendAssistant(); } catch (_) {}
+                        }
                     }, 280);
                 }
             };
-            rec.onerror = function(event) {
+            rec.onerror = function (event) {
                 isListening = false;
-                const btn = document.getElementById('btnMic');
-                if (btn) {
-                    btn.classList.remove('listening');
-                    btn.title = 'Голосовой ввод (микрофон)';
-                }
+                setMicUi(false);
                 const err = (event && event.error) || '';
                 if (err === 'not-allowed' || err === 'service-not-allowed') {
-                    showToast('⚠️ Разрешите микрофон в настройках сайта (замок в адресной строке)', 'warning', 5000);
+                    // В Firefox service-not-allowed часто = API выключен — уходим на STT
+                    if (isFirefox() || err === 'service-not-allowed') {
+                        try { showToast('Переключаюсь на серверное распознавание…', 'success', 2000); } catch (_) {}
+                        startFirefoxVoiceFallback();
+                        return;
+                    }
+                    try { showToast('⚠️ Разрешите микрофон (замок в адресной строке)', 'warning', 5000); } catch (_) {}
                 } else if (err === 'network') {
-                    showToast('⚠️ Нет связи с сервисом распознавания. Проверьте интернет.', 'warning', 4000);
+                    try { showToast('⚠️ Нет связи с сервисом распознавания. Пробую сервер…', 'warning', 3000); } catch (_) {}
+                    if (isFirefox()) startFirefoxVoiceFallback();
                 } else if (err === 'no-speech') {
-                    showToast('Не расслышала речь. Попробуйте ещё раз.', 'warning', 2500);
-                } else if (err !== 'aborted') {
-                    showToast('⚠️ Ошибка микрофона: ' + err, 'warning', 3500);
+                    try { showToast('Не расслышала речь. Попробуйте ещё раз.', 'warning', 2500); } catch (_) {}
+                } else if (err === 'aborted') {
+                    /* ignore */
+                } else {
+                    try { showToast('⚠️ Ошибка микрофона: ' + err, 'warning', 3500); } catch (_) {}
+                    if (isFirefox()) startFirefoxVoiceFallback();
                 }
             };
-            rec.onend = function() {
+            rec.onend = function () {
                 isListening = false;
-                const btn = document.getElementById('btnMic');
-                if (btn) {
-                    btn.classList.remove('listening');
-                    btn.title = 'Голосовой ввод (микрофон)';
-                }
+                setMicUi(false);
             };
             return rec;
         }
 
-        // ——— Firefox fallback: MediaRecorder → краткая запись → подсказка / повтор ———
-        let mediaRecorder = null;
-        let mediaChunks = [];
-        let mediaStream = null;
-
         function stopMediaTracks() {
             try {
-                if (mediaStream) mediaStream.getTracks().forEach(function(t) { t.stop(); });
+                if (mediaStream) mediaStream.getTracks().forEach(function (t) { t.stop(); });
             } catch (_) {}
             mediaStream = null;
             mediaRecorder = null;
             mediaChunks = [];
         }
 
+        async function transcribeAudioBlob(blob) {
+            const base = mmsVoiceProxyBase();
+            const url = base + '/venus-stt';
+            const form = new FormData();
+            const type = (blob && blob.type) || 'audio/webm';
+            const ext = /ogg/i.test(type) ? 'ogg' : (/mp4|m4a/i.test(type) ? 'm4a' : 'webm');
+            form.append('audio', blob, 'voice.' + ext);
+
+            const headers = {};
+            try {
+                if (typeof MMS_PROXY_TOKEN === 'string' && MMS_PROXY_TOKEN) {
+                    headers['Authorization'] = 'Bearer ' + MMS_PROXY_TOKEN;
+                }
+            } catch (_) {}
+            try {
+                const a = JSON.parse(localStorage.getItem('mmsDiscordAuth') || 'null');
+                if (a && a.sessionToken) headers['X-MMS-Session'] = a.sessionToken;
+            } catch (_) {}
+
+            const res = await fetch(url, { method: 'POST', body: form, headers: headers });
+            const data = await res.json().catch(function () { return null; });
+            if (!data || !data.ok || !data.text) {
+                const msg = (data && data.error) || ('HTTP ' + res.status);
+                throw new Error(msg);
+            }
+            return String(data.text).trim();
+        }
+
         async function startFirefoxVoiceFallback() {
+            if (voiceSttInFlight) return;
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                showToast('⚠️ Нет доступа к микрофону в этом браузере', 'warning', 4000);
+                try { showToast('⚠️ Нет доступа к микрофону в этом браузере', 'warning', 4000); } catch (_) {}
                 return;
             }
             try {
@@ -13543,66 +13599,83 @@ function addEntry() {
                     audio: { echoCancellation: true, noiseSuppression: true }
                 });
             } catch (err) {
-                showToast('⚠️ Разрешите микрофон (замок → Разрешения)', 'warning', 5000);
+                try { showToast('⚠️ Разрешите микрофон (замок → Разрешения для сайта)', 'warning', 5000); } catch (_) {}
                 return;
             }
             mediaChunks = [];
-            const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                ? 'audio/webm;codecs=opus'
-                : (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus') ? 'audio/ogg;codecs=opus' : '');
+            let mime = '';
+            try {
+                if (window.MediaRecorder) {
+                    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mime = 'audio/webm;codecs=opus';
+                    else if (MediaRecorder.isTypeSupported('audio/webm')) mime = 'audio/webm';
+                    else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) mime = 'audio/ogg;codecs=opus';
+                }
+            } catch (_) {}
             try {
                 mediaRecorder = mime ? new MediaRecorder(mediaStream, { mimeType: mime }) : new MediaRecorder(mediaStream);
             } catch (e) {
                 stopMediaTracks();
-                showToast('⚠️ MediaRecorder недоступен', 'error', 3000);
+                try { showToast('⚠️ Запись с микрофона недоступна', 'error', 3000); } catch (_) {}
                 return;
             }
-            mediaRecorder.ondataavailable = function(ev) {
+            mediaRecorder.ondataavailable = function (ev) {
                 if (ev.data && ev.data.size > 0) mediaChunks.push(ev.data);
             };
-            mediaRecorder.onstop = function() {
-                const btn = document.getElementById('btnMic');
-                if (btn) btn.classList.remove('listening');
+            mediaRecorder.onstop = async function () {
+                setMicUi(false);
                 isListening = false;
-                const blob = new Blob(mediaChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                const blob = new Blob(mediaChunks, { type: (mediaRecorder && mediaRecorder.mimeType) || mime || 'audio/webm' });
                 stopMediaTracks();
-                // Пытаемся ещё раз через Web Speech (вдруг флаг включили)
-                const Ctor = getSpeechRecognitionCtor();
-                if (Ctor) {
-                    showToast('Пробую распознать…', 'success', 1500);
-                    try {
-                        recognition = initSpeechRecognition();
-                        if (recognition) {
-                            recognition.start();
-                            return;
-                        }
-                    } catch (_) {}
+                if (!blob || blob.size < 200) {
+                    try { showToast('Слишком короткая запись. Зажмите 🎤 и говорите 2–6 сек.', 'warning', 4000); } catch (_) {}
+                    return;
                 }
-                // Без облачного STT: подсказка пользователю
-                showToast('В Firefox включите: about:config → media.webspeech.recognition.enable = true, затем перезапустите браузер. Или введите вопрос текстом.', 'warning', 8000);
-                const inp = document.getElementById('assistantInput');
-                if (inp && !inp.value) {
-                    inp.placeholder = 'Введите вопрос текстом (голос в Firefox — через about:config)…';
-                    inp.focus();
+                voiceSttInFlight = true;
+                try { showToast('⏳ Распознаю речь на сервере…', 'success', 2500); } catch (_) {}
+                try {
+                    const text = await transcribeAudioBlob(blob);
+                    if (applyVoiceTranscript(text, true)) {
+                        try { showToast('🎤 «' + (text.length > 60 ? text.slice(0, 60) + '…' : text) + '»', 'success', 3000); } catch (_) {}
+                    } else {
+                        try { showToast('Речь не распознана. Повторите или введите текстом.', 'warning', 4000); } catch (_) {}
+                    }
+                } catch (e) {
+                    const msg = (e && e.message) ? String(e.message) : 'ошибка';
+                    try {
+                        showToast('Не удалось распознать: ' + msg + '. Введите вопрос текстом.', 'warning', 6000);
+                    } catch (_) {}
+                    const inp = document.getElementById('assistantInput');
+                    if (inp) {
+                        inp.placeholder = 'Введите вопрос текстом…';
+                        try { inp.focus(); } catch (_) {}
+                    }
+                } finally {
+                    voiceSttInFlight = false;
                 }
             };
-            const btn = document.getElementById('btnMic');
-            if (btn) {
-                btn.classList.add('listening');
-                btn.title = 'Запись… нажмите чтобы остановить';
-            }
+            setMicUi(true, 'Запись… нажмите 🎤 чтобы остановить');
             isListening = true;
-            mediaRecorder.start(200);
-            showToast('🎤 Запись 5 сек (Firefox). Говорите, затем нажмите 🎤 снова или подождите.', 'success', 4000);
-            setTimeout(function() {
+            try { mediaRecorder.start(250); } catch (e) {
+                stopMediaTracks();
+                isListening = false;
+                setMicUi(false);
+                try { showToast('⚠️ Не удалось начать запись', 'error'); } catch (_) {}
+                return;
+            }
+            try { showToast('🎤 Говорите… (до 7 сек). Повторное нажатие 🎤 — стоп.', 'success', 3500); } catch (_) {}
+            setTimeout(function () {
                 if (mediaRecorder && mediaRecorder.state === 'recording') {
                     try { mediaRecorder.stop(); } catch (_) {}
                 }
-            }, 5000);
+            }, 7000);
         }
 
         function toggleVoiceInput() {
-            // Уже идёт запись MediaRecorder
+            if (voiceSttInFlight) {
+                try { showToast('Ещё распознаю предыдущую запись…', 'warning', 2000); } catch (_) {}
+                return;
+            }
+            // Уже идёт MediaRecorder
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 try { mediaRecorder.stop(); } catch (_) {}
                 return;
@@ -13613,33 +13686,37 @@ function addEntry() {
             }
 
             const Ctor = getSpeechRecognitionCtor();
+            // Firefox: Web Speech часто отсутствует или service-not-allowed — сразу серверный STT
+            if (isFirefox() && !Ctor) {
+                startFirefoxVoiceFallback();
+                return;
+            }
+
             if (Ctor) {
                 if (!recognition) recognition = initSpeechRecognition();
                 if (!recognition) {
-                    if (isFirefox()) {
-                        startFirefoxVoiceFallback();
-                        return;
-                    }
-                    showToast('⚠️ Голосовой ввод недоступен. Введите вопрос текстом.', 'warning', 4000);
+                    startFirefoxVoiceFallback();
                     return;
                 }
-                const startRec = function() {
-                    try { recognition.start(); }
-                    catch (e) {
-                        if (isFirefox()) startFirefoxVoiceFallback();
-                        else showToast('⚠️ Не удалось запустить микрофон', 'error');
+                const startRec = function () {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        startFirefoxVoiceFallback();
                     }
                 };
                 if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                     navigator.mediaDevices.getUserMedia({ audio: true })
-                        .then(function(stream) {
-                            try { stream.getTracks().forEach(function(t) { t.stop(); }); } catch (_) {}
+                        .then(function (stream) {
+                            try { stream.getTracks().forEach(function (t) { t.stop(); }); } catch (_) {}
                             startRec();
                         })
-                        .catch(function(err) {
+                        .catch(function (err) {
                             if (err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
-                                showToast('⚠️ Доступ к микрофону запрещён (замок в адресной строке)', 'warning', 5000);
-                            } else startRec();
+                                try { showToast('⚠️ Доступ к микрофону запрещён (замок в адресной строке)', 'warning', 5000); } catch (_) {}
+                            } else {
+                                startRec();
+                            }
                         });
                 } else {
                     startRec();
@@ -13647,13 +13724,8 @@ function addEntry() {
                 return;
             }
 
-            // Нет Web Speech API
-            if (isFirefox()) {
-                // Пробуем запись + инструкция about:config
-                startFirefoxVoiceFallback();
-                return;
-            }
-            showToast('⚠️ Голосовой ввод лучше работает в Chrome / Edge. Введите вопрос текстом.', 'warning', 5000);
+            // Нет Web Speech API (типичный Firefox) — серверное распознавание
+            startFirefoxVoiceFallback();
         }
 
         class VenusAI {
@@ -15273,7 +15345,7 @@ function addEntry() {
                         'firefox микрофон', 'как говорить с венерой'
                     ],
                     action: () => {
-                        return '🎤 Кнопка микрофона переводит речь в текст в поле ввода.\n\nЛучше работает в Chrome и Edge. В Firefox Web Speech API часто недоступен — тогда вводите вопрос текстом. Нужно разрешить доступ к микрофону для сайта.';
+                        return '🎤 Кнопка микрофона переводит речь в текст.\n\nChrome/Edge: встроенное распознавание.\nFirefox: запись на микрофон → распознавание на сервере (Workers AI Whisper). Разрешите микрофон для сайта. Если сервер недоступен — введите вопрос текстом.';
                     },
                     help: 'Голосовой ввод.'
                 }, {
