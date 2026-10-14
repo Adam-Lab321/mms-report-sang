@@ -3,6 +3,36 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes" />
+    <script>
+(function(){
+  try {
+    var known = ['dark','light','medical','military','urban','desert','crimson','ocean','forest','slate','amber','coffee','lavender','charcoal'];
+    var style = localStorage.getItem('mmsStyle') || '';
+    if (known.indexOf(style) < 0) {
+      var preset = localStorage.getItem('mmsThemePreset') || '';
+      var map = {'night-gold':'dark','day-paper':'light','medical':'medical','military':'military','urban':'urban','desert':'desert','crimson':'crimson','ocean':'ocean','forest':'forest','slate':'slate','amber':'amber','coffee':'coffee','lavender':'lavender','charcoal':'charcoal'};
+      style = map[preset] || (known.indexOf(preset) >= 0 ? preset : 'dark');
+    }
+    document.documentElement.setAttribute('data-mms-style', style);
+    var day = localStorage.getItem('mmsThemeDay') === 'true';
+    document.documentElement.setAttribute('data-mms-day', day ? '1' : '0');
+    var css = 'body.style-'+style+'{}';
+    // apply classes as soon as body exists
+    function apply(){
+      if (!document.body) return;
+      var keep = (document.body.className||'').split(/\s+/).filter(function(c){
+        return c && c.indexOf('style-')!==0 && c!=='day-mode' && c!=='night-mode';
+      });
+      keep.push('style-'+style);
+      keep.push(day ? 'day-mode' : 'night-mode');
+      document.body.className = keep.join(' ');
+    }
+    if (document.body) apply();
+    else document.addEventListener('DOMContentLoaded', apply);
+  } catch(e) {}
+})();
+</script>
+
     <title>MMS — Рапорт</title>
 
     <!-- MMS proprietary client application. -->
@@ -8258,13 +8288,23 @@
             }
         });
 
+        function mmsKnownStyles() {
+            return ['dark', 'light', 'medical', 'military', 'urban', 'desert', 'crimson', 'ocean',
+                'forest', 'slate', 'amber', 'coffee', 'lavender', 'charcoal'];
+        }
+
         function loadStyle() {
             try {
-                const style = mmsPresetToStyle(localStorage.getItem('mmsThemePreset')) || localStorage.getItem('mmsStyle');
-                if (style && ['dark', 'light', 'medical', 'military', 'urban', 'desert', 'crimson', 'ocean'].includes(style)) {
-                    setStyle(style);
+                // Prefer explicit mmsStyle (source of truth). Preset is secondary / hub-sync.
+                let style = localStorage.getItem('mmsStyle') || '';
+                if (!style || mmsKnownStyles().indexOf(style) < 0) {
+                    style = mmsPresetToStyle(localStorage.getItem('mmsThemePreset')) || '';
                 }
-            } catch (e) {}
+                if (!style || mmsKnownStyles().indexOf(style) < 0) style = 'dark';
+                setStyle(style);
+            } catch (e) {
+                try { setStyle('dark'); } catch (_) {}
+            }
         }
 
 
@@ -8274,17 +8314,24 @@
             return {
                 'night-gold': 'dark', 'day-paper': 'light', 'medical': 'medical',
                 'military': 'military', 'urban': 'urban', 'desert': 'desert',
-                'crimson': 'crimson', 'ocean': 'ocean'
+                'crimson': 'crimson', 'ocean': 'ocean',
+                'forest': 'forest', 'slate': 'slate', 'amber': 'amber',
+                'coffee': 'coffee', 'lavender': 'lavender', 'charcoal': 'charcoal'
             };
         }
         function mmsPresetToStyle(id) {
             const m = mmsPresetMap();
-            return (id && m[id]) ? m[id] : null;
+            if (id && m[id]) return m[id];
+            // raw style name stored as preset
+            if (id && typeof mmsKnownStyles === 'function' && mmsKnownStyles().indexOf(id) >= 0) return id;
+            return null;
         }
         function mmsStyleToPreset(style) {
             const m = mmsPresetMap();
             for (const k in m) { if (m[k] === style) return k; }
-            return 'night-gold';
+            // keep unknown/new styles under their own key (do NOT force night-gold)
+            if (style && typeof mmsKnownStyles === 'function' && mmsKnownStyles().indexOf(style) >= 0) return style;
+            return style || 'night-gold';
         }
         function applyThemePreset(id) { setStyle(mmsPresetToStyle(id) || 'dark'); }
         function loadThemePreset() { loadStyle(); }
@@ -13613,8 +13660,8 @@ function addEntry() {
 
             // ——— КОНСТРУКТОР ———
             constructor() {
-                this.version = '6.5';
-                this.confidenceThreshold = 0.18;
+                this.version = '6.6';
+                this.confidenceThreshold = 0.14;
                 this.developerMode = (typeof mmsRestoreDeveloperAccess === 'function' && mmsRestoreDeveloperAccess());
                 this.context = {
                     state: 'idle', // idle | assisting | clarifying | executing
@@ -13683,7 +13730,11 @@ function addEntry() {
                         'создать запись', 'новое достижение', 'записать работу',
                         'добавить ссылку', 'ввести достижение', 'вписать работу',
                         'как добавить запись', 'как добавить достижение', 'категории',
-                        'как создать строку', 'зачем добавлять доказательство', 'что такое достижение'
+                        'как создать строку', 'зачем добавлять доказательство', 'что такое достижение',
+                        'внеси работу', 'запиши достижение', 'добавь в таблицу', 'новая строка в отчёт',
+                        'прикрепить доказательство', 'добавить proof', 'add entry', 'new achievement',
+                        'хочу добавить', 'нужно внести', 'занести в рапорт', 'добавить мед осмотр',
+                        'добавить экзамен', 'добавить поставку', 'добавить кадры'
                     ],
                     action: () => {
                         try { switchTab('achievements', null); } catch (_) {}
@@ -13703,7 +13754,7 @@ function addEntry() {
                         'показать отчёт', 'посмотреть текущий отчёт', 'вывести отчёт',
                         'покажи отчёт', 'посмотреть рапорт', 'что в отчёте',
                         'покажи таблицу', 'что в таблице достижений'
-                    ],
+                    , 'открой таблицу', 'покажи записи', 'что я добавил', 'список достижений', 'мой отчёт'],
                     action: () => {
                         switchTab('achievements', null);
                         const count = entries.length;
@@ -13722,7 +13773,7 @@ function addEntry() {
                         'сумма баллов', 'итого', 'сколько очков', 'общий счёт',
                         'всего очков', 'баллы итого', 'суммарно баллов',
                         'как посчитать баллы', 'где итог', 'что с баллами', 'почему ноль баллов'
-                    ],
+                    , 'сколько набрал', 'мой результат', 'итог отчёта', 'points total'],
                     action: () => {
                         const total = typeof getEntriesTotal === 'function' ? getEntriesTotal(entries) : entries.reduce((s, e) => s + (e.points || 0), 0);
                         const count = entries.length;
@@ -13925,7 +13976,7 @@ function addEntry() {
                         'скачать word', 'word отчёт', 'экспорт word', 'выгрузить word',
                         'отчёт в word', 'ворд', 'скачать ворд', 'документ word',
                         'как скачать word', 'как сделать word', 'зачем word отчёт'
-                    ],
+                    , 'скачать doc', 'сделай word', 'экспорт в word', 'сохранить .doc', 'html отчёт'],
                     action: () => {
                         if (entries.length === 0) {
                             return 'Нет данных для экспорта. Добавьте записи.';
@@ -14162,7 +14213,7 @@ function addEntry() {
                         'что ты умеешь', 'зачем ты нужна', 'почему ты здесь',
                         'как со мной работать', 'что можно спросить', 'какие команды',
                         'с чего начать', 'как начать', 'расскажи о себе кратко'
-                    ],
+                    , 'help me', 'обучение'],
                     action: () => {
                         const lines = [
                             `🫡 Венера v${this.version} — помощник MMS · S.A.N.G.`,
@@ -14373,7 +14424,7 @@ function addEntry() {
                     patterns: [
                         'привет', 'здравствуй', 'добрый день', 'доброе утро',
                         'добрый вечер', 'хай', 'hello', 'hi', 'ку', 'йо', 'здорово'
-                    ],
+                    , 'доброго дня', 'здрасте', 'hi venus', 'привет венерa', 'привет венера', 'слушай', 'помоги', 'нужна помощь'],
                     action: () => {
                         const greetings = [
                             'Здравствуйте! 🫡 Венера на связи — чем помочь по рапорту?',
@@ -14718,7 +14769,7 @@ function addEntry() {
                         'открой discord', 'вкладка discord', 'сдача в discord',
                         'открыть сдачу', 'discord сдача', 'отправка рапорта',
                         'перейти в discord', 'канал сдачи'
-                    ],
+                    , 'сдать в дискорд', 'отправить рапорт', 'отправить в discord', 'сдать отчёт', 'отправить на проверку', 'загрузить рапорт', 'submit report', 'send to discord', 'как сдать', 'куда сдавать', 'webhook', 'не уходит в дискорд', 'ошибка отправки', 'proxy', 'worker', 'не принял discord', 'рапорт не отправился'],
                     action: () => {
                         try {
                             switchTab('discord', null);
@@ -14954,8 +15005,15 @@ function addEntry() {
                     category: 'help',
                     priority: 5,
                     patterns: [
-                        'какие темы есть', 'как сменить тему', 'зачем темы',
-                        'тёмная тема', 'светлая тема', 'военный стиль', 'что такое узор'
+                        'тема', 'темы', 'стиль оформления', 'сменить тему', 'поменять тему',
+                        'оформление', 'цвета интерфейса', 'дизайн', 'палитра',
+                        'смени тему', 'поменяй стиль', 'тёмная тема', 'светлая тема',
+                        'тема forest', 'тема ocean', 'тема coffee', 'тема lavender',
+                        'тема slate', 'тема amber', 'тема charcoal', 'тема crimson',
+                        'сохрани тему', 'тема сбрасывается', 'почему тема сбросилась',
+                        'не сохраняется тема', 'верни мою тему', 'какой стиль сейчас',
+                        'change theme', 'switch style', 'night mode', 'day mode',
+                        'как сохранить тему', 'тема после перезагрузки'
                     ],
                     action: () => {
                         return '🎨 Темы оформления: тёмный, светлый, медицинский, военный, городской, пустынный, багровый, океан.\n\nУзоры поверхности — линии, сетка, точки и др. Это только внешний вид, на данные не влияет. Меняйте через «Выбрать стиль» в сайдбаре.';
@@ -15016,7 +15074,7 @@ function addEntry() {
                     patterns: [
                         'discord', 'дискорд', 'куда писать разработчику', 'связь с автором',
                         'два канала', 'webhook', 'high mms', 'пинг роли', 'куда уходит рапорт'
-                    ],
+                    , 'oauth', 'войти через дискорд', 'авторизация', 'ник не подходит', 'формат ника', 'ранг имя фамилия static', 'сессия истекла', 'выйти из аккаунта'],
                     action: () => {
                         return '📨 Discord в MMS:\n\n' +
                             '• Вкладка «Сдача в Discord» — единственный рабочий путь сдачи.\n' +
@@ -15135,6 +15193,77 @@ function addEntry() {
                         return 'Если файл пустой или не скачался:\n1. Добавьте хотя бы одну запись.\n2. Заполните ФИО в карточке.\n3. Разрешите скачивания в браузере.\n4. Попробуйте ещё раз или Excel вместо Word.\n\nВ демо-сборках экспорт может быть отключён — в полной версии кнопки Word и пакет для проверки активны.';
                     },
                     help: 'Проблемы со скачиванием.'
+                }, {
+                    id: 'about_theme_persist',
+                    category: 'help',
+                    priority: 8,
+                    patterns: [
+                        'тема не сохраняется', 'сбрасывается тема', 'тема сбрасывается',
+                        'после выхода тема', 'вернулся тема пропала', 'тема по умолчанию снова',
+                        'не запоминает стиль', 'стиль сбросился', 'theme reset', 'theme not saved',
+                        'почему тёмная снова', 'сохранение темы', 'запомни тему'
+                    ],
+                    action: () => {
+                        return 'Тема и стиль (dark/light/forest/ocean/…) сохраняются в localStorage (ключи mmsStyle и mmsThemePreset).\\n\\n1) Выберите стиль в меню оформления.\\n2) Не очищайте данные сайта для github.io.\\n3) Если заходите с другого браузера/режима инкогнито — тема локальная, там её не будет.\\n\\nДень/ночь — отдельно: переключатель и ключ mmsThemeDay.';
+                    },
+                    help: 'Поясняет, как сохраняется тема оформления.'
+                }, {
+                    id: 'about_submit_worker',
+                    category: 'help',
+                    priority: 11,
+                    patterns: [
+                        'как работает сдача', 'что такое worker', 'proxy worker', 'mms-report-proxy',
+                        'куда уходит рапорт', 'что происходит при сдаче', 'pipeline сдачи',
+                        'файл vet', 'проверка файла', 'почему файл отклонён', 'запрещённый тип файла',
+                        'rate limit', 'слишком часто сдаю', 'лимит сдач'
+                    ],
+                    action: () => {
+                        return 'Сдача идёт на Cloudflare Worker (mms-report-proxy):\\n1) Проверка сессии Discord.\\n2) Vet вложений (тип, размер, опасный HTML).\\n3) Сохранение в очередь проверки (KV) + статистика (D1).\\n4) Сообщение в Discord (webhook weekly/promotion).\\n\\nПроверяющий открывает очередь в MMS-Reviewer, claim → решение → PNG в канал.';
+                    },
+                    help: 'Описывает цепочку сдачи через Worker.'
+                }, {
+                    id: 'about_reviewer',
+                    category: 'help',
+                    priority: 10,
+                    patterns: [
+                        'проверка рапортов', 'кто проверяет', 'ревьюер', 'reviewer',
+                        'очередь рапортов', 'одобрить рапорт', 'отклонить рапорт',
+                        'claim', 'блокировка рапорта', 'корзина рапортов'
+                    ],
+                    action: () => {
+                        return 'Проверка — страница MMS-Reviewer (командование).\\nОчередь: pending / done / trash. Рапорт можно «забрать» (claim), чтобы другой инспектор не открыл его одновременно.\\nРешение (одобрить/отказать) уходит в Discord вместе с бланком PNG.\\nГорячие клавиши: A — одобрить, D — отказать, S — отправить, R — обновить.';
+                    },
+                    help: 'Про очередь проверки рапортов.'
+                }, {
+                    id: 'about_venus_cloud',
+                    category: 'help',
+                    priority: 7,
+                    patterns: [
+                        'облачная венера', 'workers ai', 'нейросеть', 'llama',
+                        'ты глупая', 'не понимаешь', 'подключи ии', 'cloudflare ai'
+                    ],
+                    action: () => {
+                        return 'Локальная Венера отвечает по каталогу намерений офлайн. Если ответ неуверенный — клиент может спросить Cloudflare Workers AI (/venus-chat) на Worker.\\nГоворите проще: «как сдать», «добавить запись», «тема», «архив», «word».';
+                    },
+                    help: 'Про локальный и облачный режимы Венеры.'
+                }, {
+                    id: 'clarify_report_type',
+                    category: 'data',
+                    priority: 9,
+                    patterns: [
+                        'какой режим', 'еженедельный или повышение', 'режим рапорта',
+                        'переключить на повышение', 'переключить на weekly', 'тип рапорта',
+                        'рапорт на повышение как', 'weekly report'
+                    ],
+                    action: () => {
+                        try {
+                            const mode = (typeof reportMode !== 'undefined') ? reportMode : 'weekly';
+                            return 'Сейчас режим: ' + (mode === 'promotion' ? 'рапорт на повышение' : 'еженедельный / ежедневная отчётность') + '.\\nПереключение — в интерфейсе режима рапорта (вкладки/переключатель). Для повышения обычно нужны другие категории и канал Discord.';
+                        } catch (_) {
+                            return 'Режим рапорта: weekly или promotion. Переключите в панели режима.';
+                        }
+                    },
+                    help: 'Режим weekly vs promotion.'
                 }, {
                     id: 'about_assistant_voice',
                     category: 'help',
@@ -16487,7 +16616,7 @@ function addEntry() {
 
             setTimeout(function() {
                 try {
-                    showToast('👋 Добро пожаловать в MMS! Венера v6.5 готова к работе.', 'success', 2200);
+                    showToast('👋 Добро пожаловать в MMS! Венера v6.6 готова к работе.', 'success', 2200);
                 } catch (e) {}
             }, 500);
         };
