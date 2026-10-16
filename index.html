@@ -5605,10 +5605,11 @@
             </button>
             <button class="nav-btn" id="navDailyReport" onclick="switchReportMode('daily', event)" data-tooltip="📋 Ежедневная / еженедельная отчётность — доказательства и записи">
                 <span class="icon">📋</span> Ежедневная отчётность
-                <span class="badge" id="achievementsBadge">▼</span>
+                <span class="badge" id="achievementsBadge">0</span>
             </button>
             <button class="nav-btn" id="navPromotionReport" onclick="switchReportMode('promotion', event)" data-tooltip="⬆️ Рапорт на повышение — отдельный список доказательств, не смешивается с ежедневным">
                 <span class="icon">⬆️</span> Рапорт на повышение
+                <span class="badge" id="promotionBadge">0</span>
             </button>
             <button class="nav-btn" id="navAchievements" onclick="switchTab('achievements', event)" style="display:none;" aria-hidden="true">
                 <span class="icon">📋</span> Регистрация достижений
@@ -7937,6 +7938,33 @@
             editingId = null;
         }
 
+        /** Счётчики записей на кнопках режимов (оба режима — из LS, без лага) */
+        function updateModeBadges() {
+            try {
+                function countFromKey(key, activeIfMode) {
+                    if (reportMode === activeIfMode && Array.isArray(entries)) return entries.length;
+                    try {
+                        const raw = localStorage.getItem(key);
+                        if (!raw) return 0;
+                        const d = JSON.parse(raw);
+                        return (d && Array.isArray(d.entries)) ? d.entries.length : 0;
+                    } catch (_) { return 0; }
+                }
+                const dailyN = countFromKey(
+                    (typeof REPORT_STORAGE_KEYS !== 'undefined' && REPORT_STORAGE_KEYS.daily) || 'MMS_Raport',
+                    'daily'
+                );
+                const promoN = countFromKey(
+                    (typeof REPORT_STORAGE_KEYS !== 'undefined' && REPORT_STORAGE_KEYS.promotion) || 'MMS_Promotion',
+                    'promotion'
+                );
+                const bDaily = document.getElementById('achievementsBadge');
+                const bPromo = document.getElementById('promotionBadge');
+                if (bDaily) bDaily.textContent = String(dailyN);
+                if (bPromo) bPromo.textContent = String(promoN);
+            } catch (_) {}
+        }
+
         function updateReportModeUI() {
             const titleEl = document.getElementById('reportMainTitle');
             if (titleEl) titleEl.textContent = getReportTitle();
@@ -7958,6 +7986,7 @@
                 badge.textContent = reportMode === 'promotion' ? 'ПОВЫШЕНИЕ' : 'ЕЖЕДНЕВНЫЙ';
                 badge.style.display = 'inline-block';
             }
+            try { updateModeBadges(); } catch (_) {}
             try {
                 const rd = document.getElementById('reportDate');
                 if (rd && reportDate) rd.value = reportDate;
@@ -8720,11 +8749,6 @@
             currentTab = tab;
             try { mmsFunnelRender(); } catch (_) {}
 
-            const badgeEl = document.getElementById('achievementsBadge');
-            if (badgeEl) {
-                badgeEl.textContent = (tab === 'achievements') ? '▲' : '▼';
-            }
-
             if (tab === 'achievements' && chartVisible) {
                 buildChart();
             }
@@ -8735,6 +8759,7 @@
             document.getElementById('tabWelcome').classList.remove('active');
 
             try { updateReportModeUI(); } catch (_) {}
+            try { updateModeBadges(); } catch (_) {}
 
             const tips = {
                 'profile': '👤 Здесь вы можете просмотреть и отредактировать данные вашего профиля.',
@@ -13354,10 +13379,7 @@ function addEntry() {
             updateCategoryTotals();
             refreshFeedbackAttachBox();
             try { mmsFunnelRender(); } catch (_) {}
-            try {
-                const b = document.getElementById('achievementsBadge');
-                if (b && currentTab === 'achievements') b.textContent = String(entries.length || '▲');
-            } catch (_) {}
+            try { updateModeBadges(); } catch (_) {}
         }
 
         // ===== ПЕЧАТНАЯ МАШИНКА =====
