@@ -1704,10 +1704,10 @@
             margin-top: 4px;
         }
         .attach-thumb {
-            width: 48px;
-            height: 48px;
+            width: 120px;
+            height: 120px;
             object-fit: cover;
-            border-radius: 4px;
+            border-radius: 8px;
             border: 1px solid rgba(212,175,55,0.25);
             cursor: pointer;
         }
@@ -2065,6 +2065,23 @@
         .add-form-no-points {
             grid-template-columns: 1.5fr 1fr 0.9fr 0.7fr auto;
         }
+        .add-form:not(.add-form-no-points) {
+            grid-template-columns: 1.4fr 1fr 0.85fr 0.55fr auto;
+        }
+        @media (max-width: 900px) {
+            .add-form:not(.add-form-no-points) {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        .promo-rank-claim select {
+            padding: 8px 10px;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            color: var(--input-text);
+            border-radius: 8px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 13px;
+        }
         .points-display-wrap label { display: block; }
         .points-display {
             min-width: 56px;
@@ -2271,9 +2288,9 @@
             box-shadow: inset 3px 0 0 var(--gold), 0 0 20px rgba(212,175,55,0.05);
         }
         .attach-thumb {
-            width: 52px;
-            height: 52px;
-            border-radius: 6px;
+            width: 140px;
+            height: 140px;
+            border-radius: 8px;
             border: 1px solid rgba(212,175,55,0.35);
             box-shadow: 0 2px 8px rgba(0,0,0,0.4);
         }
@@ -4907,9 +4924,17 @@
             background: rgba(var(--accent-rgb, 201, 168, 76), 0.16) !important;
             border-color: var(--gold) !important;
         }
-        .quick-type-btn .qt-pts { display: none !important; }
-        .points-display, .points-restore-notice, #pointsRestoreNotice { display: none !important; }
-        input#points, .points-input-clean, .points-input, .edit-att-pts { display: none !important; }
+        /* Баллы снова включены: каталог с сервера POST /points-catalog */
+        .quick-type-btn .qt-pts {
+            display: inline-block !important;
+            margin-left: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--gold);
+            opacity: 0.95;
+        }
+        .points-display, .points-restore-notice, #pointsRestoreNotice { display: block; }
+        input#points, .points-input-clean, .points-input, .edit-att-pts { display: inline-block !important; }
 
         body.day-mode                { --btn-secondary-text: var(--gold-dark); --ok-fg: #4d6b25; --err-fg: #a82f2f; }
         body.day-mode.style-dark     { --btn-secondary-text: #7a5f00; }
@@ -5788,7 +5813,7 @@
 
                     <div class="form-panel">
                         <div class="panel-title">✦ Новая запись</div>
-                        <div class="add-form add-form-no-points">
+                        <div class="add-form" id="addFormGrid">
                             <div>
                                 <label>ССЫЛКА (необязательна, если есть фото)</label>
                                 <input type="text" id="link" placeholder="https://… или Discord: сервер/канал/сообщение" oninput="validateLink(this.value); checkAndSuggestPoints(); validateFields();" />
@@ -5798,7 +5823,7 @@
                             </div>
                             <div>
                                 <label>КАТЕГОРИЯ</label>
-                                <select id="category" style="width:100%;">
+                                <select id="category" style="width:100%;" onchange="mmsOnCategoryChange()">
                                     <option value="прочее">Прочее</option>
                                     <option value="медэкзамен">Мед. экзамен</option>
                                     <option value="медсмотр">Мед. смотр</option>
@@ -5815,16 +5840,36 @@
                                 <label>ДАТА</label>
                                 <input type="date" id="date" onchange="lastUsedDate=this.value" />
                             </div>
+                            <div class="points-display-wrap">
+                                <label>БАЛЛЫ</label>
+                                <input type="number" id="points" class="points-input-clean" min="0" step="1" value="0"
+                                    oninput="lastUsedPoints=parseInt(this.value,10)||0" title="Баллы за запись" />
+                            </div>
 
                             <button class="btn-add btn-primary" id="addBtn" onclick="requestAddEntry()" disabled>ДОБАВИТЬ</button>
                         </div>
-                        <div class="quick-types" id="quickTypes" title="Быстрый выбор категории записи">
+                        <div class="quick-types" id="quickTypes" title="Быстрый выбор категории / баллов с сервера">
                             <button type="button" class="quick-type-btn" onclick="applyQuickType('кадры')">Кадры / заявки</button>
-                            <button type="button" class="quick-type-btn" onclick="applyQuickType('медэкзамен')">Мед. экзамен</button>
-                            <button type="button" class="quick-type-btn" onclick="applyQuickType('медсмотр')">Мед. смотр</button>
-                            <button type="button" class="quick-type-btn" onclick="applyQuickType('поставки')">Поставки</button>
+                            <button type="button" class="quick-type-btn" onclick="applyQuickType('медэкзамен')">Мед. экзамен <span class="qt-pts">+10</span></button>
+                            <button type="button" class="quick-type-btn" onclick="applyQuickType('медсмотр')">Мед. смотр <span class="qt-pts">+30</span></button>
+                            <button type="button" class="quick-type-btn" onclick="applyQuickType('поставки')">Поставки <span class="qt-pts">+30</span></button>
                             <button type="button" class="quick-type-btn" onclick="applyQuickType('присяга')">Присяга</button>
                             <button type="button" class="quick-type-btn" onclick="applyQuickType('агитация')">Агитация</button>
+                        </div>
+                        <!-- Заявленное повышение (только в режиме promotion) -->
+                        <div id="promoRankClaim" class="promo-rank-claim" style="display:none;margin-top:12px;padding:12px 14px;border:1px solid rgba(212,175,55,0.3);border-radius:10px;background:rgba(212,175,55,0.05);">
+                            <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);margin-bottom:8px;">🎖 Заявленное повышение (попадёт в Word и сдачу)</div>
+                            <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+                                <div style="flex:1;min-width:140px;">
+                                    <label style="font-size:11px;color:var(--text-muted);">С ранга</label>
+                                    <select id="claimRankFrom" style="width:100%;"></select>
+                                </div>
+                                <div style="align-self:center;color:var(--gold);font-weight:700;padding-bottom:4px;">→</div>
+                                <div style="flex:1;min-width:140px;">
+                                    <label style="font-size:11px;color:var(--text-muted);">На ранг</label>
+                                    <select id="claimRankTo" style="width:100%;"></select>
+                                </div>
+                            </div>
                         </div>
                         <div class="attach-row">
                             <div style="flex:1;min-width:200px;">
@@ -5866,6 +5911,14 @@
                         <div class="pending-attach-box" id="pendingAttachBox">
                             <div style="font-size:10px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;">Фото: пояснение (обязательно)</div>
                             <div id="pendingAttachList"></div>
+                        </div>
+                    </div>
+
+                    <!-- ПАМЯТКА: система повышения (с сервера, без правки кода) -->
+                    <div id="mmsPromoMemo" class="mms-promo-memo" style="margin:14px 0;padding:14px 16px;border:1px solid rgba(212,175,55,0.28);border-radius:10px;background:rgba(212,175,55,0.06);">
+                        <div style="font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:8px;">📋 Система повышения и баллы</div>
+                        <div id="mmsPromoMemoBody" style="font-size:13px;line-height:1.55;color:var(--text-secondary);">
+                            Загрузка с сервера…
                         </div>
                     </div>
 
@@ -5944,9 +5997,10 @@
                                 <thead>
                                     <tr>
                                         <th style="width:4%;">Выб.</th>
-                                        <th style="width:12%;">ДАТА</th>
-                                        <th style="width:48%;">ДОКАЗАТЕЛЬСТВО</th>
-                                        <th style="width:16%;">КАТЕГОРИЯ</th>
+                                        <th style="width:11%;">ДАТА</th>
+                                        <th style="width:42%;">ДОКАЗАТЕЛЬСТВО</th>
+                                        <th style="width:14%;">КАТЕГОРИЯ</th>
+                                        <th style="width:9%;">БАЛЛЫ</th>
                                         <th style="width:10%;">Изм.</th>
                                         <th style="width:10%;">Удал.</th>
                                     </tr>
@@ -5958,7 +6012,8 @@
                         <div class="sticky-total-bar">
                             <div class="total">
                                 <span class="norm-info" id="normInfo"></span>
-                                <span>Записей: <span id="totalPoints">0</span></span>
+                                <span>Записей: <span id="totalEntriesCount">0</span></span>
+                                <span style="margin-left:12px;">Баллы: <span id="totalPoints">0</span></span>
                             </div>
                         </div>
 
@@ -7838,13 +7893,41 @@
                 cat.appendChild(opt);
             }
             cat.value = category;
+            // Баллы по умолчанию / из каталога сервера
+            const defaultPts = {
+                'медэкзамен': 10,
+                'медсмотр': 30,
+                'поставки': 30
+            };
+            let pts = defaultPts[category];
+            if (typeof mmsPointsCatalog !== 'undefined' && Array.isArray(mmsPointsCatalog)) {
+                const hit = mmsPointsCatalog.find(function (it) {
+                    const c = String(it.category || '').toLowerCase();
+                    const l = String(it.label || '').toLowerCase();
+                    return c.indexOf(category) >= 0 || l.indexOf(category) >= 0 ||
+                        (category === 'медэкзамен' && (c.indexOf('экзамен') >= 0 || l.indexOf('экзамен') >= 0)) ||
+                        (category === 'медсмотр' && (c.indexOf('осмотр') >= 0 || l.indexOf('осмотр') >= 0)) ||
+                        (category === 'поставки' && (c.indexOf('постав') >= 0 || l.indexOf('постав') >= 0));
+                });
+                if (hit) pts = Number(hit.points) || pts;
+            }
+            if (pts != null) {
+                const ptsEl = document.getElementById('points');
+                if (ptsEl) ptsEl.value = String(pts);
+                lastUsedPoints = pts;
+            }
             document.querySelectorAll('.quick-type-btn').forEach(function(b) { b.classList.remove('active'); });
             try {
                 if (typeof event !== 'undefined' && event && event.currentTarget) {
                     event.currentTarget.classList.add('active');
                 }
             } catch (_) {}
-            showToast('Категория: «' + (labels[category] || category) + '»', 'success', 1600);
+            showToast('Категория: «' + (labels[category] || category) + '»' + (pts != null ? (' · ' + pts + ' б.') : ''), 'success', 1600);
+        }
+
+        function mmsOnCategoryChange() {
+            const cat = document.getElementById('category');
+            if (cat && cat.value) applyQuickType(cat.value);
         }
 
         const PHOTO_POLICY_TEXT =
@@ -7883,8 +7966,9 @@
         let selectedEntryIds = new Set();
         let pointsNorm = 0;
         const MAX_ATTACH_PER_ENTRY = 15;
-        const MAX_ATTACH_DIM = 800;
-        const MAX_ATTACH_QUALITY = 0.72;
+        // Доказательства: минимум ~720p (длинная сторона 1280), JPEG 0.88 — не «съедаем» HD
+        const MAX_ATTACH_DIM = 1280;
+        const MAX_ATTACH_QUALITY = 0.88;
 
         function getReportTitle() {
             return reportMode === 'promotion'
@@ -7897,6 +7981,7 @@
         }
 
         function captureWorkingStore() {
+            const ranks = (typeof mmsGetClaimRanks === 'function') ? mmsGetClaimRanks() : { rank_from: '', rank_to: '' };
             return {
                 entries: draftMode ? draftEntries.slice() : entries.slice(),
                 evidenceCounter: draftMode ? draftEvidenceCounter : evidenceCounter,
@@ -7907,6 +7992,8 @@
                 hasArchiveStamp: draftMode ? draftHasArchiveStamp : hasArchiveStamp,
                 hasApprovalStamps,
                 reportDate,
+                rank_from: ranks.rank_from || mmsClaimRankFrom || '',
+                rank_to: ranks.rank_to || mmsClaimRankTo || '',
                 draftMode: false,
                 draftEntries: [],
                 draftSavedPoints: {},
@@ -7933,16 +8020,21 @@
             hasArchiveStamp = data.hasArchiveStamp || false;
             hasApprovalStamps = data.hasApprovalStamps || false;
             if (data.reportDate) reportDate = data.reportDate;
+            mmsClaimRankFrom = data.rank_from || '';
+            mmsClaimRankTo = data.rank_to || '';
+            try { mmsFillClaimRanks(); } catch (_) {}
             undoStack = [];
             undoIndex = -1;
             editingId = null;
         }
 
-        /** Счётчики записей на кнопках режимов (оба режима — из LS, без лага) */
+        /** Счётчики записей на кнопках режимов — всегда актуальные для ОБОИХ режимов */
         function updateModeBadges() {
             try {
                 function countFromKey(key, activeIfMode) {
-                    if (reportMode === activeIfMode && Array.isArray(entries)) return entries.length;
+                    if (typeof reportMode !== 'undefined' && reportMode === activeIfMode && Array.isArray(entries)) {
+                        return entries.length;
+                    }
                     try {
                         const raw = localStorage.getItem(key);
                         if (!raw) return 0;
@@ -7950,14 +8042,10 @@
                         return (d && Array.isArray(d.entries)) ? d.entries.length : 0;
                     } catch (_) { return 0; }
                 }
-                const dailyN = countFromKey(
-                    (typeof REPORT_STORAGE_KEYS !== 'undefined' && REPORT_STORAGE_KEYS.daily) || 'MMS_Raport',
-                    'daily'
-                );
-                const promoN = countFromKey(
-                    (typeof REPORT_STORAGE_KEYS !== 'undefined' && REPORT_STORAGE_KEYS.promotion) || 'MMS_Promotion',
-                    'promotion'
-                );
+                const dailyKey = (typeof REPORT_STORAGE_KEYS !== 'undefined' && REPORT_STORAGE_KEYS.daily) ? REPORT_STORAGE_KEYS.daily : 'MMS_Raport';
+                const promoKey = (typeof REPORT_STORAGE_KEYS !== 'undefined' && REPORT_STORAGE_KEYS.promotion) ? REPORT_STORAGE_KEYS.promotion : 'MMS_Promotion';
+                const dailyN = countFromKey(dailyKey, 'daily');
+                const promoN = countFromKey(promoKey, 'promotion');
                 const bDaily = document.getElementById('achievementsBadge');
                 const bPromo = document.getElementById('promotionBadge');
                 if (bDaily) bDaily.textContent = String(dailyN);
@@ -7988,6 +8076,11 @@
             }
             try { updateModeBadges(); } catch (_) {}
             try {
+                const promoRow = document.getElementById('promoRankClaim');
+                if (promoRow) promoRow.style.display = (reportMode === 'promotion') ? 'block' : 'none';
+                mmsFillClaimRanks();
+            } catch (_) {}
+            try {
                 const rd = document.getElementById('reportDate');
                 if (rd && reportDate) rd.value = reportDate;
                 else if (rd && typeof getTodayDate === 'function') rd.value = getTodayDate();
@@ -7996,6 +8089,43 @@
             try { updateArchiveStampDisplay(); } catch (_) {}
             try { syncDraftUI(); } catch (_) {}
             try { updateUndoButton(); } catch (_) {}
+        }
+
+        const MMS_RANKS_1_10 = [
+            '1 Рекрут', '2 Рядовой', '3 Специалист', '4 Капрал', '5 Сержант',
+            '6 Штаб-Сержант', '7 Уорент-Офицер', '8 Старший Уорент-Офицер', '9 Лейтенант', '10 Капитан'
+        ];
+        let mmsClaimRankFrom = '';
+        let mmsClaimRankTo = '';
+
+        function mmsFillClaimRanks(ranks) {
+            const list = (ranks && ranks.length) ? ranks.filter(function (r) {
+                const n = parseInt(String(r), 10);
+                return n >= 1 && n <= 10;
+            }) : MMS_RANKS_1_10;
+            ['claimRankFrom', 'claimRankTo'].forEach(function (id) {
+                const sel = document.getElementById(id);
+                if (!sel) return;
+                const prev = sel.value || (id === 'claimRankFrom' ? mmsClaimRankFrom : mmsClaimRankTo);
+                sel.innerHTML = '<option value="">— не указано —</option>' + list.map(function (r) {
+                    return '<option value="' + String(r).replace(/"/g, '&quot;') + '">' + r + '</option>';
+                }).join('');
+                if (prev) sel.value = prev;
+                sel.onchange = function () {
+                    if (id === 'claimRankFrom') mmsClaimRankFrom = sel.value;
+                    else mmsClaimRankTo = sel.value;
+                    try { window.__mmsDirty = true; saveToLocalStorage(); } catch (_) {}
+                };
+            });
+        }
+
+        function mmsGetClaimRanks() {
+            const f = document.getElementById('claimRankFrom');
+            const t = document.getElementById('claimRankTo');
+            return {
+                rank_from: (f && f.value) || mmsClaimRankFrom || '',
+                rank_to: (t && t.value) || mmsClaimRankTo || ''
+            };
         }
 
         function switchReportMode(mode, e) {
@@ -8749,6 +8879,8 @@
             currentTab = tab;
             try { mmsFunnelRender(); } catch (_) {}
 
+            try { updateModeBadges(); } catch (_) {}
+
             if (tab === 'achievements' && chartVisible) {
                 buildChart();
             }
@@ -8759,7 +8891,6 @@
             document.getElementById('tabWelcome').classList.remove('active');
 
             try { updateReportModeUI(); } catch (_) {}
-            try { updateModeBadges(); } catch (_) {}
 
             const tips = {
                 'profile': '👤 Здесь вы можете просмотреть и отредактировать данные вашего профиля.',
@@ -8779,6 +8910,104 @@
         // Webhook'и спрятаны в Cloudflare Worker. На сайте их больше нет.
         const MMS_PROXY_URL = 'https://mms-report-proxy.asakulin874.workers.dev';
         const MMS_VENUS_CHAT_URL = MMS_PROXY_URL + '/venus-chat';
+
+        /** Каталог баллов с сервера (GET /points-catalog) — кнопки по пунктам */
+        let mmsPointsCatalog = [];
+        async function loadPointsCatalogFromServer() {
+            try {
+                if (!MMS_PROXY_URL) return;
+                const res = await fetch(MMS_PROXY_URL.replace(/\/$/, '') + '/points-catalog', { method: 'GET' });
+                const j = await res.json().catch(function () { return null; });
+                if (!j || !j.ok || !Array.isArray(j.items)) return;
+                mmsPointsCatalog = j.items;
+                renderPointsCatalogButtons();
+            } catch (e) {
+                console.warn('points-catalog', e);
+            }
+        }
+
+        /** Памятка системы повышения — GET /promotion-rules (меняется с проверки, без правки кода) */
+        async function loadPromotionMemo() {
+            const box = document.getElementById('mmsPromoMemoBody');
+            if (!box || !MMS_PROXY_URL) return;
+            try {
+                const res = await fetch(MMS_PROXY_URL.replace(/\/$/, '') + '/promotion-rules', { method: 'GET' });
+                const j = await res.json().catch(function () { return null; });
+                if (!j || !j.ok || !j.rules) {
+                    box.textContent = 'Памятка временно недоступна.';
+                    return;
+                }
+                const rules = j.rules;
+                const ranks = j.ranks || [];
+                let html = '';
+                if (rules.title) html += '<div style="color:var(--gold);font-weight:600;margin-bottom:6px;">' + String(rules.title).replace(/</g, '') + '</div>';
+                if (rules.note) html += '<div style="margin-bottom:10px;white-space:pre-wrap;">' + String(rules.note).replace(/</g, '') + '</div>';
+                const pts = rules.points_hint || mmsPointsCatalog || [];
+                if (pts.length) {
+                    html += '<div style="margin-bottom:8px;"><b style="color:var(--gold);">Балльная система</b><ul style="margin:4px 0 0 18px;padding:0;">';
+                    pts.forEach(function (it) {
+                        html += '<li>' + String(it.label || it.category || '').replace(/</g, '') +
+                            ' — <b>' + (it.points || 0) + '</b> баллов' +
+                            (it.note ? (' <span style="opacity:.75">(' + String(it.note).replace(/</g, '') + ')</span>') : '') +
+                            '</li>';
+                    });
+                    html += '</ul></div>';
+                }
+                if (Array.isArray(rules.ladder) && rules.ladder.length) {
+                    html += '<div><b style="color:var(--gold);">Повышение (ранги 1–10)</b><ul style="margin:4px 0 0 18px;padding:0;">';
+                    rules.ladder.forEach(function (r) {
+                        const fromL = ranks.find(function (x) { return String(x).indexOf(String(r.from)) === 0; }) || ('ранг ' + r.from);
+                        const toL = ranks.find(function (x) { return String(x).indexOf(String(r.to)) === 0; }) || ('ранг ' + r.to);
+                        html += '<li><b>' + String(fromL).replace(/</g, '') + ' → ' + String(toL).replace(/</g, '') +
+                            '</b> · ' + (r.points || 0) + ' баллов · ' + String(r.requirement || '').replace(/</g, '') + '</li>';
+                    });
+                    html += '</ul></div>';
+                }
+                box.innerHTML = html || 'Нет данных.';
+                if (pts.length && !mmsPointsCatalog.length) {
+                    mmsPointsCatalog = pts;
+                    try { renderPointsCatalogButtons(); } catch (_) {}
+                }
+                try { mmsFillClaimRanks(j.ranks); } catch (_) {}
+            } catch (e) {
+                box.textContent = 'Не удалось загрузить памятку.';
+                console.warn('promotion-rules', e);
+            }
+        }
+        function renderPointsCatalogButtons() {
+            const box = document.getElementById('quickTypes');
+            if (!box || !mmsPointsCatalog.length) return;
+            // дополняем быстрые кнопки пунктами с сервера (с баллами)
+            const existing = box.innerHTML;
+            const extra = mmsPointsCatalog.map(function (it, i) {
+                const label = String(it.label || it.name || '').replace(/</g, '');
+                const pts = Number(it.points) || 0;
+                const cat = String(it.category || label).replace(/'/g, "\\'");
+                if (!label) return '';
+                return '<button type="button" class="quick-type-btn" data-server-pts="1" onclick="applyQuickTypeFromCatalog(' + i + ')">' +
+                    label + ' <span class="qt-pts">+' + pts + '</span></button>';
+            }).join('');
+            // убираем старые server-кнопки, оставляем базовые + новые
+            box.querySelectorAll('[data-server-pts]').forEach(function (el) { el.remove(); });
+            box.insertAdjacentHTML('beforeend', extra);
+        }
+        function applyQuickTypeFromCatalog(index) {
+            const it = mmsPointsCatalog[index];
+            if (!it) return;
+            try {
+                const catEl = document.getElementById('category') || document.querySelector('select#category, input#category');
+                if (catEl) catEl.value = it.category || it.label || '';
+                const ptsEl = document.getElementById('points');
+                if (ptsEl) {
+                    ptsEl.value = Number(it.points) || 0;
+                    lastUsedPoints = Number(it.points) || 0;
+                }
+                document.querySelectorAll('.quick-type-btn').forEach(function (b) { b.classList.remove('active'); });
+                const btns = document.querySelectorAll('.quick-type-btn[data-server-pts]');
+                if (btns[index]) btns[index].classList.add('active');
+                showToast('Пункт: ' + (it.label || '') + ' · +' + (it.points || 0), 'success', 1600);
+            } catch (e) { console.warn(e); }
+        }
 
         async function askCloudflareVenus(message, history) {
             try {
@@ -9549,6 +9778,7 @@ function openDiscordPreviewModal() {
 
         function mmsBuildReviewPayload(isPromo, points, name, id) {
             const dateInput = document.getElementById('reportDate');
+            const claimR = (typeof mmsGetClaimRanks === 'function') ? mmsGetClaimRanks() : { rank_from: '', rank_to: '' };
             return {
                 format: 'mms-review-v1-full',
                 status: 'pending_review',
@@ -9557,6 +9787,8 @@ function openDiscordPreviewModal() {
                 mode: isPromo ? 'promotion' : 'weekly',
                 reportDate: (dateInput && dateInput.value) ? dateInput.value : (typeof getTodayDate === 'function' ? getTodayDate() : new Date().toISOString().slice(0, 10)),
                 totalPoints: points,
+                rank_from: claimR.rank_from || '',
+                rank_to: claimR.rank_to || '',
                 employee: { name: name, fullName: name, id: id },
                 entries: (typeof entries !== 'undefined' && Array.isArray(entries)) ? JSON.parse(JSON.stringify(entries)) : [],
                 exportedAt: new Date().toISOString(),
@@ -10690,6 +10922,7 @@ function openDiscordPreviewModal() {
                 let reportDate = dateInput && dateInput.value ? dateInput.value : getTodayDate();
                 const total = typeof getEntriesTotal === 'function' ? getEntriesTotal(entries) : entries.reduce((s, en) => s + (en.points || 0), 0);
                 // Полный JSON с фото (dataUrl сохраняются)
+                const claimR = (typeof mmsGetClaimRanks === 'function') ? mmsGetClaimRanks() : { rank_from: '', rank_to: '' };
                 const payload = {
                     format: 'mms-review-v1-full',
                     status: 'pending_review',
@@ -10698,6 +10931,8 @@ function openDiscordPreviewModal() {
                     reportDate: reportDate,
                     totalPoints: total,
                     pointsNorm: typeof pointsNorm !== 'undefined' ? pointsNorm : 0,
+                    rank_from: claimR.rank_from || '',
+                    rank_to: claimR.rank_to || '',
                     employee: {
                         name: (first + ' ' + last).trim(),
                         fullName: (first + ' ' + last).trim(),
@@ -11178,6 +11413,7 @@ function openDiscordPreviewModal() {
         }
 
         function mmsBuildReportPayload() {
+            const ranks = (typeof mmsGetClaimRanks === 'function') ? mmsGetClaimRanks() : { rank_from: mmsClaimRankFrom || '', rank_to: mmsClaimRankTo || '' };
             return {
                 entries: draftMode ? draftEntries : entries,
                 evidenceCounter: draftMode ? draftEvidenceCounter : evidenceCounter,
@@ -11198,6 +11434,8 @@ function openDiscordPreviewModal() {
                 venusActivityLog: (venusActivityLog || []).slice(-VENUS_LOG_LIMIT),
                 reportMode: reportMode,
                 pointsNorm: typeof pointsNorm !== 'undefined' ? pointsNorm : 0,
+                rank_from: ranks.rank_from || '',
+                rank_to: ranks.rank_to || '',
                 savedAt: Date.now()
             };
         }
@@ -11353,6 +11591,9 @@ function openDiscordPreviewModal() {
                 pointsNorm = Math.max(0, parseInt(data.pointsNorm, 10) || 0);
                 try { localStorage.setItem('mmsPointsNorm', String(pointsNorm)); } catch (_) {}
             }
+            mmsClaimRankFrom = data.rank_from || '';
+            mmsClaimRankTo = data.rank_to || '';
+            try { mmsFillClaimRanks(); } catch (_) {}
             try { syncDraftUI(); } catch (_) {}
             try { updateArchiveStampDisplay(); } catch (_) {}
             return true;
@@ -11658,7 +11899,7 @@ function openDiscordPreviewModal() {
                         const capText = esc(a.name || 'фото') + (a.points ? (' · +' + a.points) : '');
                         let imgHtml;
                         if (a.dataUrl) {
-                            const sz = mmsFitSize(a.w, a.h, 250, 190);
+                            const sz = mmsFitSize(a.w, a.h, 420, 320);
                             const hAttr = sz.h ? (' height="' + sz.h + '"') : '';
                             const hStyle = sz.h ? ('height:' + sz.h + 'px;') : '';
                             imgHtml = `<img data-mms-photo="1" data-cap="${esc(a.name || '')}" data-pts="${a.points || 0}" src="${a.dataUrl}" alt="${esc(a.name || 'фото')}" width="${sz.w}"${hAttr} style="width:${sz.w}px;${hStyle}border:1px solid #c9a227;background:#f5f0ea;" />`;
@@ -11762,20 +12003,28 @@ function openDiscordPreviewModal() {
                                 <div class="military-badge">✦ OFFICIAL REPORT — S.A.N.G. MMS ✦</div>
                                 <div class="lic-foot">${_licExport} · © MMS · не для свободного распространения</div>
                                 <div class="employee-info">СОТРУДНИК: <span>${fullName}</span></div>
-                                <div class="employee-info" style="font-size:13px;margin-top:4px;">ДАТА ДОКУМЕНТА: <span>${dateStr}</span> · ЗАПИСЕЙ: <span>${(entriesData||data||[]).length}</span></div>
+                                <div class="employee-info" style="font-size:13px;margin-top:4px;">ДАТА ДОКУМЕНТА: <span>${dateStr}</span> · ЗАПИСЕЙ: <span>${(entriesData||data||[]).length}</span> · БАЛЛОВ: <span>${typeof getEntriesTotal === 'function' ? getEntriesTotal(entriesData||data||[]) : total}</span></div>
                                 <div class="report-type-ribbon" style="text-align:center;margin:10px 0 6px;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#1a3a8a;font-weight:700;">${(String(reportTypeOpt||'')==='promotion'||(typeof reportMode!=='undefined'&&reportMode==='promotion'&&!reportTypeOpt))?'РАПОРТ НА ПОВЫШЕНИЕ':'ЕЖЕНЕДЕЛЬНАЯ ОТЧЁТНОСТЬ'} · MILITARY MEDICAL SERVICE · S.A.N.G.</div>
                                 <div class="report-title">${(String(reportTypeOpt||'')==='promotion'||(typeof reportMode!=='undefined'&&reportMode==='promotion'&&!reportTypeOpt))?'РАПОРТ НА ПОВЫШЕНИЕ':'РАПОРТ О ПРОДЕЛАННОЙ РАБОТЕ'}</div>
+                                ${(function(){
+                                    var isP = (String(reportTypeOpt||'')==='promotion'||(typeof reportMode!=='undefined'&&reportMode==='promotion'&&!reportTypeOpt));
+                                    if (!isP) return '';
+                                    var ranks = (typeof mmsGetClaimRanks === 'function') ? mmsGetClaimRanks() : { rank_from: '', rank_to: '' };
+                                    var rf = ranks.rank_from || mmsClaimRankFrom || '—';
+                                    var rt = ranks.rank_to || mmsClaimRankTo || '—';
+                                    return '<div style="text-align:center;margin:8px 0 14px;padding:10px 14px;border:2px solid #1a3a8a;border-radius:6px;background:#f0f4fa;font-family:Oswald,sans-serif;font-size:14px;color:#1a3a8a;"><b>ЗАЯВЛЕННОЕ ПОВЫШЕНИЕ:</b> ' + String(rf).replace(/</g,'') + ' → ' + String(rt).replace(/</g,'') + '</div>';
+                                })()}
                                 <table>
                                     <thead>
                                         <tr>
                                             <th style="width:16%;">ДАТА</th>
-                                            <th style="width:60%;">ДОКАЗАТЕЛЬСТВО</th>
-                                            
+                                            <th style="width:64%;">ДОКАЗАТЕЛЬСТВО</th>
+                                            <th style="width:12%;">БАЛЛЫ</th>
                                         </tr>
                                     </thead>
                                     <tbody>${tableRows}</tbody>
                                 </table>
-                                <div class="total">ЗАПИСЕЙ: <span>${total}</span></div>
+                                <div class="total">ИТОГО БАЛЛОВ: <span>${typeof getEntriesTotal === 'function' ? getEntriesTotal(entriesData||data||[]) : total}</span> <span style="font-size:14px;color:#555;font-weight:400;">· записей: ${(entriesData||data||[]).length}</span></div>
                                 <div class="footer">
                                     <div class="footer-left">
                                         <div class="signed">Статус документа</div>
@@ -12570,12 +12819,26 @@ function openDiscordPreviewModal() {
             }
         }
 
-        function getEntriesTotal(list) {
-            return (list || entries || []).length; /* число записей */
+        function getEntriesCount(list) {
+            return (list || entries || []).length;
         }
 
         function entryTotalPoints(entry) {
-            return 0; /* система баллов отключена */
+            if (!entry) return 0;
+            let p = parseInt(entry.points, 10) || 0;
+            if (Array.isArray(entry.attachments)) {
+                entry.attachments.forEach(function (a) {
+                    p += parseInt(a.points, 10) || 0;
+                });
+            }
+            return p;
+        }
+
+        /** Сумма баллов по списку записей */
+        function getEntriesTotal(list) {
+            return (list || entries || []).reduce(function (s, e) {
+                return s + entryTotalPoints(e);
+            }, 0);
         }
 
         function clearTableFilters() {
@@ -12866,12 +13129,14 @@ function addEntry() {
             if (!dateInput.value) { dateInput.value = getTodayDate(); }
             const date = dateInput.value.split('-').reverse().join('.');
             lastUsedDate = dateInput.value;
-            const points = 0; /* система баллов отключена */
+            const ptsEl = document.getElementById('points');
+            const points = Math.max(0, parseInt(ptsEl && ptsEl.value, 10) || 0);
+            lastUsedPoints = points;
             const categoryEl = document.getElementById('category');
             const category = (categoryEl && categoryEl.value) || 'прочее';
 
             const backup = JSON.parse(JSON.stringify(savedPoints));
-            if (link) savedPoints[link] = 0;
+            if (link) savedPoints[link] = points;
             finishAdd(link, date, points, backup, category);
         }
 
@@ -12880,18 +13145,18 @@ function addEntry() {
         }
 
         function finishAdd(link, date, points, backup, category) {
-            points = 0; /* система баллов отключена */
+            points = Math.max(0, parseInt(points, 10) || 0);
             evidenceCounter = Math.max(evidenceCounter, entries.length) + 1;
             const attachments = pendingAttachments.map(a => ({
                 id: a.id,
                 name: String(a.name || '').trim(),
-                points: 0,
+                points: Math.max(0, parseInt(a.points, 10) || 0),
                 dataUrl: a.dataUrl,
                 w: a.w || 0,
                 h: a.h || 0
             }));
             const entry = {
-                date, link, points: 0,
+                date, link, points: points,
                 category: category || 'прочее',
                 attachments,
                 evidenceNumber: `№${evidenceCounter}`,
@@ -12914,12 +13179,15 @@ function addEntry() {
             saveToLocalStorage();
             window.__mmsDirty = false;
             document.getElementById('link').value = '';
-            document.getElementById('points').value = '0';
+            const ptsKeep = document.getElementById('points');
+            if (ptsKeep) ptsKeep.value = String(lastUsedPoints || points || 0);
             document.querySelectorAll('.quick-type-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('pointsRestoreNotice').classList.remove('show');
+            const prn = document.getElementById('pointsRestoreNotice');
+            if (prn) prn.classList.remove('show');
             validateFields();
             const extra = attachments.length ? ` (+${attachments.length} фото)` : '';
-            showToast('Запись добавлена' + extra + '. Всего: ' + entries.length, 'success');
+            const ptsSum = entryTotalPoints(entry);
+            showToast('Запись добавлена' + extra + (ptsSum ? (' · +' + ptsSum + ' б.') : '') + '. Всего записей: ' + entries.length, 'success');
             if (chartVisible) buildChart();
         }
 
@@ -13356,6 +13624,7 @@ function addEntry() {
                         <td>${dateHtml}</td>
                         <td>${linkHtml}</td>
                         <td>${catHtml}</td>
+                        <td style="text-align:center;font-weight:700;color:var(--gold);">${pointsHtml}</td>
                         <td class="edit-btn-cell">
                             <button class="btn-edit btn-secondary btn-xs ${isEditing ? 'active' : ''}" onclick="toggleEdit('${eid}')" title="Изменить">
                                 ${isEditing ? 'OK' : 'Изм.'}
@@ -13373,13 +13642,17 @@ function addEntry() {
                 const ab = document.getElementById('addBtn');
                 if (ab) ab.classList.toggle('btn-attention', entries.length === 0);
             } catch (_) {}
+            const tec = document.getElementById('totalEntriesCount');
+            if (tec) tec.textContent = String(entries.length);
             const tp = document.getElementById('totalPoints');
             if (tp) tp.textContent = fullTotal;
             updateNormInfo(fullTotal);
             updateCategoryTotals();
             refreshFeedbackAttachBox();
             try { mmsFunnelRender(); } catch (_) {}
-            try { updateModeBadges(); } catch (_) {}
+            try {
+                updateModeBadges();
+            } catch (_) {}
         }
 
         // ===== ПЕЧАТНАЯ МАШИНКА =====
@@ -16692,6 +16965,9 @@ function addEntry() {
                 updateArchiveSelect();
                 try { updateReportModeUI(); } catch (_) {}
                 try { loadPointsNorm(); } catch (_) {}
+                try { loadPointsCatalogFromServer(); } catch (_) {}
+                try { loadPromotionMemo(); } catch (_) {}
+                try { updateModeBadges(); } catch (_) {}
 
                 if (venus) venus._log('Загрузка данных завершена', `записей: ${entries.length}, режим: ${reportMode}`);
             } catch (e2) { console.error('init error', e2); }
