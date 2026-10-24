@@ -5858,7 +5858,7 @@
                         </div>
                         <!-- Заявленное повышение (только в режиме promotion) -->
                         <div id="promoRankClaim" class="promo-rank-claim" style="display:none;margin-top:12px;padding:12px 14px;border:1px solid rgba(212,175,55,0.3);border-radius:10px;background:rgba(212,175,55,0.05);">
-                            <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);margin-bottom:8px;">🎖 Заявленное повышение (попадёт в Word и сдачу)</div>
+                            <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);margin-bottom:8px;">🎖 Заявленное повышение <span style="color:#e74c3c;">(обязательно)</span> — попадёт в Word и сдачу</div>
                             <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
                                 <div style="flex:1;min-width:140px;">
                                     <label style="font-size:11px;color:var(--text-muted);">С ранга</label>
@@ -5871,6 +5871,22 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div id="promoImportRow" style="display:none;margin-top:10px;">
+                            <button type="button" class="btn-secondary" id="btnImportWeekly" onclick="mmsImportWeeklyToPromo()" style="width:100%;">📥 Перенести записи из еженедельного</button>
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Скопирует ссылки, баллы и фото из текущего еженедельного рапорта в повышение (без удаления исходного).</div>
+                        </div>
+                        <div id="usefulLinksPanel" class="useful-links-panel" style="margin-top:14px;padding:12px 14px;border:1px solid rgba(212,175,55,0.25);border-radius:10px;background:rgba(0,0,0,0.25);">
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                                <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);">🔗 Полезные ссылки (Медэкзамены / Итоги осмотра)</div>
+                                <button type="button" class="btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="mmsLoadUsefulLinks()">Обновить</button>
+                            </div>
+                            <div id="usefulLinksList" style="margin-top:8px;max-height:220px;overflow-y:auto;font-size:12px;color:var(--text-secondary);">Нажмите «Обновить», чтобы подтянуть сообщения из каналов Discord (нужен бот на Worker).</div>
+                        </div>
+                        <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+                            <button type="button" class="btn-primary" id="btnQuickSubmit" onclick="mmsQuickSubmitDiscord()" style="flex:1;min-width:180px;font-size:15px;padding:12px 16px;">📤 Сдать в Discord</button>
+                        </div>
+
                         <div class="attach-row">
                             <div style="flex:1;min-width:200px;">
                                 <label>Фото к записи (до 15 шт., можно без ссылки)</label>
@@ -7967,8 +7983,8 @@
         let pointsNorm = 0;
         const MAX_ATTACH_PER_ENTRY = 15;
         // Доказательства: минимум ~720p (длинная сторона 1280), JPEG 0.88 — не «съедаем» HD
-        const MAX_ATTACH_DIM = 1280;
-        const MAX_ATTACH_QUALITY = 0.88;
+        const MAX_ATTACH_DIM = 1600;
+        const MAX_ATTACH_QUALITY = 0.92;
 
         function getReportTitle() {
             return reportMode === 'promotion'
@@ -8078,6 +8094,8 @@
             try {
                 const promoRow = document.getElementById('promoRankClaim');
                 if (promoRow) promoRow.style.display = (reportMode === 'promotion') ? 'block' : 'none';
+                var imp = document.getElementById('promoImportRow');
+                if (imp) imp.style.display = (reportMode === 'promotion') ? 'block' : 'none';
                 mmsFillClaimRanks();
             } catch (_) {}
             try {
@@ -8540,6 +8558,14 @@
             if (!c.id) reasons.push('нет Static ID');
             if (!mmsEntriesCount() && !mmsAttachedCount()) reasons.push('нет записей в рапорте (или прикрепите готовый файл)');
             if (typeof navigator !== 'undefined' && navigator.onLine === false) reasons.push('нет сети');
+            try {
+                const promoMode = (typeof discordSubmitMode !== 'undefined' && discordSubmitMode === 'promotion')
+                    || (typeof reportMode !== 'undefined' && reportMode === 'promotion');
+                if (promoMode) {
+                    const ranks = (typeof mmsGetClaimRanks === 'function') ? mmsGetClaimRanks() : { rank_from: '', rank_to: '' };
+                    if (!ranks.rank_from || !ranks.rank_to) reasons.push('не выбран ранг с → на');
+                }
+            } catch (_) {}
             return {
                 ok: reasons.length === 0,
                 reasons: reasons,
@@ -9282,6 +9308,24 @@ let discordPreviewSize = 'compact';
             const fromFile = Array.isArray(discordFileEntries);
             const items = fromFile ? discordFileEntries : (Array.isArray(entries) ? entries.map(mmsPreviewItemFromEntry) : []);
             const isPromo = discordSubmitMode === 'promotion';
+            if (isPromo) {
+                const ranks = (typeof mmsGetClaimRanks === 'function') ? mmsGetClaimRanks() : { rank_from: '', rank_to: '' };
+                if (!ranks.rank_from || !ranks.rank_to) {
+                    setStatus('Для повышения укажите ранг «с» и «на» в форме достижений', false);
+                    showToast('Обязательно выберите ранг с → на перед сдачей повышения', 'error', 5000);
+                    try {
+                        if (typeof switchReportMode === 'function') switchReportMode('promotion');
+                        const row = document.getElementById('promoRankClaim');
+                        if (row) {
+                            row.style.display = 'block';
+                            row.style.boxShadow = '0 0 0 2px #e74c3c';
+                            setTimeout(function () { row.style.boxShadow = ''; }, 4000);
+                            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    } catch (_) {}
+                    return;
+                }
+            }
             const typeLabel = isPromo ? 'Рапорт на повышение' : 'Еженедельный рапорт';
             const esc = escapeDiscordPreviewHtml;
             let photoCount = 0;
@@ -10428,7 +10472,7 @@ function openDiscordPreviewModal() {
                     const img = new Image();
                     img.onload = function() {
                         try {
-                            const maxSide = 256;
+                            const maxSide = 512;
                             let w = img.width, h = img.height;
                             if (w > maxSide || h > maxSide) {
                                 if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; }
@@ -12899,6 +12943,123 @@ function openDiscordPreviewModal() {
             if (!keys.length) { box.innerHTML = ''; return; }
             box.innerHTML = keys.map(k => `<span>${k}: ${map[k]}</span>`).join('');
         }
+
+
+        window.mmsImportWeeklyToPromo = function () {
+            try {
+                if (reportMode !== 'promotion') {
+                    showToast('Сначала откройте режим «Рапорт на повышение»', 'warning');
+                    return;
+                }
+                const dailyKey = (REPORT_STORAGE_KEYS && REPORT_STORAGE_KEYS.daily) || 'MMS_Raport';
+                let raw = null;
+                try { raw = localStorage.getItem(dailyKey); } catch (_) {}
+                if (!raw) {
+                    showToast('Еженедельный рапорт пуст — нечего переносить', 'warning');
+                    return;
+                }
+                let data = null;
+                try { data = JSON.parse(raw); } catch (_) {}
+                const src = (data && Array.isArray(data.entries)) ? data.entries : [];
+                if (!src.length) {
+                    showToast('В еженедельном нет записей', 'warning');
+                    return;
+                }
+                if (!confirm('Перенести ' + src.length + ' записей из еженедельного в повышение? Исходный список не удалится.')) return;
+                const cloned = src.map(function (e, i) {
+                    const o = JSON.parse(JSON.stringify(e));
+                    o.id = 'imp_' + Date.now() + '_' + i;
+                    return o;
+                });
+                entries = (entries || []).concat(cloned);
+                window.__mmsDirty = true;
+                try { saveToLocalStorage(); } catch (_) {}
+                try { renderTable(); } catch (_) {}
+                try { updateModeBadges(); } catch (_) {}
+                showToast('Перенесено записей: ' + cloned.length, 'success');
+            } catch (err) {
+                console.error(err);
+                showToast('Не удалось перенести: ' + (err.message || err), 'error');
+            }
+        };
+
+        window.mmsLoadUsefulLinks = async function () {
+            const box = document.getElementById('usefulLinksList');
+            if (box) box.textContent = 'Загрузка…';
+            try {
+                const base = (typeof MMS_PROXY_URL !== 'undefined' && MMS_PROXY_URL) || 'https://mms-report-proxy.asakulin874.workers.dev';
+                const res = await fetch(base + '/useful-links?limit=12');
+                const data = await res.json().catch(function () { return null; });
+                if (!data || !data.ok) {
+                    if (box) box.textContent = (data && data.note) || (data && data.error) || 'Не удалось загрузить ссылки';
+                    return;
+                }
+                const links = data.links || [];
+                if (!links.length) {
+                    if (box) box.innerHTML = 'Пока пусто. На Worker задайте DISCORD_BOT_TOKEN, DISCORD_CHANNEL_EXAMS, DISCORD_CHANNEL_INSPECTIONS, DISCORD_GUILD_ID.';
+                    return;
+                }
+                if (!box) return;
+                box.innerHTML = links.map(function (L) {
+                    const prev = (L.preview || '').replace(/</g, '&lt;').slice(0, 90);
+                    const url = String(L.url || '').replace(/"/g, '&quot;');
+                    const ch = (L.channel || '').replace(/</g, '&lt;');
+                    const when = (L.at || '').slice(0, 16).replace('T', ' ');
+                    return '<div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid rgba(212,175,55,0.12);">' +
+                        '<div style="flex:1;min-width:0;">' +
+                        '<div style="color:var(--gold);font-size:11px;">' + ch + (when ? (' · ' + when) : '') + '</div>' +
+                        '<div style="opacity:0.85;margin-top:2px;">' + prev + '</div>' +
+                        '</div>' +
+                        '<button type="button" class="btn-secondary" style="flex-shrink:0;font-size:11px;padding:4px 8px;" data-url="' + url + '" onclick="mmsCopyUsefulLink(this)">Копировать</button>' +
+                        '</div>';
+                }).join('');
+            } catch (e) {
+                if (box) box.textContent = 'Ошибка: ' + (e.message || e);
+            }
+        };
+
+        window.mmsCopyUsefulLink = function (btn) {
+            const url = (btn && btn.getAttribute('data-url')) || '';
+            if (!url) return;
+            const doInsert = function () {
+                const linkInp = document.getElementById('link') || document.getElementById('proofLink') || document.querySelector('input[name="link"]');
+                if (linkInp && !(linkInp.value || '').trim()) {
+                    linkInp.value = url;
+                    try { linkInp.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
+                }
+                showToast('Ссылка скопирована', 'success', 1800);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(doInsert).catch(function () {
+                    try {
+                        const ta = document.createElement('textarea');
+                        ta.value = url; document.body.appendChild(ta); ta.select();
+                        document.execCommand('copy'); document.body.removeChild(ta);
+                    } catch (_) {}
+                    doInsert();
+                });
+            } else {
+                doInsert();
+            }
+        };
+
+        window.mmsQuickSubmitDiscord = function () {
+            try {
+                if (typeof setDiscordMode === 'function') {
+                    setDiscordMode(reportMode === 'promotion' ? 'promotion' : 'week');
+                }
+                if (typeof switchTab === 'function') switchTab('discord', null);
+                setTimeout(function () {
+                    if (typeof sendReportToDiscord === 'function') sendReportToDiscord();
+                    else {
+                        const b = document.getElementById('dcSendBtn');
+                        if (b) b.click();
+                    }
+                }, 200);
+            } catch (e) {
+                showToast('Откройте вкладку «Сдача в Discord» вручную', 'warning');
+            }
+        };
 
         function resizeImageFile(file) {
             return new Promise((resolve, reject) => {
